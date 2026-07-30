@@ -1,0 +1,26 @@
+---
+description: On each milestone, automatically stage, commit, and push
+alwaysApply: true
+---
+
+# Milestone Git Sync (Automatic)
+
+## When this runs
+When a **milestone** is finished (a clear checkpoint: MVP slice done, feature working, planning locked, project rules set, or equivalent), automatically sync git to GitHub. Do **not** wait for extra confirmation.
+
+## Required steps (in order)
+1. `git status`, `git diff`, and recent `git log` (to draft a good message)
+2. `git add .` (stage everything unless they said otherwise)
+3. `git commit` with a short message focused on **why** this milestone matters
+4. `git push` to the current branch’s remote
+5. Confirm success with `git status` and share a brief “checkpoint saved” note
+
+## Rules
+- Do **not** use force push (`--force`) unless they explicitly ask.
+- Do **not** skip hooks.
+- Do **not** commit secrets (`.env`, keys, credentials). Warn if those appear, and exclude them.
+- Prefer one commit per milestone, not many tiny ones, unless they ask otherwise.
+- If there is nothing to commit, say so and skip push.
+
+## Motivation tip
+After a successful push, give a short “checkpoint saved” note so progress feels real.
