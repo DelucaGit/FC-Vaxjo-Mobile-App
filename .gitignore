@@ -3,3 +3,19 @@
 .idea/
 *.iml
 .vscode/
+
+# Secrets — never commit these
+.env
+.env.local
+.env.*.local
+
+# Node / Expo
+node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+npm-debug.log*
+.DS_Store
+
+.claude/
+mobile/.claude/

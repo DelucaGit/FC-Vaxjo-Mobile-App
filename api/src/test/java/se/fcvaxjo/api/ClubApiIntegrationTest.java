@@ -153,7 +153,7 @@ class ClubApiIntegrationTest {
                                   "firstName": "%s",
                                   "lastName": "%s",
                                   "email": "%s",
-                                  "password": "secret",
+                                  "password": "secret123",
                                   "role": "%s"
                                 }
                                 """.formatted(firstName, lastName, email, role)))

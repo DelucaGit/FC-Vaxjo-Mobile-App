@@ -102,14 +102,14 @@ Responses never include passwords. Integration test covers create user → team 
    - `POST /api/auth/register` → parent signup + JWT
 4. All other `/api/**` routes need header: `Authorization: Bearer <token>`
 5. `POST /api/users` is **ADMIN only** (create coaches/admins/players).
-6. A local admin is seeded on startup (`admin@fcvaxjo.local` / `changeme`).
+6. Admin seeding is **optional** (`ADMIN_SEED=true`) and password comes from env.
 
 **Login example:**
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@fcvaxjo.local","password":"changeme"}'
+  -d '{"email":"YOUR_ADMIN_EMAIL","password":"YOUR_ADMIN_PASSWORD"}'
 ```
 
 Then use the token:
@@ -118,6 +118,27 @@ Then use the token:
 curl http://localhost:8080/api/teams \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
+
+### Step 5 — Mobile app + full Docker test stack
+
+1. Created Expo React Native app in `mobile/` (login, parent register, teams/players).
+2. JWT stored in SecureStore on device / sessionStorage on web.
+3. Removed secrets from source code — use `.env` (from `.env.example`).
+4. `docker compose up --build` runs:
+   - PostgreSQL
+   - Java API
+   - Mobile web UI at http://localhost:8081
+5. Added `README.md` with run instructions.
+
+**Test everything:**
+
+```bash
+cp .env.example .env
+# edit secrets in .env
+docker compose up --build
+```
+
+Open http://localhost:8081 and log in with your `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 ---
 
 ## Decisions and why
@@ -203,18 +224,34 @@ A transaction keeps the DB session open long enough to read them safely.
 **Why:** Anyone on the internet should not be able to create an ADMIN or COACH.
 Parents can self-register. Club staff accounts are created by an admin.
 
-### Decision 16: Seed a local admin on startup
+### Decision 16: Seed admin only when explicitly enabled
 
-**Why:** You need one admin to log in and create coaches/teams while learning.
-Change the default password before any real deployment.
+**Why:** Production should not invent admin accounts by accident.
+Docker/local learning sets `ADMIN_SEED=true` and provides `ADMIN_PASSWORD` via `.env`.
+
+### Decision 17: Secrets only in environment / `.env`
+
+**Why:** Source code is often pushed to GitHub. Passwords and JWT secrets
+must never live in committed files. `.env` is gitignored; `.env.example` has placeholders only.
+
+### Decision 18: Expo web export inside Docker for testing
+
+**Why:** You asked for an app you can test in Docker. Native Android emulators
+are heavy. We ship a web build of the same React Native app on port 8081
+so you can click through login/teams/players in a browser. Android via Expo Go stays available later.
+
+### Decision 19: CORS allow-list instead of `*`
+
+**Why:** Only known front-end origins (localhost Expo web) may call the API from a browser.
 
 ---
 
 ## Suggested next steps (not done yet)
 
-1. Start the React Native app (login screen + call API with JWT).
-2. Tighten permissions (e.g. coaches only see their teams).
-3. Deploy to AWS when ready — with a cheap setup.
+1. Tighten permissions (e.g. coaches only see their teams; parents only their children).
+2. Add `/api/auth/me` endpoint.
+3. Try the app on a real Android phone with Expo Go.
+4. Deploy to AWS when ready — with a cheap setup (still aim under ~$100/month).
 ---
 
 ## Cost notes (keep under ~$100/month)

@@ -53,6 +53,12 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
+		<!-- Health check for Docker -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- Create and read JWT tokens (signed login tokens) -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

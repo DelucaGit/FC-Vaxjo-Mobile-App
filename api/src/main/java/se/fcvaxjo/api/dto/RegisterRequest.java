@@ -2,6 +2,7 @@ package se.fcvaxjo.api.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * Body for POST /api/auth/register.
@@ -11,7 +12,7 @@ public record RegisterRequest(
         @NotBlank String firstName,
         @NotBlank String lastName,
         @NotBlank @Email String email,
-        @NotBlank String password,
+        @NotBlank @Size(min = 8, max = 100) String password,
         String phone
 ) {
 }

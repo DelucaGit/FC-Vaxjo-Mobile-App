@@ -12,8 +12,8 @@ import se.fcvaxjo.api.models.User;
 import se.fcvaxjo.api.repositories.UserRepository;
 
 /**
- * Creates the first ADMIN user on startup if it does not exist.
- * Useful for local learning so you can log in immediately.
+ * Optionally creates the first ADMIN user.
+ * Only runs when fcvaxjo.admin.seed=true and a password is provided via env.
  */
 @Component
 public class AdminUserSeeder implements ApplicationRunner {
@@ -36,8 +36,22 @@ public class AdminUserSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        String email = properties.admin().email();
+        if (!properties.admin().seed()) {
+            log.info("Admin seeding is disabled (fcvaxjo.admin.seed=false).");
+            return;
+        }
 
+        String password = properties.admin().password();
+        if (password == null || password.isBlank()) {
+            throw new IllegalStateException(
+                    "ADMIN_SEED=true but ADMIN_PASSWORD is missing. Set ADMIN_PASSWORD in your environment."
+            );
+        }
+        if (password.length() < 8) {
+            throw new IllegalStateException("ADMIN_PASSWORD must be at least 8 characters.");
+        }
+
+        String email = properties.admin().email();
         if (userRepository.findByEmail(email).isPresent()) {
             return;
         }
@@ -46,10 +60,10 @@ public class AdminUserSeeder implements ApplicationRunner {
         admin.setFirstName(properties.admin().firstName());
         admin.setLastName(properties.admin().lastName());
         admin.setEmail(email);
-        admin.setPassword(passwordEncoder.encode(properties.admin().password()));
+        admin.setPassword(passwordEncoder.encode(password));
         admin.setRole(Role.ADMIN);
 
         userRepository.save(admin);
-        log.info("Created local admin user: {}", email);
+        log.info("Created admin user from environment config: {}", email);
     }
 }
