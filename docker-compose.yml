@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: fcvaxjo-db
+    environment:
+      POSTGRES_DB: fcvaxjo
+      POSTGRES_USER: fcvaxjo
+      POSTGRES_PASSWORD: fcvaxjo
+    ports:
+      - "5432:5432"
+    volumes:
+      - fcvaxjo_pgdata:/var/lib/postgresql/data
+
+volumes:
+  fcvaxjo_pgdata:

@@ -35,7 +35,7 @@ Build a **mobile Android app for FC Växjö** (football club) so the club can ke
 - Simple models: `User`, `Role`, `Player`
 - No database yet, no REST endpoints yet, no React Native app yet
 
-### What we did in this step
+### Step 1 — Better models + journey log
 
 1. Created this `PROGRESS.md` journey file.
 2. Improved the Java models so real club relationships are clearer:
@@ -45,6 +45,26 @@ Build a **mobile Android app for FC Växjö** (football club) so the club can ke
    - Coaches belong to a **team** (not to a single player)
    - A player can have **several parents**
    - A young player may not have their own login yet (`user` on Player is optional)
+
+### Step 2 — Connect PostgreSQL (Spring Data JPA)
+
+1. Added `spring-boot-starter-data-jpa` and the PostgreSQL driver to `api/pom.xml`.
+2. Turned `User`, `Team`, and `Player` into `@Entity` classes (real database tables).
+3. Added repositories (`UserRepository`, `TeamRepository`, `PlayerRepository`) so we can save/load data.
+4. Added `docker-compose.yml` to run PostgreSQL locally for **$0**.
+5. Tests use H2 (in-memory) so CI / cloud agents can run without Docker.
+
+**How you start the local database on your machine:**
+
+```bash
+docker compose up -d
+```
+
+Then run the API from `api/`:
+
+```bash
+./mvnw spring-boot:run
+```
 
 ---
 
@@ -74,33 +94,47 @@ duplicating the same coach on every player.
 
 ### Decision 5: Parents are a list on `Player` (many parents per player)
 
-**Why:** A child often has two guardians. One parent can also have several children
-(we will model “parent → many players” more fully when we add the database).
+**Why:** A child often has two guardians. One parent can also have several children.
+In the database this is a many-to-many table called `player_parents`.
 
 ### Decision 6: `Player.user` is optional
 
 **Why:** Young players may not have their own phone/login.
 Parents manage them until the player is old enough for an account.
 
-### Decision 7: Keep models as plain Java for now (no JPA annotations yet)
+### Decision 7: Use Spring Data JPA + Hibernate `ddl-auto=update` while learning
 
-**Why:** Easier to read and review. Next step is adding Spring Data JPA
-and turning these classes into real database tables.
+**Why:** Hibernate can create/update tables from our Java classes.
+That is fast for learning. Later (before real production) we switch to
+Flyway (or Liquibase) migration scripts so table changes are controlled.
 
 ### Decision 8: Develop locally first; AWS later
 
-**Why:** AWS costs money. Local API + local PostgreSQL costs $0 while we learn.
+**Why:** AWS costs money. Local API + local PostgreSQL (Docker) costs $0 while we learn.
 We only deploy when the app actually works.
+
+### Decision 9: Table name `app_users` instead of `users` / `user`
+
+**Why:** `user` is a reserved word in PostgreSQL. `app_users` avoids confusing SQL errors.
+
+### Decision 10: H2 for tests, PostgreSQL for real runs
+
+**Why:** Tests should run without installing Docker everywhere.
+H2 is free and in-memory. Your real app still uses PostgreSQL locally/on AWS.
+
+### Decision 11: Passwords are plain text for now (temporary)
+
+**Why:** We focus on “can we save users to the DB?” first.
+Next security step must hash passwords — never ship plain-text passwords.
 
 ---
 
 ## Suggested next steps (not done yet)
 
-1. Add PostgreSQL + Spring Data JPA (save models in a real database).
-2. Add REST endpoints (create user, list players, assign team, etc.).
-3. Add login / security.
-4. Start the React Native app (login + player list).
-5. Deploy to AWS when ready — with a cheap setup.
+1. Add REST endpoints (create user, list players, assign team, etc.).
+2. Add login / security (and hash passwords).
+3. Start the React Native app (login + player list).
+4. Deploy to AWS when ready — with a cheap setup.
 
 ---
 
@@ -108,7 +142,7 @@ We only deploy when the app actually works.
 
 | Phase | Expected cost |
 |--------|----------------|
-| Local development | ~$0 |
+| Local development (Docker Postgres + Spring Boot) | ~$0 |
 | Small AWS API + PostgreSQL (careful Free Tier / tiny instances) | aim for ~$0–40 while learning |
 | Domain name (optional, later) | ~$10–15 / year |
 
