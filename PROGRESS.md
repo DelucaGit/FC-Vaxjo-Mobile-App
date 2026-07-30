@@ -66,6 +66,32 @@ Then run the API from `api/`:
 ./mvnw spring-boot:run
 ```
 
+### Step 3 — REST API endpoints
+
+Added a clear 3-layer layout:
+
+1. **Controller** — receives HTTP requests (`/api/...`)
+2. **Service** — business rules (e.g. “parent must have PARENT role”)
+3. **Repository** — talks to the database
+
+Main endpoints:
+
+| Method | Path | What it does |
+|--------|------|----------------|
+| POST | `/api/users` | Create a user |
+| GET | `/api/users` | List users |
+| GET | `/api/users/{id}` | Get one user |
+| POST | `/api/teams` | Create a team |
+| GET | `/api/teams` | List teams |
+| GET | `/api/teams/{id}` | Get one team |
+| POST | `/api/teams/{teamId}/coaches/{coachUserId}` | Assign coach to team |
+| POST | `/api/players` | Create a player |
+| GET | `/api/players` | List players (`?teamId=` optional) |
+| GET | `/api/players/{id}` | Get one player |
+| POST | `/api/players/{playerId}/parents/{parentUserId}` | Link parent |
+| PUT | `/api/players/{playerId}/team/{teamId}` | Assign player to team |
+
+Responses never include passwords. Integration test covers create user → team → player → parent link.
 ---
 
 ## Decisions and why
