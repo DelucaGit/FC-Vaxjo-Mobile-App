@@ -153,15 +153,30 @@ H2 is free and in-memory. Your real app still uses PostgreSQL locally/on AWS.
 **Why:** We focus on “can we save users to the DB?” first.
 Next security step must hash passwords — never ship plain-text passwords.
 
+### Decision 12: Controllers → Services → Repositories
+
+**Why:** Keeps each file easy to read.
+- Controllers only handle HTTP
+- Services hold rules (roles, “already exists”, etc.)
+- Repositories only save/load data
+
+### Decision 13: DTOs instead of returning entities directly
+
+**Why:** We can hide passwords and shape JSON for the mobile app
+without changing the database tables.
+
+### Decision 14: `@Transactional` on services
+
+**Why:** Hibernate loads related lists (coaches, parents) lazily.
+A transaction keeps the DB session open long enough to read them safely.
+
 ---
 
 ## Suggested next steps (not done yet)
 
-1. Add REST endpoints (create user, list players, assign team, etc.).
-2. Add login / security (and hash passwords).
-3. Start the React Native app (login + player list).
-4. Deploy to AWS when ready — with a cheap setup.
-
+1. Add login / security (and hash passwords).
+2. Start the React Native app (login + player list).
+3. Deploy to AWS when ready — with a cheap setup.
 ---
 
 ## Cost notes (keep under ~$100/month)
