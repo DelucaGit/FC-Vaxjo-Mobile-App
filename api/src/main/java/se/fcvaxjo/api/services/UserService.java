@@ -3,6 +3,7 @@ package se.fcvaxjo.api.services;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,9 +22,11 @@ import se.fcvaxjo.api.repositories.UserRepository;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -36,8 +39,8 @@ public class UserService {
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setEmail(request.email());
-        // Temporary: plain text. We will hash passwords in the security step.
-        user.setPassword(request.password());
+        // Store a hash, never the real password text.
+        user.setPassword(passwordEncoder.encode(request.password()));
         user.setPhone(request.phone());
         user.setRole(request.role());
 

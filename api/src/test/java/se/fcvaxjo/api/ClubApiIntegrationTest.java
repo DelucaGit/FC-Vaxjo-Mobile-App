@@ -6,10 +6,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,7 +21,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * End-to-end style test: create users/team/player through the REST API.
+ * End-to-end style test with JWT login.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -32,12 +34,35 @@ class ClubApiIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private String adminToken;
+
+    @BeforeEach
+    void loginAsAdmin() throws Exception {
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "admin@fcvaxjo.local",
+                                  "password": "changeme"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andReturn();
+
+        adminToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+                .get("token")
+                .asString();
+    }
+
     @Test
-    void createTeamPlayerAndLinkParent() throws Exception {
-        long parentId = createUser("Anna", "Parent", "anna.parent@example.com", "PARENT");
-        long coachId = createUser("Erik", "Coach", "erik.coach@example.com", "COACH");
+    void createTeamPlayerAndLinkParentWithJwt() throws Exception {
+        long parentId = createUserAsAdmin("Anna", "Parent", "anna.parent@example.com", "PARENT");
+        long coachId = createUserAsAdmin("Erik", "Coach", "erik.coach@example.com", "COACH");
 
         MvcResult teamResult = mockMvc.perform(post("/api/teams")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -52,11 +77,13 @@ class ClubApiIntegrationTest {
 
         long teamId = objectMapper.readTree(teamResult.getResponse().getContentAsString()).get("id").asLong();
 
-        mockMvc.perform(post("/api/teams/" + teamId + "/coaches/" + coachId))
+        mockMvc.perform(post("/api/teams/" + teamId + "/coaches/" + coachId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.coaches[0].email").value("erik.coach@example.com"));
 
         MvcResult playerResult = mockMvc.perform(post("/api/players")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -76,18 +103,50 @@ class ClubApiIntegrationTest {
 
         long playerId = objectMapper.readTree(playerResult.getResponse().getContentAsString()).get("id").asLong();
 
-        mockMvc.perform(get("/api/players").param("teamId", String.valueOf(teamId)))
+        mockMvc.perform(get("/api/players").param("teamId", String.valueOf(teamId))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(playerId));
 
-        // Assign same team again via PUT — still works.
-        mockMvc.perform(put("/api/players/" + playerId + "/team/" + teamId))
+        mockMvc.perform(put("/api/players/" + playerId + "/team/" + teamId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.teamId").value(teamId));
     }
 
-    private long createUser(String firstName, String lastName, String email, String role) throws Exception {
+    @Test
+    void parentCanRegisterAndUseToken() throws Exception {
+        MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "firstName": "Sara",
+                                  "lastName": "Nilsson",
+                                  "email": "sara.parent@example.com",
+                                  "password": "secret123"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.user.role").value("PARENT"))
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andReturn();
+
+        String parentToken = objectMapper.readTree(registerResult.getResponse().getContentAsString())
+                .get("token")
+                .asString();
+
+        mockMvc.perform(get("/api/users")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(parentToken)))
+                .andExpect(status().isOk());
+
+        // No token → blocked
+        mockMvc.perform(get("/api/users"))
+                .andExpect(status().isForbidden());
+    }
+
+    private long createUserAsAdmin(String firstName, String lastName, String email, String role) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/users")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -105,5 +164,9 @@ class ClubApiIntegrationTest {
 
         JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
         return json.get("id").asLong();
+    }
+
+    private static String bearer(String token) {
+        return "Bearer " + token;
     }
 }

@@ -92,6 +92,32 @@ Main endpoints:
 | PUT | `/api/players/{playerId}/team/{teamId}` | Assign player to team |
 
 Responses never include passwords. Integration test covers create user → team → player → parent link.
+
+### Step 4 — JWT login + password hashing
+
+1. Added Spring Security + JWT (jjwt).
+2. Passwords are hashed with **BCrypt** (never stored as plain text).
+3. Public endpoints:
+   - `POST /api/auth/login` → returns a JWT
+   - `POST /api/auth/register` → parent signup + JWT
+4. All other `/api/**` routes need header: `Authorization: Bearer <token>`
+5. `POST /api/users` is **ADMIN only** (create coaches/admins/players).
+6. A local admin is seeded on startup (`admin@fcvaxjo.local` / `changeme`).
+
+**Login example:**
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@fcvaxjo.local","password":"changeme"}'
+```
+
+Then use the token:
+
+```bash
+curl http://localhost:8080/api/teams \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
 ---
 
 ## Decisions and why
@@ -148,10 +174,12 @@ We only deploy when the app actually works.
 **Why:** Tests should run without installing Docker everywhere.
 H2 is free and in-memory. Your real app still uses PostgreSQL locally/on AWS.
 
-### Decision 11: Passwords are plain text for now (temporary)
+### Decision 11: Hash passwords with BCrypt + use JWT for login
 
-**Why:** We focus on “can we save users to the DB?” first.
-Next security step must hash passwords — never ship plain-text passwords.
+**Why:**
+- BCrypt stores a one-way hash, so a DB leak does not reveal real passwords.
+- JWT lets the mobile app prove “I logged in” without server sessions.
+- Stateless JWT fits React Native well (send token on each request).
 
 ### Decision 12: Controllers → Services → Repositories
 
@@ -170,12 +198,22 @@ without changing the database tables.
 **Why:** Hibernate loads related lists (coaches, parents) lazily.
 A transaction keeps the DB session open long enough to read them safely.
 
+### Decision 15: Public register is PARENT-only; admin creates other roles
+
+**Why:** Anyone on the internet should not be able to create an ADMIN or COACH.
+Parents can self-register. Club staff accounts are created by an admin.
+
+### Decision 16: Seed a local admin on startup
+
+**Why:** You need one admin to log in and create coaches/teams while learning.
+Change the default password before any real deployment.
+
 ---
 
 ## Suggested next steps (not done yet)
 
-1. Add login / security (and hash passwords).
-2. Start the React Native app (login + player list).
+1. Start the React Native app (login screen + call API with JWT).
+2. Tighten permissions (e.g. coaches only see their teams).
 3. Deploy to AWS when ready — with a cheap setup.
 ---
 

@@ -39,8 +39,7 @@ public class User {
     private String email;
 
     /**
-     * Stored as plain text for now while we learn.
-     * Next security step: hash passwords (never store real passwords like this).
+     * Hashed password (BCrypt). Never store plain text passwords.
      */
     @Column(nullable = false)
     private String password;
