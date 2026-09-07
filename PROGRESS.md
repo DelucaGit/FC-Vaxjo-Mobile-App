@@ -30,7 +30,7 @@ For the repository structure I will go for a monorepo where I keep everything in
 I will not have microservices for several reasons:
 - More services means more AWS usage and that means higher costs.
 - As a junior developer I am trying to build something stable at first.
-- Since FC Växjö belongs to my wife's father, if the app goes down entirely I know I won't be in major trouble.
+- Since FC Växjö belongs to my wife's father, if the app goes down entirely I know I won't be in major trouble. It doesn't mean I don't love him, I just know that I will survive the fall. 
 
 Inside the API folder I will use layers: controller, service, repository and models. That keeps the code easier to read.
 
@@ -52,9 +52,59 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
+Status: Not started.    
+
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
-- Create a user
-- Append a role to the user
+- Create a user with a role (ADMIN or COACH does this in the UI)
+- Change the user's role with PUT
 - Fetch the user and showcase the user data through Postman
 - The data should be stored in PostgreSQL locally
+
+# API design diagrams (7/9-2026)
+
+Work diagrams live in one file: `API/Diagrams/api-layers-and-roles.drawio`.
+
+Same file, two pages (not two files). Why: both views belong to the same API. draw.io already uses page tabs. Git history stays on one path. Split into separate files later only if a diagram gets a different owner or grows huge.
+
+Page 1 is layers. Page 2 is users and roles. Short labels, no teaching copy. I replaced the first teaching sketch with this.
+
+## Layers
+
+Request order: Client → Controller → Service → Repository → PostgreSQL.
+
+Packages for Version 1:
+
+- `controller/` UserController
+- `service/` UserService
+- `repository/` UserRepository, RoleRepository
+- `model/` User, Role
+
+Rules: calls only go down. The controller does not use a repository. `model` is shared data, not a fourth layer.
+
+Version 1 endpoints on the controller:
+
+- POST /users — create user with a role
+- PUT /users/{id}/role — replace the role
+- GET /users/{id} — fetch the user
+
+## Users and roles
+
+Two tables: `users` and `roles`. No join table. A user has exactly one role (`users.roleId`, required). Many users can share the same role (many PLAYERs).
+
+Why one role for now: the create-user screen picks one role. PUT replaces it. PARENT + COACH on the same person is out of scope. We can add a join table later if we need several roles.
+
+Role names (seed data, not created by users in Version 1):
+
+- ADMIN
+- COACH
+- PLAYER
+- PARENT
+
+Who may create users and change roles:
+
+- ADMIN → ADMIN, COACH, PLAYER, PARENT
+- COACH → PLAYER, PARENT only (cannot grant ADMIN or COACH)
+- PLAYER / PARENT → none
+
+The first ADMIN is seed data. After that, only ADMIN and COACH use POST /users. Extra powers (schedules, attendance, notifications) come later. Version 1 only stores the user and the role.
