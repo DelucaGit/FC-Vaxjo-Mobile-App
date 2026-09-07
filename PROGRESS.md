@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: Not started.    
+Status: In progress. The API runs, and the `users` and `roles` tables exist in PostgreSQL. Controller, service and repository are not built yet. 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -118,3 +118,20 @@ Local PostgreSQL 18 is installed. Database name: `fcvaxjo_db`. Cost: $0 (on my P
 The app starts with `.\mvnw.cmd spring-boot:run` and Tomcat listens on port 8080.
 
 The database password is not in Git. It lives in `API/.env` (`DB_PASSWORD`). `application.properties` reads `${DB_PASSWORD}`. A library `springboot4-dotenv` loads the `.env` file. `.env` is in `.gitignore`. `.env.example` is committed with an empty key name only.
+
+# User and Role models (7/9-2026)
+
+I added the first Java models under `API/src/main/java/se/fcvaxjo/api/model/`:
+
+- `Role.java` — id, name (name is unique)
+- `User.java` — id, name, email (unique), roleId (required, column `role_id`)
+
+They are JPA `@Entity` classes. `@Table` maps them to `roles` and `users`. `@Id` plus `@GeneratedValue(IDENTITY)` lets PostgreSQL fill in the id.
+
+I first imported the wrong `@Id` (`org.springframework.data.annotation.Id`). That one is not for JPA/Postgres. The correct import is `jakarta.persistence.Id`.
+
+I added Lombok (`@Getter`, `@Setter`) so I do not write get/set methods by hand. Lombok is only used at compile time. Cost: $0. Cost later: those methods are hidden until I remember they exist.
+
+I also set `spring.jpa.hibernate.ddl-auto=update` for local Version 1. When I restarted the API, Hibernate created the two tables in `fcvaxjo_db`. I confirmed them in pgAdmin. They are empty. Next step is the repository layer.
+
+`ddl-auto=update` is fine on my PC. I will not use it on a real AWS database later, because it can change tables in ways that are hard to undo.
