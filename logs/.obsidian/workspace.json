@@ -14,7 +14,7 @@
               "type": "markdown",
               "state": {
                 "file": "Developer Log of FC Växjö Mobile App.md",
-                "mode": "preview",
+                "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
@@ -188,8 +188,11 @@
       "bases:Create new base": false
     }
   },
-  "active": "de5074fad60657d2",
+  "active": "fa9180e63d9a22d0",
   "lastOpenFiles": [
+    "obsidian-attachments/Created tables inside pgAdmin.png",
+    "obsidian-attachments/Diagram (2).png",
+    "obsidian-attachments/Diagram.png",
     "obsidian-attachments/How it looks inside a task (2).png",
     "obsidian-attachments/How it looks inside a task.png",
     "obsidian-attachments/Project Board on Github.png",
