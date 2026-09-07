@@ -58,3 +58,20 @@ For the initial version of the app I want to have some functions up and running 
 - Append a role to the user
 - Fetch the user and showcase the user data through Postman
 - The data should be stored in PostgreSQL locally
+
+# Progress log
+
+## 2026-09-07 — Locked API structure (diagram)
+
+We decided Version 1 API will use three layers:
+
+1. Controller (HTTP)
+2. Service (business rules)
+3. Repository (database)
+
+Roles will be a Java **enum** (not a record): `ADMIN`, `COACH`, `PARENT`, `PLAYER`.
+
+Records will come later for request/response JSON (for example `CreateUserRequest`).
+
+Diagram saved at: `docs/fcvaxjo-api-layers.drawio`  
+Open it in [diagrams.net](https://app.diagrams.net/) or the Draw.io VS Code extension if you want to edit it.

@@ -1,0 +1,99 @@
+<mxfile host="app.diagrams.net" agent="Cursor" version="22.1.0">
+  <diagram id="fcvaxjo-api-layers" name="API layers and roles">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="FC Växjö API — Version 1 structure" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#14201B;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="520" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Three layers for the Java Spring Boot API + the Role enum" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#5C6B64;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="520" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Request arrow label -->
+        <mxCell id="req-label" value="Postman / App sends HTTP" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#5C6B64;" vertex="1" parent="1">
+          <mxGeometry x="80" y="110" width="200" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Controller -->
+        <mxCell id="controller" value="&lt;b&gt;1. Controller&lt;/b&gt;&lt;br&gt;Receives HTTP requests&lt;br&gt;Example: POST /api/users&lt;br&gt;Returns JSON responses" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B3D2E;fontColor=#FFFFFF;strokeColor=#0B3D2E;align=center;verticalAlign=middle;fontSize=13;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="140" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow Controller -> Service -->
+        <mxCell id="arrow1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#145C45;endArrow=block;endFill=1;" edge="1" parent="1" source="controller" target="service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1-label" value="calls" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#5C6B64;" vertex="1" connectable="0" parent="arrow1">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint x="18" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Service -->
+        <mxCell id="service" value="&lt;b&gt;2. Service&lt;/b&gt;&lt;br&gt;Business rules&lt;br&gt;Example: email already used?&lt;br&gt;role must be valid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#145C45;fontColor=#FFFFFF;strokeColor=#145C45;align=center;verticalAlign=middle;fontSize=13;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow Service -> Repository -->
+        <mxCell id="arrow2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#145C45;endArrow=block;endFill=1;" edge="1" parent="1" source="service" target="repository">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2-label" value="calls" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#5C6B64;" vertex="1" connectable="0" parent="arrow2">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint x="18" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Repository -->
+        <mxCell id="repository" value="&lt;b&gt;3. Repository&lt;/b&gt;&lt;br&gt;Talks to the database&lt;br&gt;Save user / find user by id&lt;br&gt;(Spring Data JPA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F7A5C;fontColor=#FFFFFF;strokeColor=#1F7A5C;align=center;verticalAlign=middle;fontSize=13;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="420" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow Repository -> Database -->
+        <mxCell id="arrow3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#145C45;endArrow=block;endFill=1;" edge="1" parent="1" source="repository" target="database">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Database -->
+        <mxCell id="database" value="&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br&gt;Stores users and roles&lt;br&gt;(local for Version 1)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#F3F0E7;strokeColor=#0B3D2E;fontColor=#14201B;fontSize=13;align=center;" vertex="1" parent="1">
+          <mxGeometry x="115" y="560" width="170" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Roles box -->
+        <mxCell id="roles-title" value="Role (Java enum)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#14201B;" vertex="1" parent="1">
+          <mxGeometry x="420" y="140" width="240" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="roles-note" value="Fixed list of allowed roles.&lt;br&gt;Not a record — an enum." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#5C6B64;" vertex="1" parent="1">
+          <mxGeometry x="420" y="168" width="280" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="role-admin" value="&lt;b&gt;ADMIN&lt;/b&gt;&lt;br&gt;Club staff — manage users/teams" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0B3D2E;fontColor=#14201B;align=left;spacingLeft=12;spacingRight=12;spacing=6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="220" width="280" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="role-coach" value="&lt;b&gt;COACH&lt;/b&gt;&lt;br&gt;Trains a team" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0B3D2E;fontColor=#14201B;align=left;spacingLeft=12;spacingRight=12;spacing=6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="285" width="280" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="role-parent" value="&lt;b&gt;PARENT&lt;/b&gt;&lt;br&gt;Guardian of one or more players" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0B3D2E;fontColor=#14201B;align=left;spacingLeft=12;spacingRight=12;spacing=6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="350" width="280" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="role-player" value="&lt;b&gt;PLAYER&lt;/b&gt;&lt;br&gt;Player with their own login (optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0B3D2E;fontColor=#14201B;align=left;spacingLeft=12;spacingRight=12;spacing=6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="415" width="280" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Link note: User has a Role -->
+        <mxCell id="link-note" value="Each User has one Role" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F0E7;strokeColor=#145C45;fontColor=#14201B;fontSize=12;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="490" width="280" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Reminder -->
+        <mxCell id="reminder" value="Reminder: records come later for API request/response JSON.&lt;br&gt;Example: CreateUserRequest(firstName, lastName, email, role)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#5C6B64;" vertex="1" parent="1">
+          <mxGeometry x="40" y="680" width="660" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
