@@ -11,8 +11,8 @@ So far the project is going good. I have decided not to mention anything on Link
 
 Last note. I discovered the Project Board on Github where I can set up all the objectives and tasks I need to work on. Amazing tool to keep track of the tasks. I then had a crazy idea to connect Cursor to that project board. Cursor already has access to my Github but could it connect to my project board and access the tasks and upload new tasks? Turns out it can. I think this will be very useful for the project and keep the flow of work very smoothly.
 
-![[Project Board on Github.png]]
+![Project Board on Github](obsidian-attachments/Project%20Board%20on%20Github.png)
 
-![[How it looks inside a task.png]]
+![How it looks inside a task](obsidian-attachments/How%20it%20looks%20inside%20a%20task.png)
 
-![[How it looks inside a task (2).png]]
+![How it looks inside a task (2)](obsidian-attachments/How%20it%20looks%20inside%20a%20task%20(2).png)

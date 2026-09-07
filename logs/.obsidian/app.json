@@ -1,4 +1,5 @@
 {
   "attachmentFolderPath": "obsidian-attachments",
-  "alwaysUpdateLinks": true
+  "alwaysUpdateLinks": true,
+  "useMarkdownLinks": true
 }

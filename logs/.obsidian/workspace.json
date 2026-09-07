@@ -14,7 +14,7 @@
               "type": "markdown",
               "state": {
                 "file": "Developer Log of FC Växjö Mobile App.md",
-                "mode": "source",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
@@ -188,7 +188,7 @@
       "bases:Create new base": false
     }
   },
-  "active": "fa9180e63d9a22d0",
+  "active": "de5074fad60657d2",
   "lastOpenFiles": [
     "obsidian-attachments/How it looks inside a task (2).png",
     "obsidian-attachments/How it looks inside a task.png",
