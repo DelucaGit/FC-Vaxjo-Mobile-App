@@ -1,159 +1,141 @@
-<mxfile host="65bd71144e" modified="2026-09-07T19:24:00.000Z" agent="Cursor" version="22.1.16" type="device">
-  <diagram id="api-layers" name="API layers">
-    <mxGraphModel dx="912" dy="629" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-
-        <mxCell id="p1-title" value="API layers" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#1A202C;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="400" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="p1-sub" value="Spring Boot · Version 1 · request flows down, never up" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontColor=#4A5568;" vertex="1" parent="1">
-          <mxGeometry x="40" y="48" width="500" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-client" value="Client&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Expo app / Postman&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#4A5568;fontSize=14;fontStyle=1;fontColor=#1A202C;" vertex="1" parent="1">
-          <mxGeometry x="300" y="80" width="280" height="50" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-api" value="Spring Boot API" style="swimlane;container=1;collapsible=0;fontStyle=1;startSize=36;fillColor=#2D3748;fontColor=#FFFFFF;strokeColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="200" y="170" width="480" height="460" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-controller" value="controller&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;UserController&lt;br&gt;POST /users&lt;br&gt;PUT /users/{id}/role&lt;br&gt;GET /users/{id}&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontStyle=1;fontColor=#1A365D;align=left;spacingLeft=16;spacingTop=6;" vertex="1" parent="p1-api">
-          <mxGeometry x="20" y="50" width="440" height="110" as="geometry" />
-        </mxCell>
-        <mxCell id="p1-service" value="service&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;UserService&lt;br&gt;createUser · changeRole · getUser&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=13;fontStyle=1;fontColor=#7B341E;align=left;spacingLeft=16;spacingTop=8;" vertex="1" parent="p1-api">
-          <mxGeometry x="20" y="190" width="440" height="90" as="geometry" />
-        </mxCell>
-        <mxCell id="p1-repository" value="repository&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;UserRepository · RoleRepository&lt;br&gt;save · findById · findByEmail · findByName&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;fontStyle=1;fontColor=#22543D;align=left;spacingLeft=16;spacingTop=8;" vertex="1" parent="p1-api">
-          <mxGeometry x="20" y="310" width="440" height="90" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-e-c-s" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4A5568;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="p1-api" source="p1-controller" target="p1-service">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="p1-e-s-r" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4A5568;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="p1-api" source="p1-service" target="p1-repository">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-db" value="PostgreSQL&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;users · roles&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#E2E8F0;strokeColor=#4A5568;fontSize=13;fontStyle=1;fontColor=#1A202C;" vertex="1" parent="1">
-          <mxGeometry x="310" y="680" width="260" height="80" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-e-client" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;fontColor=#2B6CB0;strokeColor=#2B6CB0;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p1-client" target="p1-api">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="p1-e-db" value="JPA / SQL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;fontColor=#276749;strokeColor=#276749;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p1-api" target="p1-db">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-packages" value="Packages" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="760" y="170" width="300" height="250" as="geometry" />
-        </mxCell>
-        <mxCell id="p1-pkg-body" value="controller/&lt;br&gt;&amp;nbsp;&amp;nbsp;UserController&lt;br&gt;service/&lt;br&gt;&amp;nbsp;&amp;nbsp;UserService&lt;br&gt;repository/&lt;br&gt;&amp;nbsp;&amp;nbsp;UserRepository&lt;br&gt;&amp;nbsp;&amp;nbsp;RoleRepository&lt;br&gt;model/&lt;br&gt;&amp;nbsp;&amp;nbsp;User&lt;br&gt;&amp;nbsp;&amp;nbsp;Role" style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=16;spacingTop=4;fontSize=12;fontColor=#1A202C;fontFamily=Courier New;" vertex="1" parent="p1-packages">
-          <mxGeometry y="32" width="300" height="218" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p1-rules" value="Rules&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;Controller → Service → Repository&lt;br&gt;Never call upwards.&lt;br&gt;Controller does not use Repository.&lt;br&gt;model is shared data, not a layer.&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4A5568;fontSize=13;fontStyle=1;fontColor=#1A202C;align=left;spacingLeft=14;spacingTop=8;" vertex="1" parent="1">
-          <mxGeometry x="760" y="440" width="300" height="130" as="geometry" />
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
-  <diagram id="users-and-roles" name="Users and roles">
-    <mxGraphModel dx="912" dy="629" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-
-        <mxCell id="p2-title" value="Users and roles" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#1A202C;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="400" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-sub" value="One role per user · role is set on create · PUT replaces it" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontColor=#4A5568;" vertex="1" parent="1">
-          <mxGeometry x="40" y="48" width="600" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-user" value="User" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#DAE8FC;swimlaneFillColor=#FFFFFF;strokeColor=#6C8EBF;fontSize=14;fontColor=#1A365D;" vertex="1" parent="1">
-          <mxGeometry x="120" y="140" width="260" height="200" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-user-line" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" vertex="1" parent="p2-user">
-          <mxGeometry y="32" width="260" height="8" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-user-fields" value="id : Long  {PK}&lt;br&gt;name : String&lt;br&gt;email : String  {UK}&lt;br&gt;roleId : Long  {FK, required}" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=12;spacingRight=8;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=12;fontColor=#1A202C;" vertex="1" parent="p2-user">
-          <mxGeometry y="40" width="260" height="100" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-user-line2" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" vertex="1" parent="p2-user">
-          <mxGeometry y="140" width="260" height="8" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-user-table" value="table: users" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=middle;spacingLeft=12;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;fontColor=#4A5568;fontStyle=2;" vertex="1" parent="p2-user">
-          <mxGeometry y="148" width="260" height="44" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-role" value="Role" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#D5E8D4;swimlaneFillColor=#FFFFFF;strokeColor=#82B366;fontSize=14;fontColor=#22543D;" vertex="1" parent="1">
-          <mxGeometry x="560" y="140" width="240" height="200" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-role-line" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" vertex="1" parent="p2-role">
-          <mxGeometry y="32" width="240" height="8" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-role-fields" value="id : Long  {PK}&lt;br&gt;name : String  {UK}" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=12;spacingRight=8;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=12;fontColor=#1A202C;" vertex="1" parent="p2-role">
-          <mxGeometry y="40" width="240" height="100" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-role-line2" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" vertex="1" parent="p2-role">
-          <mxGeometry y="140" width="240" height="8" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-role-table" value="table: roles" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=middle;spacingLeft=12;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;fontColor=#4A5568;fontStyle=2;" vertex="1" parent="p2-role">
-          <mxGeometry y="148" width="240" height="44" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-e-user-role" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=ERmandOne;startArrow=ERmany;endFill=0;startFill=0;strokeColor=#4A5568;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p2-user" target="p2-role">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-mult-n" value="*" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=16;fontStyle=1;fontColor=#1A202C;" vertex="1" parent="1">
-          <mxGeometry x="390" y="218" width="30" height="24" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-mult-1" value="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#1A202C;" vertex="1" parent="1">
-          <mxGeometry x="520" y="220" width="30" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-enum" value="Role.name" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#E1D5E7;swimlaneFillColor=#FFFFFF;strokeColor=#9673A6;fontSize=13;fontColor=#44337A;" vertex="1" parent="1">
-          <mxGeometry x="880" y="140" width="220" height="200" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-enum-line" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" vertex="1" parent="p2-enum">
-          <mxGeometry y="32" width="220" height="8" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-enum-values" value="ADMIN&lt;br&gt;COACH&lt;br&gt;PLAYER&lt;br&gt;PARENT" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=13;fontColor=#1A202C;fontFamily=Courier New;" vertex="1" parent="p2-enum">
-          <mxGeometry y="40" width="220" height="152" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-http" value="HTTP" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="120" y="380" width="320" height="150" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-http-body" value="POST /users&lt;br&gt;create user with a role&lt;br&gt;&lt;br&gt;PUT /users/{id}/role&lt;br&gt;replace the role&lt;br&gt;&lt;br&gt;GET /users/{id}" style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;fontSize=12;fontColor=#1A202C;fontFamily=Courier New;" vertex="1" parent="p2-http">
-          <mxGeometry y="32" width="320" height="118" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-access" value="Who may create / change" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="460" y="380" width="380" height="150" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-access-body" value="ADMIN → ADMIN, COACH, PLAYER, PARENT&lt;br&gt;COACH → PLAYER, PARENT&lt;br&gt;PLAYER / PARENT → none&lt;br&gt;&lt;br&gt;First ADMIN is seed data." style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=12;fontColor=#1A202C;" vertex="1" parent="p2-access">
-          <mxGeometry y="32" width="380" height="118" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-keys" value="Keys" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="860" y="380" width="240" height="150" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-keys-body" value="PK  primary key&lt;br&gt;FK  foreign key&lt;br&gt;UK  unique&lt;br&gt;&lt;br&gt;users.roleId is required.&lt;br&gt;No user without a role." style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;fontSize=12;fontColor=#1A202C;" vertex="1" parent="p2-keys">
-          <mxGeometry y="32" width="240" height="118" as="geometry" />
-        </mxCell>
-
-        <mxCell id="p2-note" value="Notes" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="120" y="550" width="980" height="110" as="geometry" />
-        </mxCell>
-        <mxCell id="p2-note-body" value="Many users can share one Role (many PLAYER rows). Each User points to exactly one Role.&lt;br&gt;The UI picks the role on create, so POST /users writes user + roleId together.&lt;br&gt;Role names are seed data. Users do not create new role names in Version 1.&lt;br&gt;Several roles on one user (PARENT + COACH) is out of scope for now." style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=12;fontColor=#1A202C;" vertex="1" parent="p2-note">
-          <mxGeometry y="32" width="980" height="78" as="geometry" />
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
+<mxfile host="65bd71144e">
+    <diagram id="api-layers" name="API layers">
+        <mxGraphModel dx="593" dy="409" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="p1-title" value="API layers" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#1A202C;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="20" width="400" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-sub" value="Spring Boot · Version 1 · request flows down, never up" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontColor=#4A5568;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="48" width="500" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-client" value="Client&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Expo app / Postman&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#4A5568;fontSize=14;fontStyle=1;fontColor=#1A202C;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="80" width="280" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-api" value="Spring Boot API" style="swimlane;container=1;collapsible=0;fontStyle=1;startSize=36;fillColor=#2D3748;fontColor=#FFFFFF;strokeColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="200" y="170" width="480" height="460" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-controller" value="controller&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;UserController&lt;br&gt;POST /users&lt;br&gt;PUT /users/{id}/role&lt;br&gt;GET /users/{id}&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontStyle=1;fontColor=#1A365D;align=left;spacingLeft=16;spacingTop=6;" parent="p1-api" vertex="1">
+                    <mxGeometry x="20" y="50" width="440" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-service" value="service&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;UserService&lt;br&gt;createUser · changeRole · getUser&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=13;fontStyle=1;fontColor=#7B341E;align=left;spacingLeft=16;spacingTop=8;" parent="p1-api" vertex="1">
+                    <mxGeometry x="20" y="190" width="440" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-repository" value="repository&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;UserRepository · RoleRepository&lt;br&gt;save · findById · findByEmail · findByName&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;fontStyle=1;fontColor=#22543D;align=left;spacingLeft=16;spacingTop=8;" parent="p1-api" vertex="1">
+                    <mxGeometry x="20" y="310" width="440" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-e-c-s" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4A5568;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="p1-api" source="p1-controller" target="p1-service" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-e-s-r" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4A5568;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="p1-api" source="p1-service" target="p1-repository" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-db" value="PostgreSQL&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;users · roles&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#E2E8F0;strokeColor=#4A5568;fontSize=13;fontStyle=1;fontColor=#1A202C;" parent="1" vertex="1">
+                    <mxGeometry x="310" y="680" width="260" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-e-client" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;fontColor=#2B6CB0;strokeColor=#2B6CB0;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="p1-client" target="p1-api" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-e-db" value="JPA / SQL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;fontColor=#276749;strokeColor=#276749;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="p1-api" target="p1-db" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-packages" value="Packages" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="760" y="170" width="300" height="250" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-pkg-body" value="controller/&lt;br&gt;&amp;nbsp;&amp;nbsp;UserController&lt;br&gt;service/&lt;br&gt;&amp;nbsp;&amp;nbsp;UserService&lt;br&gt;repository/&lt;br&gt;&amp;nbsp;&amp;nbsp;UserRepository&lt;br&gt;&amp;nbsp;&amp;nbsp;RoleRepository&lt;br&gt;model/&lt;br&gt;&amp;nbsp;&amp;nbsp;User&lt;br&gt;&amp;nbsp;&amp;nbsp;Role" style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=16;spacingTop=4;fontSize=12;fontColor=#1A202C;fontFamily=Courier New;" parent="p1-packages" vertex="1">
+                    <mxGeometry y="32" width="300" height="218" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-rules" value="Rules&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;Controller → Service → Repository&lt;br&gt;Never call upwards.&lt;br&gt;Controller does not use Repository.&lt;br&gt;model is shared data, not a layer.&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4A5568;fontSize=13;fontStyle=1;fontColor=#1A202C;align=left;spacingLeft=14;spacingTop=8;" parent="1" vertex="1">
+                    <mxGeometry x="760" y="440" width="300" height="130" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="users-and-roles" name="Users and roles">
+        <mxGraphModel dx="593" dy="409" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="p2-title" value="Users and roles" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#1A202C;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="20" width="400" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-sub" value="One role per user · role is set on create · PUT replaces it" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontColor=#4A5568;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="48" width="600" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-user" value="User" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#DAE8FC;swimlaneFillColor=#FFFFFF;strokeColor=#6C8EBF;fontSize=14;fontColor=#1A365D;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="140" width="260" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-user-line" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" parent="p2-user" vertex="1">
+                    <mxGeometry y="32" width="260" height="8" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-user-fields" value="id : Long  {PK}&lt;br&gt;name : String&lt;br&gt;email : String  {UK}&lt;br&gt;roleId : Long  {FK, required}" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=12;spacingRight=8;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=12;fontColor=#1A202C;" parent="p2-user" vertex="1">
+                    <mxGeometry y="40" width="260" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-user-line2" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" parent="p2-user" vertex="1">
+                    <mxGeometry y="140" width="260" height="8" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-user-table" value="table: users" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=middle;spacingLeft=12;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;fontColor=#4A5568;fontStyle=2;" parent="p2-user" vertex="1">
+                    <mxGeometry y="148" width="260" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-role" value="Role" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#D5E8D4;swimlaneFillColor=#FFFFFF;strokeColor=#82B366;fontSize=14;fontColor=#22543D;" parent="1" vertex="1">
+                    <mxGeometry x="560" y="140" width="240" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-role-line" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" parent="p2-role" vertex="1">
+                    <mxGeometry y="32" width="240" height="8" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-role-fields" value="id : Long  {PK}&lt;br&gt;name : String  {UK}" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=12;spacingRight=8;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=12;fontColor=#1A202C;" parent="p2-role" vertex="1">
+                    <mxGeometry y="40" width="240" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-role-line2" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" parent="p2-role" vertex="1">
+                    <mxGeometry y="140" width="240" height="8" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-role-table" value="table: roles" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=middle;spacingLeft=12;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;fontColor=#4A5568;fontStyle=2;" parent="p2-role" vertex="1">
+                    <mxGeometry y="148" width="240" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-e-user-role" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=ERmandOne;startArrow=ERmany;endFill=0;startFill=0;strokeColor=#4A5568;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="p2-user" target="p2-role" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-mult-n" value="*" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=16;fontStyle=1;fontColor=#1A202C;" parent="1" vertex="1">
+                    <mxGeometry x="390" y="218" width="30" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-mult-1" value="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#1A202C;" parent="1" vertex="1">
+                    <mxGeometry x="520" y="220" width="30" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-enum" value="Role.name" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#E1D5E7;swimlaneFillColor=#FFFFFF;strokeColor=#9673A6;fontSize=13;fontColor=#44337A;" parent="1" vertex="1">
+                    <mxGeometry x="880" y="140" width="220" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-enum-line" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" parent="p2-enum" vertex="1">
+                    <mxGeometry y="32" width="220" height="8" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-enum-values" value="ADMIN&lt;br&gt;COACH&lt;br&gt;PLAYER&lt;br&gt;PARENT" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=13;fontColor=#1A202C;fontFamily=Courier New;" parent="p2-enum" vertex="1">
+                    <mxGeometry y="40" width="220" height="152" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-http" value="HTTP" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="380" width="320" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-http-body" value="POST /users&lt;br&gt;create user with a role&lt;br&gt;&lt;br&gt;PUT /users/{id}/role&lt;br&gt;replace the role&lt;br&gt;&lt;br&gt;GET /users/{id}" style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;fontSize=12;fontColor=#1A202C;fontFamily=Courier New;" parent="p2-http" vertex="1">
+                    <mxGeometry y="32" width="320" height="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-access" value="Who may create / change" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="380" width="380" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-access-body" value="ADMIN → ADMIN, COACH, PLAYER, PARENT&lt;br&gt;COACH → PLAYER, PARENT&lt;br&gt;PLAYER / PARENT → none&lt;br&gt;&lt;br&gt;First ADMIN is seed data." style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=12;fontColor=#1A202C;" parent="p2-access" vertex="1">
+                    <mxGeometry y="32" width="380" height="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-keys" value="Keys" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="860" y="380" width="240" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-keys-body" value="PK  primary key&lt;br&gt;FK  foreign key&lt;br&gt;UK  unique&lt;br&gt;&lt;br&gt;users.roleId is required.&lt;br&gt;No user without a role." style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;fontSize=12;fontColor=#1A202C;" parent="p2-keys" vertex="1">
+                    <mxGeometry y="32" width="240" height="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-note" value="Notes" style="swimlane;collapsible=0;fontStyle=1;startSize=32;fillColor=#EDF2F7;swimlaneFillColor=#FFFFFF;strokeColor=#4A5568;fontColor=#1A202C;fontSize=13;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="550" width="980" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-note-body" value="Many users can share one Role (many PLAYER rows). Each User points to exactly one Role.&lt;br&gt;The UI picks the role on create, so POST /users writes user + roleId together.&lt;br&gt;Role names are seed data. Users do not create new role names in Version 1.&lt;br&gt;Several roles on one user (PARENT + COACH) is out of scope for now." style="text;html=1;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=12;fontColor=#1A202C;" parent="p2-note" vertex="1">
+                    <mxGeometry y="32" width="980" height="78" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>

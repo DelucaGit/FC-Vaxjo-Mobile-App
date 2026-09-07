@@ -108,3 +108,13 @@ Who may create users and change roles:
 - PLAYER / PARENT → none
 
 The first ADMIN is seed data. After that, only ADMIN and COACH use POST /users. Extra powers (schedules, attendance, notifications) come later. Version 1 only stores the user and the role.
+
+# Spring Boot skeleton (7/9-2026)
+
+I generated the API from start.spring.io (Maven, Java 21, Spring Boot 4, Web, JPA, Validation, PostgreSQL) and placed it in `API/` next to `Diagrams/`.
+
+Local PostgreSQL 18 is installed. Database name: `fcvaxjo_db`. Cost: $0 (on my PC, not AWS).
+
+The app starts with `.\mvnw.cmd spring-boot:run` and Tomcat listens on port 8080.
+
+The database password is not in Git. It lives in `API/.env` (`DB_PASSWORD`). `application.properties` reads `${DB_PASSWORD}`. A library `springboot4-dotenv` loads the `.env` file. `.env` is in `.gitignore`. `.env.example` is committed with an empty key name only.
