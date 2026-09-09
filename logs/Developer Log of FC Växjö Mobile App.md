@@ -27,7 +27,7 @@ Last note. I discovered the Project Board on Github where I can set up all the o
 ##### 9:52
 Today we keep going. Last coding session I made the first connection between the Java application and my local postgreSQL server. It connected succesfully. Today I will focus on making the repository level. I had three layers in mind. Controller -> Service -> Repository. After today's session I hope to be done with the Repository level and be able to create a user and save in my local database. Now the user-creation logic will not be written on the repository level, this will be done in the service level. But I will probably write a temporary code on the repository level to see if it works first. 
 
-![](Project%20Board%20on%20Github%20with%20todays%20task.png)
+![](obsidian-attachments/Project%20Board%20on%20Github%20with%20todays%20task.png)
 
 #### 11:47
 So right now I am planning, will I make one table row for users and one separate row for roles and then match them with a foreign key like role_id? Or should I make one user table with the role embedded in the table like "COACH" or "PLAYER"? It seems that making two separate roles is the most scalable option. It might be overkill for this project but you never know where a project lands. So let's make it scalable. 
@@ -39,16 +39,25 @@ So what makes it scalable? The idea is that by having a set of roles inside an o
 
 #### 12:32 
 One idea that I am discussing in my head now is if I should have a separate table for permissions. For example, READ_PARENTS_PHONE or READ_PLAYER_ADRESS, and then give each permission an ID that the role can point to. So COACH has permission 1,2,3 etc and it points to a set of permissions in another table. 
-![](Roles%20and%20permissions.png)
+![](obsidian-attachments/Roles%20and%20permissions.png)
 
 I have added it onto the project board. 
-![](Added%20permission%20table%20on%20project%20board.png)
+![](obsidian-attachments/Added%20permission%20table%20on%20project%20board.png)
 
 #### 13:23
 I have now connected JPA to the local postgreSQL server on my computer. 
-![](Pasted%20image%2020260909133846.png)
+![](obsidian-attachments/Image%20of%20RoleRepository%20code.png)
 
 Both for the User repository and the Role repository.
 
-![](Pasted%20image%2020260909134219.png)
+![](obsidian-attachments/Image%20of%20userRepository%20Code.png)
 
+#### 19:52
+Last log for today. I have now finished the Repository layer and the Service layer. They are of course not 100% done, there is a lot of security left to work on the service layer but enough to now build a controller layer and test my API from Postman. 
+![](obsidian-attachments/UserService.png)
+
+I also made a RoleSeeder to push in data straight into the database upon start to see if the data was passing through correctly. Images show success. 
+![](obsidian-attachments/Pasted%20image%2020260909200035.png)
+This is the code that runs whenever the API is started
+![](obsidian-attachments/Pasted%20image%2020260909200126.png)
+And this is the data inside the database that made it through. Next step is making a controller layer where we will create an user from it. 
