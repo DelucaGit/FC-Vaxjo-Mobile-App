@@ -1,1 +1,5 @@
-{}
+{
+  "showRibbon": true,
+  "baseFontSizeAction": true,
+  "baseFontSize": 23
+}

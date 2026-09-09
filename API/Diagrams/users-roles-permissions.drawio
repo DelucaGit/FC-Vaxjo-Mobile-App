@@ -1,0 +1,81 @@
+<mxfile host="65bd71144e">
+    <diagram id="v1-prototype" name="Version 1 prototype">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1500" pageHeight="1000" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="&lt;font color=&quot;#ffffff&quot;&gt;Version 1 — how the data looks (example rows)&lt;/font&gt;" style="text;html=1;fontSize=20;fontStyle=1;fontColor=#1A202C;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="16" width="720" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub" value="&lt;font color=&quot;#e6e6e6&quot;&gt;Made-up club data. Permissions are not rows yet — they are ifs in UserService.&lt;/font&gt;" style="text;html=1;fontSize=12;fontColor=#1A202C;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="44" width="720" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="users-box" value="users" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#2B6CB0;fontColor=#FFFFFF;strokeColor=#2C5282;swimlaneFillColor=#FFFFFF;fontSize=14;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="80" width="720" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="users-tbl" value="&lt;table width=&quot;100%&quot; cellpadding=&quot;8&quot; style=&quot;border-collapse:collapse;font-size:12px;font-family:Calibri,sans-serif;color:#1A202C;&quot;&gt;&lt;tr style=&quot;background:#EDF2F7;font-weight:bold;color:#1A202C;&quot;&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;id&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;name&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;email&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;role_id&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;Anders&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;anders@fcvaxjo.se&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;2&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;Erik&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;erik@fcvaxjo.se&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;2&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;3&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;Noah&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;noah@fcvaxjo.se&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;3&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;4&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;Maria&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;maria@fcvaxjo.se&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;4&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="html=1;align=left;verticalAlign=top;strokeColor=none;fillColor=#FFFFFF;fontColor=#1A202C;" parent="users-box" vertex="1">
+                    <mxGeometry y="28" width="720" height="192" as="geometry"/>
+                </mxCell>
+                <mxCell id="roles-box" value="roles" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#276749;fontColor=#FFFFFF;strokeColor=#22543D;swimlaneFillColor=#FFFFFF;fontSize=14;" parent="1" vertex="1">
+                    <mxGeometry x="800" y="80" width="280" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="roles-tbl" value="&lt;table width=&quot;100%&quot; cellpadding=&quot;8&quot; style=&quot;border-collapse:collapse;font-size:12px;font-family:Calibri,sans-serif;color:#1A202C;&quot;&gt;&lt;tr style=&quot;background:#EDF2F7;font-weight:bold;&quot;&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;id&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;name&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;ADMIN&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;2&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;COACH&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;3&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;PLAYER&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;4&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;PARENT&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="html=1;align=left;verticalAlign=top;strokeColor=none;fillColor=#FFFFFF;fontColor=#1A202C;" parent="roles-box" vertex="1">
+                    <mxGeometry y="28" width="280" height="192" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow" value="&lt;font color=&quot;#ff0000&quot;&gt;role_id → roles.id&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;strokeColor=#2D7600;strokeWidth=2;fontSize=11;fontColor=#1A202C;exitX=1;exitY=0.45;entryX=0;entryY=0.45;fillColor=#60a917;" parent="1" source="users-box" target="roles-box" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="read" value="How to read it: Erik has role_id 2, so he is COACH. Maria has 4, so she is PARENT. Many users can share the same role_id." style="rounded=0;whiteSpace=wrap;html=1;align=left;spacingLeft=12;fillColor=#FFFAF0;strokeColor=#DD6B20;fontSize=12;fontColor=#7B341E;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="320" width="1040" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="perm-now" value="Where are permissions in Version 1?" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#C05621;fontColor=#FFFFFF;strokeColor=#9C4221;swimlaneFillColor=#FFFFFF;fontSize=14;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="390" width="1040" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="perm-now-b" value="Not in a table. In UserService:&lt;br&gt;if this user's role is ADMIN → may create any user&lt;br&gt;if COACH → may create PLAYER and PARENT&lt;br&gt;if PLAYER or PARENT → may not create users, may not see other families' phones&lt;br&gt;Erik (id 2) and every other COACH hit the same if. No extra rows to scan." style="text;html=1;align=left;spacingLeft=14;spacingTop=8;fillColor=#FFFFFF;fontSize=12;fontColor=#1A202C;" parent="perm-now" vertex="1">
+                    <mxGeometry y="28" width="1040" height="122" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="scale-prototype" name="If we scaled permissions">
+        <mxGraphModel dx="793" dy="409" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" value="If we scaled — named permissions as rows (not Version 1)" style="text;html=1;fontSize=20;fontStyle=1;fontColor=#1A202C;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="16" width="900" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2" value="Worth it when the list of powers grows. Not worth it because we got more users. users and roles stay the same." style="text;html=1;fontSize=12;fontColor=#1A202C;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="44" width="900" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="pbox" value="permissions  (catalog of powers)" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#6B46C1;fontColor=#FFFFFF;strokeColor=#553C9A;swimlaneFillColor=#FFFFFF;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="80" width="420" height="250" as="geometry"/>
+                </mxCell>
+                <mxCell id="ptbl" value="&lt;table width=&quot;100%&quot; cellpadding=&quot;7&quot; style=&quot;border-collapse:collapse;font-size:12px;font-family:Calibri,sans-serif;color:#1A202C;&quot;&gt;&lt;tr style=&quot;background:#EDF2F7;font-weight:bold;&quot;&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;id&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;name&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;CREATE_USER&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;2&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;READ_PARENT_PHONE&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;3&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;READ_PLAYER_ADDRESS&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;4&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;EDIT_SCHEDULE&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;5&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;TAKE_ATTENDANCE&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="html=1;align=left;verticalAlign=top;strokeColor=none;fillColor=#FFFFFF;fontColor=#1A202C;" parent="pbox" vertex="1">
+                    <mxGeometry y="28" width="420" height="222" as="geometry"/>
+                </mxCell>
+                <mxCell id="rpbox" value="role_permissions  (which role has which power)" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#C05621;fontColor=#FFFFFF;strokeColor=#9C4221;swimlaneFillColor=#FFFFFF;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="80" width="400" height="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="rptbl" value="&lt;table width=&quot;100%&quot; cellpadding=&quot;7&quot; style=&quot;border-collapse:collapse;font-size:12px;font-family:Calibri,sans-serif;color:#1A202C;&quot;&gt;&lt;tr style=&quot;background:#EDF2F7;font-weight:bold;&quot;&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;role_id&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;permission_id&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;means&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1 ADMIN&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1,2,3,4,5&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;all&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;2 COACH&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1,2,4,5&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;no full address book&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;3 PLAYER&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;(none)&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;see own stuff only&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;4 PARENT&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;(none of these)&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;see own child&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;div style=&quot;font-size:11px;padding:8px;color:#1A202C;&quot;&gt;In a real table each pair is its own row, e.g. (2,1), (2,2), (2,4), (2,5). Shown grouped so it is easier to read.&lt;/div&gt;" style="html=1;align=left;verticalAlign=top;strokeColor=none;fillColor=#FFFFFF;fontColor=#1A202C;" parent="rpbox" vertex="1">
+                    <mxGeometry y="28" width="400" height="282" as="geometry"/>
+                </mxCell>
+                <mxCell id="roles2" value="roles (unchanged idea)" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#276749;fontColor=#FFFFFF;strokeColor=#22543D;swimlaneFillColor=#FFFFFF;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="940" y="80" width="220" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="roles2b" value="&lt;table width=&quot;100%&quot; cellpadding=&quot;7&quot; style=&quot;border-collapse:collapse;font-size:12px;color:#1A202C;&quot;&gt;&lt;tr style=&quot;background:#EDF2F7;font-weight:bold;&quot;&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;id&lt;/td&gt;&lt;td style=&quot;border:1px solid #CBD5E0;&quot;&gt;name&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;1&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;ADMIN&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#F7FAFC;&quot;&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;2&lt;/td&gt;&lt;td style=&quot;border:1px solid #E2E8F0;&quot;&gt;COACH&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="html=1;align=left;verticalAlign=top;strokeColor=none;fillColor=#FFFFFF;fontColor=#1A202C;" parent="roles2" vertex="1">
+                    <mxGeometry y="28" width="220" height="152" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow" value="users.role_id → roles.id → role_permissions → permissions.name&lt;br&gt;Example: Erik is role_id 2. Service asks: does COACH have READ_PARENT_PHONE? Yes (permission_id 2). Does he have READ_PLAYER_ADDRESS? No.&lt;br&gt;To take phones away from every coach: delete the row (2, 2). No Java if to edit. No user row to touch." style="rounded=0;whiteSpace=wrap;html=1;align=left;spacingLeft=14;spacingTop=8;fillColor=#EBF8FF;strokeColor=#2B6CB0;fontSize=12;fontColor=#1A365D;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="420" width="1120" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="worth" value="When is this worth it?" style="swimlane;fontStyle=1;startSize=28;collapsible=0;fillColor=#2D3748;fontColor=#FFFFFF;strokeColor=#1A202C;swimlaneFillColor=#FFFFFF;fontSize=13;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="530" width="1120" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="worthb" value="Yes, if we scale the number of powers (20+ named checks, shared by several roles, maybe an admin screen to tick boxes).&lt;br&gt;No, if we only scale the number of users (200 players). Four ifs in UserService still win.&lt;br&gt;FC Växjö Version 1: do not build this. Keep page 1." style="text;html=1;align=left;spacingLeft=14;spacingTop=10;fillColor=#FFFFFF;fontSize=12;fontColor=#1A202C;" parent="worth" vertex="1">
+                    <mxGeometry y="28" width="1120" height="112" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

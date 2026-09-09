@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: In progress. The API runs, and the `users` and `roles` tables exist in PostgreSQL. Controller, service and repository are not built yet. 
+Status: In progress. The API runs, the `users` and `roles` tables exist in PostgreSQL, and the repository layer works. Controller and service are not built yet. 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -132,6 +132,29 @@ I first imported the wrong `@Id` (`org.springframework.data.annotation.Id`). Tha
 
 I added Lombok (`@Getter`, `@Setter`) so I do not write get/set methods by hand. Lombok is only used at compile time. Cost: $0. Cost later: those methods are hidden until I remember they exist.
 
-I also set `spring.jpa.hibernate.ddl-auto=update` for local Version 1. When I restarted the API, Hibernate created the two tables in `fcvaxjo_db`. I confirmed them in pgAdmin. They are empty. Next step is the repository layer.
+I also set `spring.jpa.hibernate.ddl-auto=update` for local Version 1. When I restarted the API, Hibernate created the two tables in `fcvaxjo_db`. I confirmed them in pgAdmin. They are empty. Next step after the models was the repository layer.
 
 `ddl-auto=update` is fine on my PC. I will not use it on a real AWS database later, because it can change tables in ways that are hard to undo.
+
+# Permissions vs a third table (9/9-2026)
+
+Version 1 has **no** `permissions` table. `users` points at `roles`. What a role may do is Java `if`s in `UserService`. That already applies to every user with that role.
+
+A permissions table is optional **later**, if those ifs get long. First try extra columns on `roles` (for example `can_see_parent_phones`). A `permissions` + `role_permissions` join is only if many named powers are shared across roles.
+
+Sketch: `API/Diagrams/users-roles-permissions.drawio` (page 1 = now, page 2 = later). Permissions stay in the API (service + maybe DB flags). Not a separate cloud product. That work is later (GitHub issue #12), not Version 1.
+
+# Repository layer (9/9-2026)
+
+I added Spring Data JPA repositories under `API/src/main/java/se/fcvaxjo/api/repository/`:
+
+- `RoleRepository` — `JpaRepository<Role, Long>` plus `findByName`
+- `UserRepository` — `JpaRepository<User, Long>` plus `findByEmail`
+
+They are interfaces, not classes. Spring builds the SQL from the method names. `Long` matches the `id` type on the models. `findByEmail` must match the `email` field on `User` (a method named `findByUsername` failed at startup because `User` has no `username`).
+
+This layer only talks to PostgreSQL. No HTTP yet. The service will use `findByName` when creating a user with a role name like COACH.
+
+How I start the API: from the `API` folder, `.\mvnw.cmd spring-boot:run`. I use the Maven wrapper because `mvn` is not on my PATH. The Cursor Run button started from the repo root, so it did not load `API/.env` and Hibernate could not log in to Postgres. Confirmed working: `Started ApiApplication`.
+
+Next step is the service layer.
