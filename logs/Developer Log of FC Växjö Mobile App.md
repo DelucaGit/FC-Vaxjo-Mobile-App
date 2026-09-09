@@ -47,6 +47,8 @@ I have added it onto the project board.
 #### 13:23
 I have now connected JPA to the local postgreSQL server on my computer. 
 ![](Pasted%20image%2020260909133846.png)
+
 Both for the User repository and the Role repository.
+
 ![](Pasted%20image%2020260909134219.png)
 

@@ -8,5 +8,15 @@
     "editor.pasteAs.showPasteSelector": "afterPaste",
     "editor.dropIntoEditor.enabled": true,
     "editor.dropIntoEditor.showDropSelector": "afterDrop",
-    "markdown.editor.drop.enabled": true
+    "markdown.editor.drop.enabled": true,
+    "editor.formatOnSave": true,
+    "[java]": {
+        "editor.defaultFormatter": "redhat.java"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[markdown]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
 }
