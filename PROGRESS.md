@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: In progress. The API runs, the `users` and `roles` tables exist in PostgreSQL, and the repository layer works. Controller and service are not built yet. 
+Status: In progress. The API runs, the repository and service layers work, and the four roles are seeded in PostgreSQL. Controller and Postman are not built yet. 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -78,7 +78,7 @@ Packages for Version 1:
 - `controller/` UserController
 - `service/` UserService
 - `repository/` UserRepository, RoleRepository
-- `model/` User, Role
+- `model/` AppUser, Role
 
 Rules: calls only go down. The controller does not use a repository. `model` is shared data, not a fourth layer.
 
@@ -153,8 +153,32 @@ I added Spring Data JPA repositories under `API/src/main/java/se/fcvaxjo/api/rep
 
 They are interfaces, not classes. Spring builds the SQL from the method names. `Long` matches the `id` type on the models. `findByEmail` must match the `email` field on `User` (a method named `findByUsername` failed at startup because `User` has no `username`).
 
-This layer only talks to PostgreSQL. No HTTP yet. The service will use `findByName` when creating a user with a role name like COACH.
+This layer only talks to PostgreSQL. No HTTP yet. The service uses `findByName` when creating a user with a role name like COACH.
 
 How I start the API: from the `API` folder, `.\mvnw.cmd spring-boot:run`. I use the Maven wrapper because `mvn` is not on my PATH. The Cursor Run button started from the repo root, so it did not load `API/.env` and Hibernate could not log in to Postgres. Confirmed working: `Started ApiApplication`.
 
-Next step is the service layer.
+# Service layer (9/9-2026)
+
+I added `UserService` under `API/src/main/java/se/fcvaxjo/api/service/`. Spring injects the two repositories through the constructor. The class is `@Service`.
+
+Methods:
+
+- `createUser(name, email, roleName)` — email must be unique, role name must exist, then save `roleId` (the number) on the user
+- `getUserById(id)`
+- `changeUserRole(id, roleName)` — loads the user, looks up the role by name, replaces `roleId`
+
+Incoming role is a **name** (`COACH`). Stored on `users` is the **id**. That way Postman can send a word, and Postgres keeps a foreign key.
+
+I renamed the entity from `User` to `AppUser`. The table is still `users`. Why: Spring Security later has its own `User` class, and the names would clash. `UserRepository` now uses `AppUser`.
+
+The service still returns `AppUser`. A DTO (Data Transfer Object) comes at the **controller**, when HTTP exists, so we do not leak extra fields later (password, parent phone). Not in the service.
+
+I did **not** add ADMIN/COACH permission `if`s yet. There is no logged-in caller. That waits for Spring Security after Postman.
+
+## Role seeder
+
+A separate class `RoleSeeder` implements `CommandLineRunner`. After the app starts, it inserts ADMIN, COACH, PLAYER, PARENT if they are missing. Confirmed in pgAdmin: four rows in `roles`.
+
+Why not the controller: a controller is for HTTP URLs. Seeding is startup data, not a request. The controller also must not talk to a repository. Why not inside `UserService`: that class is the brain for users, not boot data.
+
+No HTTP yet. Next step is the controller + Postman (GitHub issue #9). Hosting the API on the internet stays for later (still $0 on my PC).
