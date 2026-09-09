@@ -22,3 +22,31 @@ Last note. I discovered the Project Board on Github where I can set up all the o
 ![How it looks inside a task](obsidian-attachments/How%20it%20looks%20inside%20a%20task.png)
 
 ![How it looks inside a task (2)](obsidian-attachments/How%20it%20looks%20inside%20a%20task%20(2).png)
+
+# 9th of September 2026 
+##### 9:52
+Today we keep going. Last coding session I made the first connection between the Java application and my local postgreSQL server. It connected succesfully. Today I will focus on making the repository level. I had three layers in mind. Controller -> Service -> Repository. After today's session I hope to be done with the Repository level and be able to create a user and save in my local database. Now the user-creation logic will not be written on the repository level, this will be done in the service level. But I will probably write a temporary code on the repository level to see if it works first. 
+
+![](Project%20Board%20on%20Github%20with%20todays%20task.png)
+
+#### 11:47
+So right now I am planning, will I make one table row for users and one separate row for roles and then match them with a foreign key like role_id? Or should I make one user table with the role embedded in the table like "COACH" or "PLAYER"? It seems that making two separate roles is the most scalable option. It might be overkill for this project but you never know where a project lands. So let's make it scalable. 
+
+So what makes it scalable? The idea is that by having a set of roles inside an own table I can make the following: 
+	1 - Limit the amount of allowed roles so that no "fake" role gets stored by accident. 
+	2 - Add permissions on top of the role instead of writing it within each user. Meaning instead of writing it inside the user like "read_parents_phone" and have to repeat that for every user with that permission - we can just add it onto the role itself and it just repeats once. For this small project with 4 roles it might not make the biggest impact in terms of speed and memory but I would like to build something that can expand. 
+	3 - If I later decide to expand the application I can make other tables that point towards the role table, if I want to add new functionalities etc. 
+
+#### 12:32 
+One idea that I am discussing in my head now is if I should have a separate table for permissions. For example, READ_PARENTS_PHONE or READ_PLAYER_ADRESS, and then give each permission an ID that the role can point to. So COACH has permission 1,2,3 etc and it points to a set of permissions in another table. 
+![](Roles%20and%20permissions.png)
+
+I have added it onto the project board. 
+![](Added%20permission%20table%20on%20project%20board.png)
+
+#### 13:23
+I have now connected JPA to the local postgreSQL server on my computer. 
+![](Pasted%20image%2020260909133846.png)
+Both for the User repository and the Role repository.
+![](Pasted%20image%2020260909134219.png)
+
