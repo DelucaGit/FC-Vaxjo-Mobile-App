@@ -53,3 +53,11 @@ Both for the User repository and the Role repository.
 ![](obsidian-attachments/Image%20of%20userRepository%20Code.png)
 
 #### 19:52
+Last log for today. I have now finished the Repository layer and the Service layer. They are of course not 100% done, there is a lot of security left to work on the service layer but enough to now build a controller layer and test my API from Postman. 
+![](obsidian-attachments/UserService.png)
+
+I also made a RoleSeeder to push in data straight into the database upon start to see if the data was passing through correctly. Images show success. 
+![](obsidian-attachments/Pasted%20image%2020260909200035.png)
+This is the code that runs whenever the API is started
+![](obsidian-attachments/Pasted%20image%2020260909200126.png)
+And this is the data inside the database that made it through. Next step is making a controller layer where we will create an user from it. 
