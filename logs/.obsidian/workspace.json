@@ -11,12 +11,14 @@
             "id": "35a5ea00fcf61026",
             "type": "leaf",
             "state": {
-              "type": "image",
+              "type": "markdown",
               "state": {
-                "file": "obsidian-attachments/Image of RoleRepository code.png"
+                "file": "Developer Log of FC Växjö Mobile App.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-image",
-              "title": "Image of RoleRepository code"
+              "icon": "lucide-file",
+              "title": "Developer Log of FC Växjö Mobile App"
             }
           }
         ]
@@ -186,11 +188,11 @@
       "bases:Create new base": false
     }
   },
-  "active": "fa9180e63d9a22d0",
+  "active": "35a5ea00fcf61026",
   "lastOpenFiles": [
+    "obsidian-attachments/Image of RoleRepository code.png",
     "obsidian-attachments/Image of userRepository Code.png",
     "Developer Log of FC Växjö Mobile App.md",
-    "obsidian-attachments/Image of RoleRepository code.png",
     "obsidian-attachments/Added permission table on project board.png",
     "obsidian-attachments/Roles and permissions.png",
     "obsidian-attachments/Project Board on Github with todays task.png",

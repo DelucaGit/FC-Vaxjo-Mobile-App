@@ -52,3 +52,4 @@ Both for the User repository and the Role repository.
 
 ![](obsidian-attachments/Image%20of%20userRepository%20Code.png)
 
+#### 19:52
