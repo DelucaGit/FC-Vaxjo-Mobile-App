@@ -61,3 +61,17 @@ I also made a RoleSeeder to push in data straight into the database upon start t
 This is the code that runs whenever the API is started
 ![](obsidian-attachments/Pasted%20image%2020260909200126.png)
 And this is the data inside the database that made it through. Next step is making a controller layer where we will create an user from it. 
+
+### 13th of September 2026
+####  13:45 
+Today I made the controller layer. Very basic structure but managed to create an user through Postman.
+
+![](obsidian-attachments/Pasted%20image%2020260913134657.png)
+
+And when we look into PostgreSQL we see that the user is indeed stored in the database. 
+
+![](obsidian-attachments/Pasted%20image%2020260913134749.png)
+
+So this is a big first success. I made sure to use a DTO to transfer data between the controller layer and the service layer. At the moment there is no sensible data to protect but it will be added later on so it's good to set the foundation. 
+
+![](obsidian-attachments/Pasted%20image%2020260913135008.png)

@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: In progress. The API runs, the repository and service layers work, and the four roles are seeded in PostgreSQL. Controller and Postman are not built yet. 
+Status: In progress. I can create a user from Postman; it is stored in local PostgreSQL. GET all users works. GET by id and PUT role are not on the controller yet. 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -76,6 +76,7 @@ Request order: Client → Controller → Service → Repository → PostgreSQL.
 Packages for Version 1:
 
 - `controller/` UserController
+- `dto/` CreateUserRequest (HTTP in; package folder is currently `DTO`)
 - `service/` UserService
 - `repository/` UserRepository, RoleRepository
 - `model/` AppUser, Role
@@ -181,4 +182,26 @@ A separate class `RoleSeeder` implements `CommandLineRunner`. After the app star
 
 Why not the controller: a controller is for HTTP URLs. Seeding is startup data, not a request. The controller also must not talk to a repository. Why not inside `UserService`: that class is the brain for users, not boot data.
 
-No HTTP yet. Next step is the controller + Postman (GitHub issue #9). Hosting the API on the internet stays for later (still $0 on my PC).
+No HTTP yet. Next step was the controller + Postman (GitHub issue #9). Hosting the API on the internet stays for later (still $0 on my PC).
+
+# Controller + first Postman create (13/9-2026)
+
+I added `UserController` at `API/src/main/java/se/fcvaxjo/api/controller/`. It only calls `UserService`. It does not use a repository.
+
+URLs are under `/api/users` (extra `/api` prefix vs the first diagram `POST /users`). Postman must use the full path.
+
+What works from Postman:
+
+- `POST http://localhost:8080/api/users` — create user with a role **name**
+- `GET http://localhost:8080/api/users` — list all users (`getAllUsers` on the service)
+
+I confirmed create: JSON `{ "name": "Erik", "email": "erik@fcvaxjo.se", "roleName": "COACH" }` returned HTTP 200 with `id` 1 and `roleId` 2 (COACH in the seed order). The row is in PostgreSQL.
+
+The POST body is not `AppUser`. `AppUser` has `roleId`, not `roleName`. I added `CreateUserRequest` (name, email, roleName). The controller pulls three strings and calls `createUser(name, email, roleName)`. The service still saves the id. That is the DTO at the HTTP edge we planned.
+
+Not on the controller yet (service methods already exist):
+
+- `GET /api/users/{id}`
+- `PUT /api/users/{id}/role`
+
+No Spring Security yet. Anyone who can reach localhost can call these URLs. That is OK while learning.

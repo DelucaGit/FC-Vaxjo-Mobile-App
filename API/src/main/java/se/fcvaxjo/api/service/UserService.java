@@ -5,6 +5,7 @@ import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Role;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -42,5 +43,9 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("This role does not exist"));
         user.setRoleId(role.getId());
         return userRepository.save(user);
+    }
+
+    public List<AppUser> getAllUsers() {
+        return userRepository.findAll();
     }
 }
