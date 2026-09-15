@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: In progress. I can create a user from Postman; it is stored in local PostgreSQL. GET all users works. GET by id and PUT role are not on the controller yet. 
+Status: In progress. Postman can create, list, fetch, and change a user's role. JSON uses role **names**. Local PostgreSQL stores role **ids**. No login yet (500 on bad role; security later). 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -199,9 +199,17 @@ I confirmed create: JSON `{ "name": "Erik", "email": "erik@fcvaxjo.se", "roleNam
 
 The POST body is not `AppUser`. `AppUser` has `roleId`, not `roleName`. I added `CreateUserRequest` (name, email, roleName). The controller pulls three strings and calls `createUser(name, email, roleName)`. The service still saves the id. That is the DTO at the HTTP edge we planned.
 
-Not on the controller yet (service methods already exist):
+# Controller complete for Postman (15/9-2026)
 
-- `GET /api/users/{id}`
-- `PUT /api/users/{id}/role`
+All Version 1 user URLs work from Postman (`http://localhost:8080`):
+
+- `GET /api/users` — list; each item is `FetchUserResponse` (`roleName`, not `roleId`). A for-loop maps `AppUser` → DTO.
+- `GET /api/users/{id}` — one user as `FetchUserResponse`
+- `POST /api/users` — `CreateUserRequest` in, `CreateUserResponse` out (same four fields as fetch)
+- `PUT /api/users/{id}/role` — `ChangeRoleRequest` in (`roleName` only), `ChangeRoleResponse` out (`id` + new `roleName`)
+
+`UserService.getRoleName(roleId)` turns the database id into a word. The controller does not use a repository.
+
+I confirmed PUT: COACH (role id 2) → PLAYER (role id 3) in Postgres. Invalid role `ARTIST` / `REFEREE` still returns **500**. Next: map that to **400**, missing user to **404**, create to **201**. Then Spring Security (ADMIN/COACH only). No hard delete in V1; inactive flag later.
 
 No Spring Security yet. Anyone who can reach localhost can call these URLs. That is OK while learning.

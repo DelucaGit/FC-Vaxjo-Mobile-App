@@ -75,3 +75,64 @@ And when we look into PostgreSQL we see that the user is indeed stored in the da
 So this is a big first success. I made sure to use a DTO to transfer data between the controller layer and the service layer. At the moment there is no sensible data to protect but it will be added later on so it's good to set the foundation. 
 
 ![](obsidian-attachments/Pasted%20image%2020260913135008.png)
+
+### 15th of September 2026
+#### 15:06 
+Today I am working on adding some more endpoints to the controller layer. It's currently missing a PUT endpoint to change the user role so that we can change someone from PLAYER to COACH for example. At the beginning everyone will be able to make this call, later on I will add some security on top it so only COACH and ADMIN can make these role changes. 
+
+#### 16:09
+The more I am coding in Cursor the more I see that not every suggestion I get from AI is the right suggestion. When making the endpoint to change the user's role I got the suggestion from AI to use the same DTO that I use when creating an user. Meaning that whenever I update the user's role I will get back their ID, their name, their email and whatever extra data I add later on. I decided to show Cursor who is in command and decided to make a separate DTO for changing roles. That way whenever we update the user role we only get back from the database the user id and the new role to confirm the change. I think that's way cleaner. 
+
+![](obsidian-attachments/Pasted%20image%2020260915162515.png)
+
+This is my controller logic for updating the user role. It now uses a separate DTO so that we don't send more data than what's needed. I think using the same DTO for different purposes just messes the structure and I prefer to have more classes with individual purposes. Even if they have the same data inside I think I would still make separate classes just in case I want to change something in it later. 
+
+#### Testing changing the user role 
+#### 20:15 
+
+![](obsidian-attachments/Pasted%20image%2020260915190131.png)
+
+In the image above is the user saved in the local database. The role id is 2 which points to COACH in another table.  As seen in the image below. 
+![](obsidian-attachments/Pasted%20image%2020260915190248.png)
+
+Now I will make a PUT request to the API using Postman and send the new role in a String format. 
+
+![](obsidian-attachments/Pasted%20image%2020260915190721.png)
+
+This is the response I got. A full 200 OK and I got the user ID returned back as well as the new role thanks to the DTO I made earlier specific for this API call. 
+![](obsidian-attachments/Pasted%20image%2020260915191337.png)
+
+The response shows PLAYER instead of COACH now. That means that if I make a GET request for this user I should receive PLAYER as their role as well. 
+
+![](obsidian-attachments/Pasted%20image%2020260915194404.png)
+
+Which turned out to be correct. That means also that If I search up the user inside my local database I should see the user have a role id of 3 instead of 2. 
+
+![](obsidian-attachments/Pasted%20image%2020260915194511.png)
+
+Works like a charm. So far so good. I still haven't tested too see what happens when I send an invalid role. Let's see what happens if I send ARTIST for example. 
+![](obsidian-attachments/Pasted%20image%2020260915200835.png)
+
+I got a 500 server error. That's good. It means that some security is applied. I still haven't made any error exceptions yet so that's why I am getting a standard 500 internal server error. Later on when I fix the exceptions it should throw a 400 bad request error. That reminds me also that I should make createUser return status 201 which stands for CREATED instead of just returning 200 OK.  I have added this now as a TODO list inside the code. 
+![](obsidian-attachments/Pasted%20image%2020260915201518.png)
+
+Here is a showcase of all our API endpoints we can call right now from our controller. 
+![](obsidian-attachments/Pasted%20image%2020260915210706.png)
+
+And here is an image that shows how to practically use them.
+![](obsidian-attachments/Pasted%20image%2020260915210916.png)
+
+#### 9:15
+Right now I am battling a new question that I hadn't thought about. What if a coach wants to remove a player from the club? Then we just make a simple deleteUser like any CRUD application right? But what if the club in the future needs to have a log of the players that were active last year? Or they temporarily inactivate a player because misbehavior and then lets him join again, or what if a player is permanently banned from the club and the player tries to rejoin again after a couple of years and the club needs a way to see if this user has been in the club previously?. 
+
+That means that we need a table of inactive users and we need to store their data for a longer period. I am not sure how long I can save their personal data on our database according to GDPR. I would have to look that up. 
+
+Then there is another issue linked to that. Every player is linked to a parent or two parents. If a player gets inactivated - should his parents also get inactivated automatically? What if a parent has more than one child in the club? Then we need to have a code that checks if the inactive player has a parent with more players attributed to it, if there are no more players then the parent gets automatically inactivated together with the player. If there are more players attributed to the same parent then only the player gets inactivated. This sounds like it's too early to build right now so I will therefore skip deleteUser for now. 
+
+#### 22:00
+After some discussion with Grok I got a good suggestion. Instead of having a separate table of inactive users I can just have an attribute called active and then just have a boolean true or false on it. That way we skip having double data in the database and we skip having issues with messy joins. But this will probably be for another version of the app. Not now. 
+
+![](obsidian-attachments/Pasted%20image%2020260915222619.png)
+I have updated CreateUser to return a DTO instead of the actual AppUser. Now when creating an user instead of returning the role ID it's returning the role in String format. As seen below. 
+![](obsidian-attachments/Pasted%20image%2020260915222728.png)
+

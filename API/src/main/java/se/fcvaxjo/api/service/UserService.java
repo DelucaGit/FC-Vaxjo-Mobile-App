@@ -37,6 +37,12 @@ public class UserService {
         return userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
 
+    public String getRoleName(Long roleId) {
+        return roleRepository.findById(roleId)
+                .orElseThrow(() -> new IllegalArgumentException("This role does not exist"))
+                .getName();
+    }
+
     public AppUser changeUserRole(Long id, String roleName) {
         AppUser user = getUserById(id);
         Role role = roleRepository.findByName(roleName)

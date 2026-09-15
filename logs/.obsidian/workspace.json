@@ -83,7 +83,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "96d4d985fd56e13b",
@@ -190,18 +191,18 @@
   },
   "active": "35a5ea00fcf61026",
   "lastOpenFiles": [
-    "obsidian-attachments/Pasted image 20260913135008.png",
-    "obsidian-attachments/Pasted image 20260913134749.png",
-    "obsidian-attachments/Pasted image 20260913134657.png",
-    "obsidian-attachments/Pasted image 20260909200126.png",
-    "obsidian-attachments/Pasted image 20260909200035.png",
-    "obsidian-attachments/UserService.png",
+    "obsidian-attachments/Pasted image 20260915222728.png",
+    "obsidian-attachments/Pasted image 20260915222619.png",
+    "obsidian-attachments/Pasted image 20260915210916.png",
+    "obsidian-attachments/Pasted image 20260915210706.png",
+    "obsidian-attachments/Pasted image 20260915201518.png",
+    "obsidian-attachments/Pasted image 20260915200835.png",
+    "obsidian-attachments/Pasted image 20260915194511.png",
+    "obsidian-attachments/Pasted image 20260915194404.png",
+    "obsidian-attachments/Pasted image 20260915191337.png",
+    "obsidian-attachments/Pasted image 20260915190721.png",
+    "obsidian-attachments/Pasted image 20260915190248.png",
     "Developer Log of FC Växjö Mobile App.md",
-    "obsidian-attachments/Image of RoleRepository code.png",
-    "obsidian-attachments/Image of userRepository Code.png",
-    "obsidian-attachments/Added permission table on project board.png",
-    "obsidian-attachments/Roles and permissions.png",
-    "obsidian-attachments/Project Board on Github with todays task.png",
     "obsidian-attachments"
   ]
 }
