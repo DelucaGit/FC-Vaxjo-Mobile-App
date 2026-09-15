@@ -5,6 +5,7 @@ import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Role;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -36,11 +37,21 @@ public class UserService {
         return userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
 
+    public String getRoleName(Long roleId) {
+        return roleRepository.findById(roleId)
+                .orElseThrow(() -> new IllegalArgumentException("This role does not exist"))
+                .getName();
+    }
+
     public AppUser changeUserRole(Long id, String roleName) {
         AppUser user = getUserById(id);
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new IllegalArgumentException("This role does not exist"));
         user.setRoleId(role.getId());
         return userRepository.save(user);
+    }
+
+    public List<AppUser> getAllUsers() {
+        return userRepository.findAll();
     }
 }

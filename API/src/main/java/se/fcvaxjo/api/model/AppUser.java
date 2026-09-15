@@ -13,6 +13,8 @@ import lombok.Setter;
 @Table(name = "users")
 @Getter
 @Setter
+// This is the database row. Not what the client sees.
+// The client sees the CreateUserResponse and ChangeRoleResponse.
 public class AppUser {
 
     @Id
