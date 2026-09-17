@@ -227,3 +227,7 @@ Rules live in `.cursor/rules/scrum-jira.mdc` so they stay separate from mentor-m
 Writing rules (same day): epics and user stories stay in everyday language. Technical words (URLs, classes, Postman) belong in **tasks** only. Every story is `As a ____ I would like to ____ because ____.` Every task hangs on a story and says Add / Why / Done when. A sprint is Done only when the week-end checklist in that rules file is all true.
 
 Testing (same day): a sprint is not Done until new functions were tested. Postman proves the URL. Java tests cover **core** service functions, not every class. Today we only have Spring’s empty `contextLoads` test (app starts). JUnit is already in the project ($0).
+
+# LinkedIn ideas file (17/9-2026)
+
+After each git push, Cursor reads `logs/Developer Log of FC Växjö Mobile App.md` and rewrites local `LK_POSTS.md` with at most 10 recruiter-facing post ideas (passion, problem-solving, project management, communication). Quality over count. The file is in `.gitignore` so it never goes to GitHub. Rule: `.cursor/rules/lk-posts.mdc`.

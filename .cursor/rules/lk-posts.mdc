@@ -1,0 +1,24 @@
+---
+description: After each git push, refresh local LinkedIn post ideas from the developer log
+alwaysApply: true
+---
+
+# LinkedIn post ideas (`LK_POSTS.md`)
+
+## When this runs
+After a **successful `git push`** (including the automatic milestone push), refresh LinkedIn ideas.
+
+## Steps
+1. Read `logs/Developer Log of FC Växjö Mobile App.md` (latest entries matter most; older entries are OK if they still teach something).
+2. Write **at most 10** post ideas into **`LK_POSTS.md`** at the project root. Fewer is better if quality would drop. Do not pad to 10.
+3. Replace the file contents (do not append forever). Keep a short “last updated” line at the top.
+
+## Quality bar (IT recruiters)
+Each idea must show at least one of: **passion for building**, **how a problem was solved**, **how the project is managed**, **how he communicates** (teachers, stakeholders, AI, club).
+
+Skip: jokes with no lesson, raw screenshots-only notes, “I installed Postgres,” or anything that leaks secrets, personal family drama, or real people’s private data.
+
+Write ideas he could actually post: short hook + what happened + what it shows. First person is OK. Simple English.
+
+## Git
+`LK_POSTS.md` is **local only**. It is in `.gitignore`. Never `git add` it. Never commit or push it. If it appears in `git status` as untracked, leave it untracked.
