@@ -1,29 +1,59 @@
 ---
-description: Solo Scrum in Jira — developer runs the board, AI only guides
+description: Solo Scrum in Jira — language, story shape, tasks, sprint Done
 alwaysApply: true
 ---
 
 # Solo Scrum (Jira in the browser)
 
-The developer runs Jira **themselves**. Do **not** create, edit, or close Jira work unless they explicitly say OK for that ticket.
+The developer runs Jira **themselves**. Do **not** create, edit, or close Jira work unless they explicitly say OK.
 
-Stay on **Jira Cloud Free**. Do **not** suggest upgrading to Standard, turning on **Rovo**, or reconnecting the Atlassian MCP. Those cost money or time and are not needed to plan Version 1.
-
-## Order of work
-
-1. **Epic** — one big goal (example: User management API).
-2. **User stories** — useful slices under that epic. Keep only the next 2–3 open. Do not dump a huge backlog.
-3. **Sprint** — 1 week. Pull 1–4 stories. Unfinished stories move to the next sprint (normal, not failure).
-4. **Tasks** — coding steps. Add them **last**, and **only** for stories already in the current sprint.
+Stay on **Jira Cloud Free**. Do **not** suggest Rovo, Atlassian MCP, or a paid Jira plan.
 
 Skip team theatre: no daily standup, no story points, no burndown charts.
 
-## Done
+When they ask what to paste into Jira, follow the shapes below. Keep only the next 2–3 stories open.
 
-For API work, a story is Done when it works in **Postman**. Then they code the next story.
+## Language
 
-When they ask what to put in Jira, show short paste-ready titles in chat. They click in Jira.
+- **Epic** and **user story**: everyday words. No Java, HTTP, Postman, controller, GET, PUT, DTO.
+- **Task**: technical words are allowed.
 
-## Why this option
+## Epic
 
-Solo Scrum is a short list plus a weekly box. Paying for Rovo only so AI can click Jira is not worth it on a salary budget.
+One big goal in plain language. Example: `Staff can create and look after club user accounts.`
+
+## User story
+
+Always this sentence:
+
+`As a ____ I would like to ____ because ____.`
+
+Link every **task** to that story (child / sub-task in Jira). No orphan tasks.
+
+Example: `As an admin I would like to open one person's details because I need to check their role without scrolling the whole list.`
+
+## Task
+
+Three lines in the description:
+
+1. **Add:** what to build (file, URL, or step).
+2. **Why:** why this task exists.
+3. **Done when:** the check you can see (for API: Postman).
+
+Example:
+
+- Add: `GET /api/users/{id}` on `UserController`.
+- Why: there is no way to fetch one user yet.
+- Done when: Postman GET with a real id returns name, email, and role name.
+
+## When a sprint is Done
+
+A sprint is **1 week**. It is Done when **all** of these are true (tick them):
+
+1. The week has ended, **or** every story we pulled is Done (whichever comes first).
+2. Each pulled story is either **Done** or **moved back** to the backlog. Nothing sits in Doing with no home.
+3. A story may be marked Done only if **all of its tasks** are Done **and** the “As a…” sentence is true (API: proven in Postman).
+4. We did not sneak extra stories in unless we swapped one out.
+5. One short note in `PROGRESS.md`: what shipped, what moved, what is next.
+
+Unfinished work going to the next sprint is normal. That is not failure.

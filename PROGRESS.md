@@ -223,3 +223,5 @@ Order: epic → user stories → 1-week sprint → tasks (tasks only for the cur
 I tried the Atlassian MCP so Cursor could talk to Jira. Login failed: Rovo is not activated on this Free site. Rovo needs a paid Jira plan (about $9/user/month) and often a company email, not Gmail. Extra Rovo usage can start costing money later. I stay on Jira Free ($0). MCP stays off.
 
 Rules live in `.cursor/rules/scrum-jira.mdc` so they stay separate from mentor-mode.
+
+Writing rules (same day): epics and user stories stay in everyday language. Technical words (URLs, classes, Postman) belong in **tasks** only. Every story is `As a ____ I would like to ____ because ____.` Every task hangs on a story and says Add / Why / Done when. A sprint is Done only when the week-end checklist in that rules file is all true.
