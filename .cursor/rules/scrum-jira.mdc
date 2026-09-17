@@ -1,0 +1,29 @@
+---
+description: Solo Scrum in Jira — developer runs the board, AI only guides
+alwaysApply: true
+---
+
+# Solo Scrum (Jira in the browser)
+
+The developer runs Jira **themselves**. Do **not** create, edit, or close Jira work unless they explicitly say OK for that ticket.
+
+Stay on **Jira Cloud Free**. Do **not** suggest upgrading to Standard, turning on **Rovo**, or reconnecting the Atlassian MCP. Those cost money or time and are not needed to plan Version 1.
+
+## Order of work
+
+1. **Epic** — one big goal (example: User management API).
+2. **User stories** — useful slices under that epic. Keep only the next 2–3 open. Do not dump a huge backlog.
+3. **Sprint** — 1 week. Pull 1–4 stories. Unfinished stories move to the next sprint (normal, not failure).
+4. **Tasks** — coding steps. Add them **last**, and **only** for stories already in the current sprint.
+
+Skip team theatre: no daily standup, no story points, no burndown charts.
+
+## Done
+
+For API work, a story is Done when it works in **Postman**. Then they code the next story.
+
+When they ask what to put in Jira, show short paste-ready titles in chat. They click in Jira.
+
+## Why this option
+
+Solo Scrum is a short list plus a weekly box. Paying for Rovo only so AI can click Jira is not worth it on a salary budget.

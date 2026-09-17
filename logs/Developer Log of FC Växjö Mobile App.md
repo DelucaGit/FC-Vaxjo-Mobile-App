@@ -136,3 +136,12 @@ After some discussion with Grok I got a good suggestion. Instead of having a sep
 I have updated CreateUser to return a DTO instead of the actual AppUser. Now when creating an user instead of returning the role ID it's returning the role in String format. As seen below. 
 ![](obsidian-attachments/Pasted%20image%2020260915222728.png)
 
+### 17th of September 2026
+#### 13:25 
+Last session I started noticing something. The idea of what the project should be started to blur out in my mind. I started forgetting what I needed to prioritize and what I needed to ignore. Luckily I have made this mistake a dozen times. Previously I have just kept going and ended up with spaghetti code with no clear idea of what to do. This time I caught myself. The issue I had is that in the beginning of the project I made an idea of what version 1 of this app should look like. While coding along I started to forget this and started bringing new ideas and started to drift away from the plan. 
+
+So I realized that I need to change how I work and plan. I have decided to start working Agile in Jira to keep track of the work and plan ahead. Agile framework and SCRUM is a framework that I am currently studying in school and I honestly really liked it. I am even considering applying for jobs as project leaders / scrum masters. So I will apply it to this project. The only issue is that I am working solo and I have no team. But I asked my teacher about it and she said that it's no issue, you just have to take away some of the daily routines that would otherwise be part of the scrum if you are in a team such as daily scrum meetings. 
+
+I have created an account in Jira now. I tried to connect Jira to Cursor so that Cursor can fetch my user stories and tasks and then discuss with me. However I think that Jira has a paid plan if you want to connect it to AI. And I am... well, not rich yet so I will use Jira manually. No I am not poor. I just have a household with high economic metabolism. 
+
+![](Pasted%20image%2020260917133424.png)
