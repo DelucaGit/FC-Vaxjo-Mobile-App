@@ -38,13 +38,19 @@ Three lines in the description:
 
 1. **Add:** what to build (file, URL, or step).
 2. **Why:** why this task exists.
-3. **Done when:** the check you can see (for API: Postman).
+3. **Done when:** the check you can see (Postman for a URL; a passing Java test for core service logic).
 
 Example:
 
 - Add: `GET /api/users/{id}` on `UserController`.
 - Why: there is no way to fetch one user yet.
 - Done when: Postman GET with a real id returns name, email, and role name.
+
+## Testing
+
+- **Postman** (or the app screen later): proves the new function works as a user would use it.
+- **Java tests**: for **core** functions (the service “brain”: create user, fetch user, change role). Not for every tiny class.
+- A sprint is **not** Done until new functions from that sprint were tested. “I think it works” is not a test.
 
 ## When a sprint is Done
 
@@ -53,7 +59,8 @@ A sprint is **1 week**. It is Done when **all** of these are true (tick them):
 1. The week has ended, **or** every story we pulled is Done (whichever comes first).
 2. Each pulled story is either **Done** or **moved back** to the backlog. Nothing sits in Doing with no home.
 3. A story may be marked Done only if **all of its tasks** are Done **and** the “As a…” sentence is true (API: proven in Postman).
-4. We did not sneak extra stories in unless we swapped one out.
-5. One short note in `PROGRESS.md`: what shipped, what moved, what is next.
+4. Every **new function** in this sprint was tested (Postman for URLs; Java test passing for core service logic).
+5. We did not sneak extra stories in unless we swapped one out.
+6. One short note in `PROGRESS.md`: what shipped, what moved, what is next.
 
 Unfinished work going to the next sprint is normal. That is not failure.
