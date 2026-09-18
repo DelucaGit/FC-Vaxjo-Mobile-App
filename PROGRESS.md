@@ -213,3 +213,21 @@ All Version 1 user URLs work from Postman (`http://localhost:8080`):
 I confirmed PUT: COACH (role id 2) → PLAYER (role id 3) in Postgres. Invalid role `ARTIST` / `REFEREE` still returns **500**. Next: map that to **400**, missing user to **404**, create to **201**. Then Spring Security (ADMIN/COACH only). No hard delete in V1; inactive flag later.
 
 No Spring Security yet. Anyone who can reach localhost can call these URLs. That is OK while learning.
+
+# Solo Scrum in Jira (17/9-2026)
+
+I will run Scrum by myself in the Jira website. Cursor will not create tickets for me unless I ask.
+
+Order: epic → user stories → 1-week sprint → tasks (tasks only for the current sprint). No standups, story points, or burndown charts.
+
+I tried the Atlassian MCP so Cursor could talk to Jira. Login failed: Rovo is not activated on this Free site. Rovo needs a paid Jira plan (about $9/user/month) and often a company email, not Gmail. Extra Rovo usage can start costing money later. I stay on Jira Free ($0). MCP stays off.
+
+Rules live in `.cursor/rules/scrum-jira.mdc` so they stay separate from mentor-mode.
+
+Writing rules (same day): epics and user stories stay in everyday language. Technical words (URLs, classes, Postman) belong in **tasks** only. Every story is `As a ____ I would like to ____ because ____.` Every task hangs on a story and says Add / Why / Done when. A sprint is Done only when the week-end checklist in that rules file is all true.
+
+Testing (same day): a sprint is not Done until new functions were tested. Postman proves the URL. Java tests cover **core** service functions, not every class. Today we only have Spring’s empty `contextLoads` test (app starts). JUnit is already in the project ($0).
+
+# LinkedIn ideas file (17/9-2026)
+
+After each git push, Cursor reads `logs/Developer Log of FC Växjö Mobile App.md` and rewrites local `LK_POSTS.md` with at most 10 recruiter-facing post ideas (passion, problem-solving, project management, communication). Quality over count. The file is in `.gitignore` so it never goes to GitHub. Rule: `.cursor/rules/lk-posts.mdc`.

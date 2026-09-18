@@ -136,3 +136,54 @@ After some discussion with Grok I got a good suggestion. Instead of having a sep
 I have updated CreateUser to return a DTO instead of the actual AppUser. Now when creating an user instead of returning the role ID it's returning the role in String format. As seen below. 
 ![](obsidian-attachments/Pasted%20image%2020260915222728.png)
 
+### 17th of September 2026
+#### 13:25 
+Last session I started noticing something. The idea of what the project should be started to blur out in my mind. I started forgetting what I needed to prioritize and what I needed to ignore. Luckily I have made this mistake a dozen times. Previously I have just kept going and ended up with spaghetti code with no clear idea of what to do. This time I caught myself. The issue I had is that in the beginning of the project I made an idea of what version 1 of this app should look like. While coding along I started to forget this and started bringing new ideas and started to drift away from the plan. 
+
+So I realized that I need to change how I work and plan. I have decided to start working Agile in Jira to keep track of the work and plan ahead. Agile framework and SCRUM is a framework that I am currently studying in school and I honestly really liked it. I am even considering applying for jobs as project leaders / scrum masters. So I will apply it to this project. The only issue is that I am working solo and I have no team. But I asked my teacher about it and she said that it's no issue, you just have to take away some of the daily routines that would otherwise be part of the scrum if you are in a team such as daily scrum meetings. 
+
+I have created an account in Jira now. I tried to connect Jira to Cursor so that Cursor can fetch my user stories and tasks and then discuss with me. However I think that Jira has a paid plan if you want to connect it to AI. And I am... well, not rich yet so I will use Jira manually. No I am not poor. I just have a household with high economic metabolism. 
+
+![](Pasted%20image%2020260917133424.png)
+
+I am also making a rule file in Cursor telling it how we should think when working in scrum. In this file I tell Cursor how to think about scrum, how we need to write our user stories, what to write inside them and how clear the tasks should be. Some of the rules I gave it: 
+
+- All epics and user stories must use non-technical language. 
+- Tasks may use technical language and should have clear instructions of what needs to be fixed/added/removed, why and what the outcome should be after the task is done. 
+- Before the sprint is done, all core functions should have been tested. 
+- Have a clear idea of what "done" means before starting the sprint. 
+
+![](Pasted%20image%2020260917143507.png)
+
+Here are some Epics I have written.
+
+![](Pasted%20image%2020260917150344.png)
+And inside one of the Epics I have written a bunch of User Stories. I have taken help of AI to brainstorm these Epics and User Stories. Although I haven't relied solely on the AI. I have used it as a tool to brainstorm. Some ideas were good and some I discarded. 
+
+#### 15:39
+Haven't written a single letter of code yet. I am still puzzling around with Jira and at the same time discussing with Cursor AI how to best store the user data. I feel somewhat worried about storing sensible user data in my database. Specially the behavior notes, that is sensible and private data that could damage the club if it leaked. I think it's more serious if the behavior notes leaked than if the name and phone number and address leaked. Because the behavior notes can be used to black-mail, to damage one's reputation and relationships. 
+
+I am also looking into Identity Providers (IdP). I first thought about EntraId from Microsoft but after further research it turns out they need a Microsoft account for that and I don't want to force the players and parents to get a Microsoft account...  I am looking into alternatives such as Auth0 or AWS Cognito. 
+
+The reason I want an IdP is more that I don't want to store login credentials and I don't want to code the login logic. Since I am working with Java I prefer to work with JSON Web Tokens (JWT) and let the IdP authenticate the user and just send a confirmation to the client (app) if the authentication was successful. But I won't dive deep into it now, I will focus on making the API logic work first. The login logic is just a security layer on top of the API in order to prevent API calls from the wrong callers. 
+
+#### 16:34
+
+![](Pasted%20image%2020260917163446.png)
+I have connected Jira to my Github repository. I only gave it access to the projects repository and no other. Apparently you can create branches from inside Jira, I will experiment with it a bit. 
+
+#### 17:06 
+I am tired man. I have been writing stories for each epic and subtasks for each story. I will showcase some of the stories and subtasks. 
+![](Pasted%20image%2020260917170746.png)
+This is the epic I am focusing on . The staff (admins and coaches) should be able to create users, alter their data and fetch their data. Inside the epic I have made user stories with clear structures. "As __ I want to __ because of ". That keeps me focused on WHO I am making this for and WHAT the user expects on their side. 
+
+Although I want to bring to notice something important, I have yet not had a conversation with the football club. I have talked to my wife's father who is the owner of the club but he is not an active coach on a daily baisis. He steps in sometimes and helps but overall there are other coaches managing that. I need to have a sitting with one of the coaches at least to make sure these user stories are fine tuned. But I am waiting until one of the coaches is coming back from his trip abroad. But I have poor patience so I will keep going and hopefully I have understood their needs right. 
+
+![](Pasted%20image%2020260917171433.png)
+Here is inside an user story. Inside it I have made subtasks for the developer (me). The language is technical now. I have made the end goal the main title of the task. I will show you inside of it. 
+
+![](Pasted%20image%2020260917171553.png)
+
+Inside it I have used AI to generate clear instructions on what to do. What file to edit, what do edit. Why we edit, and how we know that this task is done. 
+
+I have given myself 4 weeks to finish this sprint because of two reasons. I am not fully warm in the Jira clothes yet so I have a brief learning curve ahead. And I will be traveling for one week and will probably not ship any code. 

@@ -10,10 +10,11 @@ When a **milestone** is finished (a clear checkpoint: MVP slice done, feature wo
 
 ## Required steps (in order)
 1. `git status`, `git diff`, and recent `git log` (to draft a good message)
-2. `git add .` (stage everything unless they said otherwise)
+2. `git add .` (stage everything unless they said otherwise). **Never** stage `LK_POSTS.md` (gitignored, local LinkedIn ideas only).
 3. `git commit` with a short message focused on **why** this milestone matters
 4. `git push` to the current branch’s remote
 5. Confirm success with `git status` and share a brief “checkpoint saved” note
+6. Refresh LinkedIn ideas per `.cursor/rules/lk-posts.mdc` (read the developer log, rewrite `LK_POSTS.md` locally, do not commit it)
 
 ## Rules
 - Do **not** use force push (`--force`) unless they explicitly ask.
