@@ -144,7 +144,7 @@ So I realized that I need to change how I work and plan. I have decided to start
 
 I have created an account in Jira now. I tried to connect Jira to Cursor so that Cursor can fetch my user stories and tasks and then discuss with me. However I think that Jira has a paid plan if you want to connect it to AI. And I am... well, not rich yet so I will use Jira manually. No I am not poor. I just have a household with high economic metabolism. 
 
-![](Pasted%20image%2020260917133424.png)
+![](obsidian-attachments/Pasted%20image%2020260917133424.png)
 
 I am also making a rule file in Cursor telling it how we should think when working in scrum. In this file I tell Cursor how to think about scrum, how we need to write our user stories, what to write inside them and how clear the tasks should be. Some of the rules I gave it: 
 
@@ -153,11 +153,11 @@ I am also making a rule file in Cursor telling it how we should think when worki
 - Before the sprint is done, all core functions should have been tested. 
 - Have a clear idea of what "done" means before starting the sprint. 
 
-![](Pasted%20image%2020260917143507.png)
+![](obsidian-attachments/Pasted%20image%2020260917143507.png)
 
 Here are some Epics I have written.
 
-![](Pasted%20image%2020260917150344.png)
+![](obsidian-attachments/Pasted%20image%2020260917150344.png)
 And inside one of the Epics I have written a bunch of User Stories. I have taken help of AI to brainstorm these Epics and User Stories. Although I haven't relied solely on the AI. I have used it as a tool to brainstorm. Some ideas were good and some I discarded. 
 
 #### 15:39
@@ -169,21 +169,37 @@ The reason I want an IdP is more that I don't want to store login credentials an
 
 #### 16:34
 
-![](Pasted%20image%2020260917163446.png)
+![](obsidian-attachments/Pasted%20image%2020260917163446.png)
 I have connected Jira to my Github repository. I only gave it access to the projects repository and no other. Apparently you can create branches from inside Jira, I will experiment with it a bit. 
 
 #### 17:06 
 I am tired man. I have been writing stories for each epic and subtasks for each story. I will showcase some of the stories and subtasks. 
-![](Pasted%20image%2020260917170746.png)
+![](obsidian-attachments/Pasted%20image%2020260917170746.png)
 This is the epic I am focusing on . The staff (admins and coaches) should be able to create users, alter their data and fetch their data. Inside the epic I have made user stories with clear structures. "As __ I want to __ because of ". That keeps me focused on WHO I am making this for and WHAT the user expects on their side. 
 
 Although I want to bring to notice something important, I have yet not had a conversation with the football club. I have talked to my wife's father who is the owner of the club but he is not an active coach on a daily baisis. He steps in sometimes and helps but overall there are other coaches managing that. I need to have a sitting with one of the coaches at least to make sure these user stories are fine tuned. But I am waiting until one of the coaches is coming back from his trip abroad. But I have poor patience so I will keep going and hopefully I have understood their needs right. 
 
-![](Pasted%20image%2020260917171433.png)
+![](obsidian-attachments/Pasted%20image%2020260917171433.png)
 Here is inside an user story. Inside it I have made subtasks for the developer (me). The language is technical now. I have made the end goal the main title of the task. I will show you inside of it. 
 
-![](Pasted%20image%2020260917171553.png)
+![](obsidian-attachments/Pasted%20image%2020260917171553.png)
 
 Inside it I have used AI to generate clear instructions on what to do. What file to edit, what do edit. Why we edit, and how we know that this task is done. 
 
 I have given myself 4 weeks to finish this sprint because of two reasons. I am not fully warm in the Jira clothes yet so I have a brief learning curve ahead. And I will be traveling for one week and will probably not ship any code. 
+
+### 18th of September 2026
+#### 16:44
+Today I have worked on the first part of my sprint. I implemented a function to search for an user's name in the database. I made findByNameContainingIgnoreCase in the repository level, meaning that it looks up the Name attribute in AppUser, and it looks to see if the name contains the word we are searching for and it also doesn't look into uppercase nor lowercase. So searching for "Er" should return Erik. Searching for "E" should return Marcel and Erik and so on. 
+
+![](obsidian-attachments/Pasted%20image%2020260918164659.png)
+
+In the service layer I added the function searchByName which just calls the repository layer. I added some filter on it so that the user can't send a blank string. This functions returns a list of users back to the controller layer. 
+
+![](obsidian-attachments/Pasted%20image%2020260918164821.png)
+
+In the controller layer I added this endpoint and added a RequestParam so that we can write the query inside the URL in Postman. The logic is simple, it fetches a list of users from the database that contains the search word then maps them into a DTO response that it sent to the client. If the user sends a blank name it gets a 500 server error. This will be turnt into a 400 bad request error later on. 
+
+![](obsidian-attachments/Pasted%20image%2020260918165134.png)
+
+So far I have made 2 out of 4 stories in my sprint. I will take a break today because I am unsually tired. But at least I got something shipped today.

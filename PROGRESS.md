@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: In progress. Postman can create, list, fetch, and change a user's role. JSON uses role **names**. Local PostgreSQL stores role **ids**. No login yet (500 on bad role; security later). 
+Status: In progress. Postman can create, list, fetch, search by name, and change a user's role. JSON uses role **names**. Local PostgreSQL stores role **ids**. No login yet (500 on blank search / bad role; map to 400 later). 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -213,6 +213,16 @@ All Version 1 user URLs work from Postman (`http://localhost:8080`):
 I confirmed PUT: COACH (role id 2) → PLAYER (role id 3) in Postgres. Invalid role `ARTIST` / `REFEREE` still returns **500**. Next: map that to **400**, missing user to **404**, create to **201**. Then Spring Security (ADMIN/COACH only). No hard delete in V1; inactive flag later.
 
 No Spring Security yet. Anyone who can reach localhost can call these URLs. That is OK while learning.
+
+# Search users by name (18/9-2026)
+
+Coaches can search by part of a name (ignore case). Three layers:
+
+- `UserRepository.findByNameContainingIgnoreCase` — Spring Data builds the LIKE query
+- `UserService.searchByName` — rejects null/blank (`isBlank`), then calls the repository
+- `GET /api/users/search?name=Mar` — `@RequestParam`, returns `List<FetchUserResponse>`
+
+Empty `?name=` is not “missing param”; Spring still 200 unless the service throws. After `isBlank`, Postman gets **500** and the message is only in the server log (Spring hides 500 messages). Next: exception handler → **400** with a short JSON message.
 
 # Solo Scrum in Jira (17/9-2026)
 

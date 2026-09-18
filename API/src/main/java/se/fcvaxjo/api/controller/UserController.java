@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
 import se.fcvaxjo.api.DTO.ChangeRoleResponse;
 import java.util.ArrayList;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,6 +33,23 @@ public class UserController {
     @GetMapping
     public List<FetchUserResponse> getAllUsers() {
         List<AppUser> databaseUsers = userService.getAllUsers();
+        List<FetchUserResponse> responseUsers = new ArrayList<>();
+
+        for (AppUser databaseUser : databaseUsers) {
+            String roleName = userService.getRoleName(databaseUser.getRoleId());
+            responseUsers.add(new FetchUserResponse(
+                    databaseUser.getId(),
+                    databaseUser.getName(),
+                    databaseUser.getEmail(),
+                    roleName));
+        }
+
+        return responseUsers;
+    }
+
+    @GetMapping("/search")
+    public List<FetchUserResponse> searchByName(@RequestParam String name) {
+        List<AppUser> databaseUsers = userService.searchByName(name);
         List<FetchUserResponse> responseUsers = new ArrayList<>();
 
         for (AppUser databaseUser : databaseUsers) {

@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.service;
 
 import org.springframework.stereotype.Service;
+
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.model.AppUser;
@@ -53,5 +54,12 @@ public class UserService {
 
     public List<AppUser> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public List<AppUser> searchByName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Name cannot be null or blank");
+        }
+        return userRepository.findByNameContainingIgnoreCase(name);
     }
 }
