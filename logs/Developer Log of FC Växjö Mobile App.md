@@ -203,3 +203,9 @@ In the controller layer I added this endpoint and added a RequestParam so that w
 ![](obsidian-attachments/Pasted%20image%2020260918165134.png)
 
 So far I have made 2 out of 4 stories in my sprint. I will take a break today because I am unsually tired. But at least I got something shipped today.
+
+### 23th of September 2026
+#### 08.29
+I have been awake since 12:30 the day before. I just came home from my night shift and in 30 minutes I have my school class. I am a bit stuck in the project now because one of the coaches of FC Växjö showed me a website: www.svenskalag.se/. Apparently they offer website, mobile app and payment options for sport clubs. They have really good offers and it made me honestly doubt if I should continue this project. 
+
+I could be egoistic and push forward just to have a project on my portfolio, but would FC Växjö really benefit from this? Would it not be better for them to go with svenskalag.se instead? These are the questions I am fighting these days. Hopefully I get a clear idea soon. 
