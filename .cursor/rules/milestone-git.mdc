@@ -14,7 +14,7 @@ When a **milestone** is finished (a clear checkpoint: MVP slice done, feature wo
 3. `git commit` with a short message focused on **why** this milestone matters
 4. `git push` to the current branch’s remote
 5. Confirm success with `git status` and share a brief “checkpoint saved” note
-6. Refresh LinkedIn ideas per `.cursor/rules/lk-posts.mdc` (read the developer log, rewrite `LK_POSTS.md` locally, do not commit it)
+6. Refresh LinkedIn ideas per `.cursor/rules/lk-posts.mdc` (read the developer log, add new ideas on top of local `LK_POSTS.md`, do not commit it)
 
 ## Rules
 - Do **not** use force push (`--force`) unless they explicitly ask.

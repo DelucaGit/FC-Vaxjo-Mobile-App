@@ -144,7 +144,7 @@ So I realized that I need to change how I work and plan. I have decided to start
 
 I have created an account in Jira now. I tried to connect Jira to Cursor so that Cursor can fetch my user stories and tasks and then discuss with me. However I think that Jira has a paid plan if you want to connect it to AI. And I am... well, not rich yet so I will use Jira manually. No I am not poor. I just have a household with high economic metabolism. 
 
-![](Pasted%20image%2020260917133424.png)
+![](obsidian-attachments/Pasted%20image%2020260917133424.png)
 
 I am also making a rule file in Cursor telling it how we should think when working in scrum. In this file I tell Cursor how to think about scrum, how we need to write our user stories, what to write inside them and how clear the tasks should be. Some of the rules I gave it: 
 
@@ -153,11 +153,11 @@ I am also making a rule file in Cursor telling it how we should think when worki
 - Before the sprint is done, all core functions should have been tested. 
 - Have a clear idea of what "done" means before starting the sprint. 
 
-![](Pasted%20image%2020260917143507.png)
+![](obsidian-attachments/Pasted%20image%2020260917143507.png)
 
 Here are some Epics I have written.
 
-![](Pasted%20image%2020260917150344.png)
+![](obsidian-attachments/Pasted%20image%2020260917150344.png)
 And inside one of the Epics I have written a bunch of User Stories. I have taken help of AI to brainstorm these Epics and User Stories. Although I haven't relied solely on the AI. I have used it as a tool to brainstorm. Some ideas were good and some I discarded. 
 
 #### 15:39
@@ -169,21 +169,94 @@ The reason I want an IdP is more that I don't want to store login credentials an
 
 #### 16:34
 
-![](Pasted%20image%2020260917163446.png)
+![](obsidian-attachments/Pasted%20image%2020260917163446.png)
 I have connected Jira to my Github repository. I only gave it access to the projects repository and no other. Apparently you can create branches from inside Jira, I will experiment with it a bit. 
 
 #### 17:06 
 I am tired man. I have been writing stories for each epic and subtasks for each story. I will showcase some of the stories and subtasks. 
-![](Pasted%20image%2020260917170746.png)
+![](obsidian-attachments/Pasted%20image%2020260917170746.png)
 This is the epic I am focusing on . The staff (admins and coaches) should be able to create users, alter their data and fetch their data. Inside the epic I have made user stories with clear structures. "As __ I want to __ because of ". That keeps me focused on WHO I am making this for and WHAT the user expects on their side. 
 
 Although I want to bring to notice something important, I have yet not had a conversation with the football club. I have talked to my wife's father who is the owner of the club but he is not an active coach on a daily baisis. He steps in sometimes and helps but overall there are other coaches managing that. I need to have a sitting with one of the coaches at least to make sure these user stories are fine tuned. But I am waiting until one of the coaches is coming back from his trip abroad. But I have poor patience so I will keep going and hopefully I have understood their needs right. 
 
-![](Pasted%20image%2020260917171433.png)
+![](obsidian-attachments/Pasted%20image%2020260917171433.png)
 Here is inside an user story. Inside it I have made subtasks for the developer (me). The language is technical now. I have made the end goal the main title of the task. I will show you inside of it. 
 
-![](Pasted%20image%2020260917171553.png)
+![](obsidian-attachments/Pasted%20image%2020260917171553.png)
 
 Inside it I have used AI to generate clear instructions on what to do. What file to edit, what do edit. Why we edit, and how we know that this task is done. 
 
 I have given myself 4 weeks to finish this sprint because of two reasons. I am not fully warm in the Jira clothes yet so I have a brief learning curve ahead. And I will be traveling for one week and will probably not ship any code. 
+
+### 18th of September 2026
+#### 16:44
+Today I have worked on the first part of my sprint. I implemented a function to search for an user's name in the database. I made findByNameContainingIgnoreCase in the repository level, meaning that it looks up the Name attribute in AppUser, and it looks to see if the name contains the word we are searching for and it also doesn't look into uppercase nor lowercase. So searching for "Er" should return Erik. Searching for "E" should return Marcel and Erik and so on. 
+
+![](obsidian-attachments/Pasted%20image%2020260918164659.png)
+
+In the service layer I added the function searchByName which just calls the repository layer. I added some filter on it so that the user can't send a blank string. This functions returns a list of users back to the controller layer. 
+
+![](obsidian-attachments/Pasted%20image%2020260918164821.png)
+
+In the controller layer I added this endpoint and added a RequestParam so that we can write the query inside the URL in Postman. The logic is simple, it fetches a list of users from the database that contains the search word then maps them into a DTO response that it sent to the client. If the user sends a blank name it gets a 500 server error. This will be turnt into a 400 bad request error later on. 
+
+![](obsidian-attachments/Pasted%20image%2020260918165134.png)
+
+So far I have made 2 out of 4 stories in my sprint. I will take a break today because I am unsually tired. But at least I got something shipped today.
+
+### 23th of September 2026
+#### 08.29
+I have been awake since 12:30 the day before. I just came home from my night shift and in 30 minutes I have my school class. I am a bit stuck in the project now because one of the coaches of FC Växjö showed me a website: www.svenskalag.se/. Apparently they offer website, mobile app and payment options for sport clubs. They have really good offers and it made me honestly doubt if I should continue this project. 
+
+I could be egoistic and push forward just to have a project on my portfolio, but would FC Växjö really benefit from this? Would it not be better for them to go with svenskalag.se instead? These are the questions I am fighting these days. Hopefully I get a clear idea soon. 
+
+### 26th of September 
+#### 15:05
+I am writing this from the lounge room at the airport, no bragging. I have decided to keep going with the app. I have figured that FC Växjö would benefit from having their own app because I can customize the feeling for them. Svenskalag has one "size fits all" design that maybe won't suit them. Also I have plans on making a website for them later and connect the website with the app. So any updates made in the app will be visible on the website. 
+
+But to try to make it better for them I will try to bring down the costs for them too. So I will probably skip AWS for this one and use Railway instead. I wanted to use AWS initially for my portfolio but having a good product that the team is happy with is better on my portfolio. 
+
+### 6th of October
+I am back on track. I have been travelling. Now I am back at home and should have more time to code. 
+
+Obviously I feel rusty and can't remember where I left off. But using Jira makes it easy to catch up on what has been done and what needs to be done. Today I will work on fetching an user by their player number. Things to keep in mind: not every user has a player number. Only PLAYERS have player number, so this should be an optional variable. If a user doesn't have a player number the code should not break, so we need to handle that exception. I will start with adding the variable to the user class. 
+
+![](obsidian-attachments/Pasted%20image%2020261006145440.png)
+
+I have added the new variable to the AppUser class. It's nullable so that some users (like COACH and PARENT) can be fetched without giving error. It's also unique, so that we don't get two active users with the same number on their shirt. 
+
+![](obsidian-attachments/Pasted%20image%2020261006145546.png)
+
+And on the local database it shows now a new column called player_number. All the old users have a value of null at the moment. Now I will move on to sending the player number when creating an user. 
+
+![](obsidian-attachments/Pasted%20image%2020261006150550.png)
+
+When creating a new user I can now send a player number like 7. 
+
+![](obsidian-attachments/Pasted%20image%2020261006150622.png)
+
+Inside the local database we can see the new user has a player number of 7. 
+
+![](obsidian-attachments/Pasted%20image%2020261006150919.png)
+
+And we can still create new users without giving them a player number. I am thinking if it should be a must that a player must have a player number when creating the user? I don't think its practical. What if the coach wants to add a new member but they haven't figured out what number to give him? Then it would be better to just create a user and give him a player number later. 
+
+![](obsidian-attachments/Pasted%20image%2020261006151609.png)
+
+I have now added so that we can see the player number when fetching a user. Here we see the user that has player number 7. 
+
+![](obsidian-attachments/Pasted%20image%2020261006151650.png)
+
+And here is an example of fetching an user that has no player number. It just returns null without issue. 
+
+![](obsidian-attachments/Pasted%20image%2020261006162119.png)
+
+Here I have added FindByPlayerNumber in the user repository. This makes so that we can fetch an user using their t-shirt number. This is great if we wanted to read about a player and we dont know his name but we know the number on his t-shirt. I have used Optional because the player number is unique, so either it returns none or it returns one user maximum. 
+
+![](obsidian-attachments/Pasted%20image%2020261006164437.png)
+
+And I have now made so that we can search for the specific player number. It returns a user. 
+
+![](obsidian-attachments/Pasted%20image%2020261006164513.png)
+
+My only issue now is that if I give it a number that doesn't exist, it doesnt give me the exception I want. But this I will solve later one. 

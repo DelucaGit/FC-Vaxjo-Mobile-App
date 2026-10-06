@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.service;
 
 import org.springframework.stereotype.Service;
+
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.model.AppUser;
@@ -18,7 +19,7 @@ public class UserService {
         this.roleRepository = roleRepository;
     }
 
-    public AppUser createUser(String name, String email, String roleName) {
+    public AppUser createUser(String name, String email, String roleName, Integer playerNumber) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("User already exists");
         }
@@ -30,6 +31,7 @@ public class UserService {
         user.setName(name);
         user.setEmail(email);
         user.setRoleId(role.getId());
+        user.setPlayerNumber(playerNumber);
         return userRepository.save(user);
     }
 
@@ -53,5 +55,28 @@ public class UserService {
 
     public List<AppUser> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    /**
+     * Partial name search. Returns a list because several people can match
+     * the same letters. Blank or null is rejected so we do not search for everything.
+     */
+    public List<AppUser> searchByName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Name cannot be null or blank");
+        }
+        return userRepository.findByNameContainingIgnoreCase(name);
+    }
+
+    /**
+     * Exact shirt-number search. Returns one user because the number is unique.
+     * Null is rejected. Missing number throws, same idea as getUserById.
+     */
+    public AppUser searchByPlayerNumber(Integer playerNumber) {
+        if (playerNumber == null) {
+            throw new IllegalArgumentException("Player number cannot be null");
+        }
+        return userRepository.findByPlayerNumber(playerNumber)
+                .orElseThrow(() -> new IllegalArgumentException("No user found with player number " + playerNumber));
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
 import se.fcvaxjo.api.DTO.ChangeRoleResponse;
 import java.util.ArrayList;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/users")
@@ -40,10 +41,55 @@ public class UserController {
                     databaseUser.getId(),
                     databaseUser.getName(),
                     databaseUser.getEmail(),
-                    roleName));
+                    roleName,
+                    databaseUser.getPlayerNumber()));
         }
 
         return responseUsers;
+    }
+
+    /**
+     * Find users by part of the name. Same URL as number search;
+     * Spring picks this method because the query string contains {@code name}.
+     *
+     * @param name text to look for ({@code Er} finds Erik)
+     * @return matching users, may be empty
+     */
+    @GetMapping(value = "/search", params = "name")
+    public List<FetchUserResponse> searchByName(@RequestParam String name) {
+        List<AppUser> databaseUsers = userService.searchByName(name);
+        List<FetchUserResponse> responseUsers = new ArrayList<>();
+
+        for (AppUser databaseUser : databaseUsers) {
+            String roleName = userService.getRoleName(databaseUser.getRoleId());
+            responseUsers.add(new FetchUserResponse(
+                    databaseUser.getId(),
+                    databaseUser.getName(),
+                    databaseUser.getEmail(),
+                    roleName,
+                    databaseUser.getPlayerNumber()));
+        }
+
+        return responseUsers;
+    }
+
+    /**
+     * Find one user by shirt number. Same URL as name search;
+     * Spring picks this method because the query string contains {@code number}.
+     * Returns one user because shirt numbers are unique.
+     *
+     * @param number the shirt number (exact match)
+     */
+    @GetMapping(value = "/search", params = "number")
+    public FetchUserResponse searchByPlayerNumber(@RequestParam Integer number) {
+        AppUser foundUser = userService.searchByPlayerNumber(number);
+        String roleName = userService.getRoleName(foundUser.getRoleId());
+        return new FetchUserResponse(
+                foundUser.getId(),
+                foundUser.getName(),
+                foundUser.getEmail(),
+                roleName,
+                foundUser.getPlayerNumber());
     }
 
     @GetMapping("/{id}")
@@ -54,7 +100,8 @@ public class UserController {
                 fetchedUser.getId(),
                 fetchedUser.getName(),
                 fetchedUser.getEmail(),
-                roleName);
+                roleName,
+                fetchedUser.getPlayerNumber());
     }
 
     @PostMapping
@@ -63,7 +110,8 @@ public class UserController {
         AppUser createdUser = userService.createUser(
                 request.getName(),
                 request.getEmail(),
-                request.getRoleName());
+                request.getRoleName(),
+                request.getPlayerNumber());
 
         String roleName = userService.getRoleName(createdUser.getRoleId());
 
@@ -71,7 +119,8 @@ public class UserController {
                 createdUser.getId(),
                 createdUser.getName(),
                 createdUser.getEmail(),
-                roleName);
+                roleName,
+                createdUser.getPlayerNumber());
     }
 
     @PutMapping("/{id}/role")

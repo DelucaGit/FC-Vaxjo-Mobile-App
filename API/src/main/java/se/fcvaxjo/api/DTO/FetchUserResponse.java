@@ -12,4 +12,5 @@ public class FetchUserResponse {
     private String name;
     private String email;
     private String roleName;
+    private Integer playerNumber;
 }
