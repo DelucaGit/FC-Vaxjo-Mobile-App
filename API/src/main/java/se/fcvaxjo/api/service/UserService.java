@@ -19,7 +19,7 @@ public class UserService {
         this.roleRepository = roleRepository;
     }
 
-    public AppUser createUser(String name, String email, String roleName) {
+    public AppUser createUser(String name, String email, String roleName, Integer playerNumber) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("User already exists");
         }
@@ -31,6 +31,7 @@ public class UserService {
         user.setName(name);
         user.setEmail(email);
         user.setRoleId(role.getId());
+        user.setPlayerNumber(playerNumber);
         return userRepository.save(user);
     }
 
@@ -61,5 +62,13 @@ public class UserService {
             throw new IllegalArgumentException("Name cannot be null or blank");
         }
         return userRepository.findByNameContainingIgnoreCase(name);
+    }
+
+    public AppUser searchByPlayerNumber(Integer playerNumber) {
+        if (playerNumber == null) {
+            throw new IllegalArgumentException("Player number cannot be null");
+        }
+        return userRepository.findByPlayerNumber(playerNumber)
+                .orElseThrow(() -> new IllegalArgumentException("No user found with player number " + playerNumber));
     }
 }

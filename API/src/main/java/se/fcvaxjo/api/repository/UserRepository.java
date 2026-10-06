@@ -9,4 +9,5 @@ public interface UserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findByEmail(String email);
 
     List<AppUser> findByNameContainingIgnoreCase(String name);
+    Optional<AppUser> findByPlayerNumber(Integer playerNumber);
 }

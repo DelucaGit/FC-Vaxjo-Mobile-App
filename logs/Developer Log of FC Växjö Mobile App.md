@@ -209,3 +209,54 @@ So far I have made 2 out of 4 stories in my sprint. I will take a break today be
 I have been awake since 12:30 the day before. I just came home from my night shift and in 30 minutes I have my school class. I am a bit stuck in the project now because one of the coaches of FC Växjö showed me a website: www.svenskalag.se/. Apparently they offer website, mobile app and payment options for sport clubs. They have really good offers and it made me honestly doubt if I should continue this project. 
 
 I could be egoistic and push forward just to have a project on my portfolio, but would FC Växjö really benefit from this? Would it not be better for them to go with svenskalag.se instead? These are the questions I am fighting these days. Hopefully I get a clear idea soon. 
+
+### 26th of September 
+#### 15:05
+I am writing this from the lounge room at the airport, no bragging. I have decided to keep going with the app. I have figured that FC Växjö would benefit from having their own app because I can customize the feeling for them. Svenskalag has one "size fits all" design that maybe won't suit them. Also I have plans on making a website for them later and connect the website with the app. So any updates made in the app will be visible on the website. 
+
+But to try to make it better for them I will try to bring down the costs for them too. So I will probably skip AWS for this one and use Railway instead. I wanted to use AWS initially for my portfolio but having a good product that the team is happy with is better on my portfolio. 
+
+### 6th of October
+I am back on track. I have been travelling. Now I am back at home and should have more time to code. 
+
+Obviously I feel rusty and can't remember where I left off. But using Jira makes it easy to catch up on what has been done and what needs to be done. Today I will work on fetching an user by their player number. Things to keep in mind: not every user has a player number. Only PLAYERS have player number, so this should be an optional variable. If a user doesn't have a player number the code should not break, so we need to handle that exception. I will start with adding the variable to the user class. 
+
+![](obsidian-attachments/Pasted%20image%2020261006145440.png)
+
+I have added the new variable to the AppUser class. It's nullable so that some users (like COACH and PARENT) can be fetched without giving error. It's also unique, so that we don't get two active users with the same number on their shirt. 
+
+![](obsidian-attachments/Pasted%20image%2020261006145546.png)
+
+And on the local database it shows now a new column called player_number. All the old users have a value of null at the moment. Now I will move on to sending the player number when creating an user. 
+
+![](obsidian-attachments/Pasted%20image%2020261006150550.png)
+
+When creating a new user I can now send a player number like 7. 
+
+![](obsidian-attachments/Pasted%20image%2020261006150622.png)
+
+Inside the local database we can see the new user has a player number of 7. 
+
+![](obsidian-attachments/Pasted%20image%2020261006150919.png)
+
+And we can still create new users without giving them a player number. I am thinking if it should be a must that a player must have a player number when creating the user? I don't think its practical. What if the coach wants to add a new member but they haven't figured out what number to give him? Then it would be better to just create a user and give him a player number later. 
+
+![](obsidian-attachments/Pasted%20image%2020261006151609.png)
+
+I have now added so that we can see the player number when fetching a user. Here we see the user that has player number 7. 
+
+![](obsidian-attachments/Pasted%20image%2020261006151650.png)
+
+And here is an example of fetching an user that has no player number. It just returns null without issue. 
+
+![](obsidian-attachments/Pasted%20image%2020261006162119.png)
+
+Here I have added FindByPlayerNumber in the user repository. This makes so that we can fetch an user using their t-shirt number. This is great if we wanted to read about a player and we dont know his name but we know the number on his t-shirt. I have used Optional because the player number is unique, so either it returns none or it returns one user maximum. 
+
+![](obsidian-attachments/Pasted%20image%2020261006164437.png)
+
+And I have now made so that we can search for the specific player number. It returns a user. 
+
+![](obsidian-attachments/Pasted%20image%2020261006164513.png)
+
+My only issue now is that if I give it a number that doesn't exist, it doesnt give me the exception I want. But this I will solve later one. 

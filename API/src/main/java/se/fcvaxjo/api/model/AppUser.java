@@ -28,4 +28,7 @@ public class AppUser {
 
     @Column(name = "role_id", nullable = false)
     private Long roleId;
+
+    @Column(nullable = true, unique = true)
+    private Integer playerNumber;
 }

@@ -9,4 +9,5 @@ public class CreateUserRequest {
     private String name;
     private String email;
     private String roleName;
+    private Integer playerNumber;
 }
