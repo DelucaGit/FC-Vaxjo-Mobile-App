@@ -48,6 +48,13 @@ public class UserController {
         return responseUsers;
     }
 
+    /**
+     * Find users by part of the name. Same URL as number search;
+     * Spring picks this method because the query string contains {@code name}.
+     *
+     * @param name text to look for ({@code Er} finds Erik)
+     * @return matching users, may be empty
+     */
     @GetMapping(value = "/search", params = "name")
     public List<FetchUserResponse> searchByName(@RequestParam String name) {
         List<AppUser> databaseUsers = userService.searchByName(name);
@@ -66,6 +73,13 @@ public class UserController {
         return responseUsers;
     }
 
+    /**
+     * Find one user by shirt number. Same URL as name search;
+     * Spring picks this method because the query string contains {@code number}.
+     * Returns one user because shirt numbers are unique.
+     *
+     * @param number the shirt number (exact match)
+     */
     @GetMapping(value = "/search", params = "number")
     public FetchUserResponse searchByPlayerNumber(@RequestParam Integer number) {
         AppUser foundUser = userService.searchByPlayerNumber(number);

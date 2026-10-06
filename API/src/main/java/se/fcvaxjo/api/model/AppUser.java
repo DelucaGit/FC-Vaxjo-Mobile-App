@@ -9,12 +9,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * One row in the {@code users} table. The client never sees this class.
+ * HTTP responses use DTOs such as FetchUserResponse.
+ */
 @Entity
 @Table(name = "users")
 @Getter
 @Setter
-// This is the database row. Not what the client sees.
-// The client sees the CreateUserResponse and ChangeRoleResponse.
 public class AppUser {
 
     @Id
@@ -29,6 +31,11 @@ public class AppUser {
     @Column(name = "role_id", nullable = false)
     private Long roleId;
 
+    /**
+     * Shirt number. Unique when set. Null is allowed: coaches and parents
+     * have none, and a player can be created before the kit number is decided.
+     * Postgres still allows many nulls on a unique column.
+     */
     @Column(nullable = true, unique = true)
     private Integer playerNumber;
 }

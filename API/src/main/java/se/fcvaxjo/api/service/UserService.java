@@ -57,6 +57,10 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    /**
+     * Partial name search. Returns a list because several people can match
+     * the same letters. Blank or null is rejected so we do not search for everything.
+     */
     public List<AppUser> searchByName(String name) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Name cannot be null or blank");
@@ -64,6 +68,10 @@ public class UserService {
         return userRepository.findByNameContainingIgnoreCase(name);
     }
 
+    /**
+     * Exact shirt-number search. Returns one user because the number is unique.
+     * Null is rejected. Missing number throws, same idea as getUserById.
+     */
     public AppUser searchByPlayerNumber(Integer playerNumber) {
         if (playerNumber == null) {
             throw new IllegalArgumentException("Player number cannot be null");
