@@ -1,5 +1,7 @@
 package se.fcvaxjo.api.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RestController
 @RequestMapping("/api/users")
 // TODO: Add @PreAuthorize to all methods
-// TODO: Return correct HTTP status codes
 public class UserController {
     private final UserService userService;
 
@@ -36,13 +37,7 @@ public class UserController {
         List<FetchUserResponse> responseUsers = new ArrayList<>();
 
         for (AppUser databaseUser : databaseUsers) {
-            String roleName = userService.getRoleName(databaseUser.getRoleId());
-            responseUsers.add(new FetchUserResponse(
-                    databaseUser.getId(),
-                    databaseUser.getName(),
-                    databaseUser.getEmail(),
-                    roleName,
-                    databaseUser.getPlayerNumber()));
+            responseUsers.add(toFetchResponse(databaseUser));
         }
 
         return responseUsers;
@@ -61,13 +56,7 @@ public class UserController {
         List<FetchUserResponse> responseUsers = new ArrayList<>();
 
         for (AppUser databaseUser : databaseUsers) {
-            String roleName = userService.getRoleName(databaseUser.getRoleId());
-            responseUsers.add(new FetchUserResponse(
-                    databaseUser.getId(),
-                    databaseUser.getName(),
-                    databaseUser.getEmail(),
-                    roleName,
-                    databaseUser.getPlayerNumber()));
+            responseUsers.add(toFetchResponse(databaseUser));
         }
 
         return responseUsers;
@@ -82,45 +71,39 @@ public class UserController {
      */
     @GetMapping(value = "/search", params = "number")
     public FetchUserResponse searchByPlayerNumber(@RequestParam Integer number) {
-        AppUser foundUser = userService.searchByPlayerNumber(number);
-        String roleName = userService.getRoleName(foundUser.getRoleId());
-        return new FetchUserResponse(
-                foundUser.getId(),
-                foundUser.getName(),
-                foundUser.getEmail(),
-                roleName,
-                foundUser.getPlayerNumber());
+        return toFetchResponse(userService.searchByPlayerNumber(number));
+    }
+
+    /**
+     * Find one user by mobile phone. Same URL as name/number search;
+     * Spring picks this method because the query string contains {@code phone}.
+     * Returns one user because phone numbers are unique when set.
+     *
+     * @param phone the mobile number (exact match)
+     */
+    @GetMapping(value = "/search", params = "phone")
+    public FetchUserResponse searchByMobilePhoneNumber(@RequestParam String phone) {
+        return toFetchResponse(userService.searchByMobilePhoneNumber(phone));
     }
 
     @GetMapping("/{id}")
     public FetchUserResponse getUserById(@PathVariable Long id) {
-        AppUser fetchedUser = userService.getUserById(id);
-        String roleName = userService.getRoleName(fetchedUser.getRoleId());
-        return new FetchUserResponse(
-                fetchedUser.getId(),
-                fetchedUser.getName(),
-                fetchedUser.getEmail(),
-                roleName,
-                fetchedUser.getPlayerNumber());
+        return toFetchResponse(userService.getUserById(id));
     }
 
     @PostMapping
-    public CreateUserResponse createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<CreateUserResponse> createUser(@RequestBody CreateUserRequest request) {
 
         AppUser createdUser = userService.createUser(
                 request.getName(),
                 request.getEmail(),
                 request.getRoleName(),
-                request.getPlayerNumber());
+                request.getPlayerNumber(),
+                request.getMobilePhoneNumber(),
+                request.getParentId(),
+                request.getNewParent());
 
-        String roleName = userService.getRoleName(createdUser.getRoleId());
-
-        return new CreateUserResponse(
-                createdUser.getId(),
-                createdUser.getName(),
-                createdUser.getEmail(),
-                roleName,
-                createdUser.getPlayerNumber());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toCreateResponse(createdUser));
     }
 
     @PutMapping("/{id}/role")
@@ -138,5 +121,33 @@ public class UserController {
                 updatedUser.getId(),
                 roleName);
 
+    }
+
+    private FetchUserResponse toFetchResponse(AppUser user) {
+        String roleName = userService.getRoleName(user.getRoleId());
+        String parentName = userService.getParentName(user.getParentId());
+        return new FetchUserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                roleName,
+                user.getPlayerNumber(),
+                user.getMobilePhoneNumber(),
+                user.getParentId(),
+                parentName);
+    }
+
+    private CreateUserResponse toCreateResponse(AppUser user) {
+        String roleName = userService.getRoleName(user.getRoleId());
+        String parentName = userService.getParentName(user.getParentId());
+        return new CreateUserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                roleName,
+                user.getPlayerNumber(),
+                user.getMobilePhoneNumber(),
+                user.getParentId(),
+                parentName);
     }
 }

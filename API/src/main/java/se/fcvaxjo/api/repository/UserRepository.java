@@ -13,4 +13,7 @@ public interface UserRepository extends JpaRepository<AppUser, Long> {
 
     /** Exact shirt number. Unique, so at most one row. */
     Optional<AppUser> findByPlayerNumber(Integer playerNumber);
+
+    /** Exact mobile phone. Unique when set, so at most one row. */
+    Optional<AppUser> findByMobilePhoneNumber(String mobilePhoneNumber);
 }

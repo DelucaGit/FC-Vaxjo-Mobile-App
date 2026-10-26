@@ -38,4 +38,19 @@ public class AppUser {
      */
     @Column(nullable = true, unique = true)
     private Integer playerNumber;
+
+    /**
+     * Mobile phone number. Unique when set. Null is allowed.
+     * Postgres still allows many nulls on a unique column.
+     * Stored as a String because it may contain + and spaces.
+     */
+    @Column(nullable = true, unique = true)
+    private String mobilePhoneNumber;
+
+    /**
+     * The one PARENT linked to this user when the role is PLAYER.
+     * Null for coaches, admins, and parents themselves.
+     */
+    @Column(name = "parent_id", nullable = true)
+    private Long parentId;
 }

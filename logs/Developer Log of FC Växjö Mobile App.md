@@ -260,3 +260,27 @@ And I have now made so that we can search for the specific player number. It ret
 ![](obsidian-attachments/Pasted%20image%2020261006164513.png)
 
 My only issue now is that if I give it a number that doesn't exist, it doesnt give me the exception I want. But this I will solve later one. 
+
+Now I am DONE with this user story. The user can now fetch another user using their player number. Next user story is to fetch a user with the phone number. The idea of this is that when a coach has a phone number saved or he got a missed called from somebody, he can search for this number in the database and see who it was. Maybe it was a parent, what is the parents name then? Who is he parent for? That way they can call back and be prepared. 
+
+### 8th of September
+#### 11:14
+Today I will work on the last user story of our epic "staff can create and look after user accounts". The user story is for the coach or admin to be able to search for another user using their phone number. 
+
+![](Pasted%20image%2020261008113232.png)
+
+I have added the mobilePhoneVariable to the user class. I made it a string because the number may contain +46 and may have zeros. 
+
+![](Pasted%20image%2020261008114208.png)
+
+And now the local database also has a column for phone numbers. 
+
+![](Pasted%20image%2020261008115145.png)
+
+![](Pasted%20image%2020261008115214.png)
+
+Next I am passing the mobile number through the service and controller layer so that the phone number gets stored in the database.
+
+![](Pasted%20image%2020261008115248.png)
+
+After a test on Postman we can see that we have a user with a phone number. 

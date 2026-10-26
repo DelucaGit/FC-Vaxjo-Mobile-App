@@ -13,4 +13,7 @@ public class CreateUserResponse {
     private String email;
     private String roleName;
     private Integer playerNumber;
+    private String mobilePhoneNumber;
+    private Long parentId;
+    private String parentName;
 }
