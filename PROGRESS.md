@@ -52,7 +52,7 @@ I will use the standard Github Flow. That means I create short-lived branches fo
 
 # Project Version 1
 
-Status: In progress. Postman can create, list, fetch, search by name, and change a user's role. JSON uses role **names**. Local PostgreSQL stores role **ids**. No login yet (500 on blank search / bad role; map to 400 later). 
+Status: In progress. Postman can create, list, fetch, search by name / shirt number / phone, and change a user's role. JSON uses role **names**. Local PostgreSQL stores role **ids**. Expo MVP UI started under `UI/` (Search + Create tabs). No login yet (500 on blank search / bad role; map to 400 later). 
 
 For the initial version of the app I want to have some functions up and running at the end. I want the API to be able to:
 
@@ -241,3 +241,60 @@ Testing (same day): a sprint is not Done until new functions were tested. Postma
 # LinkedIn ideas file (17/9-2026)
 
 After each git push, Cursor reads `logs/Developer Log of FC Växjö Mobile App.md` and rewrites local `LK_POSTS.md` with at most 10 recruiter-facing post ideas (passion, problem-solving, project management, communication). Quality over count. The file is in `.gitignore` so it never goes to GitHub. Rule: `.cursor/rules/lk-posts.mdc`.
+
+# Expo MVP UI (26/10-2026)
+
+Decision: MVP front end is **Expo** (React Native), not a separate web-only admin. Why: the long-term product is a phone app for coaches/parents; building the first screens in Expo avoids throwing away a throwaway website.
+
+MVP goal in one sentence: a coach/admin can create a club user and find them again (name, shirt number, or phone) without Postman.
+
+What exists now under `UI/`:
+
+- Tab **Search** — name / shirt # / phone → calls the Java API
+- Tab **Create** — name, email, role, optional shirt + phone
+- `src/api/config.ts` — API host (localhost / Android emulator / optional LAN IP for a real phone)
+- API `CorsConfig` — so Expo **web** can call `/api/**` from localhost during local MVP
+
+Out of MVP for now: login, schedules, attendance, notifications, polish design.
+
+How to run locally: start the API (`API/` → `.\mvnw.cmd spring-boot:run`), then `cd UI` → `npm start` (press `w` for web, or Expo Go on a phone with LAN IP set in `config.ts`).
+
+# Player linked to one parent (26/10-2026)
+
+Decision: each PLAYER has exactly one PARENT. Stored as `users.parent_id` (nullable). No join table yet.
+
+When creating a PLAYER, the coach must either:
+
+- send `parentId` of an existing PARENT, or
+- send `newParent` with **name + email + phone** (all required) so parent and player are created together in one transaction.
+
+Expo Create tab: search parents by name (filters search results to role PARENT), or open “Create new parent” fields. Other roles skip the parent block.
+
+Responses include `parentId` and `parentName` so the UI can show who the parent is.
+
+# Teams API (27/10-2026)
+
+Decision: club has named teams (e.g. P15).
+
+- PLAYER has one `team_id` (required on create). PARENT / ADMIN have none.
+- COACH ↔ team is many-to-many via `team_coaches` (`team_id` + `user_id`). A coach is not stored with `users.team_id`.
+
+API:
+
+- `POST/GET /api/teams`, `GET /api/teams/{id}`
+- `POST/GET /api/teams/{id}/coaches`, `DELETE /api/teams/{id}/coaches/{userId}`
+- Create PLAYER must send `teamId` (team must exist) plus parent as before.
+
+Expo UI (27/10-2026):
+
+- **Teams** tab — create team, pick a team, add/remove coaches by name search
+- **Create** tab — PLAYER must pick a team from the list (create teams first if empty)
+- Search results show `teamName`
+
+Team roster: `GET /api/teams/{id}/players` lists PLAYERs with that `team_id`. Teams tab shows players (name, shirt #, parent) when a team is selected.
+
+Player edit / soft delete (27/10-2026):
+
+- `users.active` — soft delete (`DELETE /api/users/{id}` sets active=false). Inactive players leave team lists.
+- `PUT /api/users/{id}/player` — edit name, email, phone, shirt, team (required, can switch), parent name/email/phone.
+- Expo: tap a player on Teams → detail form → Save or Remove. Player and parent emails are editable; duplicates return 400.

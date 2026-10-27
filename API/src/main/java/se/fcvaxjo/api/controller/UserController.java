@@ -1,5 +1,7 @@
 package se.fcvaxjo.api.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -9,6 +11,7 @@ import se.fcvaxjo.api.DTO.CreateUserResponse;
 import se.fcvaxjo.api.service.UserService;
 import java.util.List;
 import se.fcvaxjo.api.model.AppUser;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,13 +19,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
 import se.fcvaxjo.api.DTO.ChangeRoleResponse;
+import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 import java.util.ArrayList;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/users")
 // TODO: Add @PreAuthorize to all methods
-// TODO: Return correct HTTP status codes
 public class UserController {
     private final UserService userService;
 
@@ -36,13 +39,7 @@ public class UserController {
         List<FetchUserResponse> responseUsers = new ArrayList<>();
 
         for (AppUser databaseUser : databaseUsers) {
-            String roleName = userService.getRoleName(databaseUser.getRoleId());
-            responseUsers.add(new FetchUserResponse(
-                    databaseUser.getId(),
-                    databaseUser.getName(),
-                    databaseUser.getEmail(),
-                    roleName,
-                    databaseUser.getPlayerNumber()));
+            responseUsers.add(toFetchResponse(databaseUser));
         }
 
         return responseUsers;
@@ -61,13 +58,7 @@ public class UserController {
         List<FetchUserResponse> responseUsers = new ArrayList<>();
 
         for (AppUser databaseUser : databaseUsers) {
-            String roleName = userService.getRoleName(databaseUser.getRoleId());
-            responseUsers.add(new FetchUserResponse(
-                    databaseUser.getId(),
-                    databaseUser.getName(),
-                    databaseUser.getEmail(),
-                    roleName,
-                    databaseUser.getPlayerNumber()));
+            responseUsers.add(toFetchResponse(databaseUser));
         }
 
         return responseUsers;
@@ -82,45 +73,40 @@ public class UserController {
      */
     @GetMapping(value = "/search", params = "number")
     public FetchUserResponse searchByPlayerNumber(@RequestParam Integer number) {
-        AppUser foundUser = userService.searchByPlayerNumber(number);
-        String roleName = userService.getRoleName(foundUser.getRoleId());
-        return new FetchUserResponse(
-                foundUser.getId(),
-                foundUser.getName(),
-                foundUser.getEmail(),
-                roleName,
-                foundUser.getPlayerNumber());
+        return toFetchResponse(userService.searchByPlayerNumber(number));
+    }
+
+    /**
+     * Find one user by mobile phone. Same URL as name/number search;
+     * Spring picks this method because the query string contains {@code phone}.
+     * Returns one user because phone numbers are unique when set.
+     *
+     * @param phone the mobile number (exact match)
+     */
+    @GetMapping(value = "/search", params = "phone")
+    public FetchUserResponse searchByMobilePhoneNumber(@RequestParam String phone) {
+        return toFetchResponse(userService.searchByMobilePhoneNumber(phone));
     }
 
     @GetMapping("/{id}")
     public FetchUserResponse getUserById(@PathVariable Long id) {
-        AppUser fetchedUser = userService.getUserById(id);
-        String roleName = userService.getRoleName(fetchedUser.getRoleId());
-        return new FetchUserResponse(
-                fetchedUser.getId(),
-                fetchedUser.getName(),
-                fetchedUser.getEmail(),
-                roleName,
-                fetchedUser.getPlayerNumber());
+        return toFetchResponse(userService.getUserById(id));
     }
 
     @PostMapping
-    public CreateUserResponse createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<CreateUserResponse> createUser(@RequestBody CreateUserRequest request) {
 
         AppUser createdUser = userService.createUser(
                 request.getName(),
                 request.getEmail(),
                 request.getRoleName(),
-                request.getPlayerNumber());
+                request.getPlayerNumber(),
+                request.getMobilePhoneNumber(),
+                request.getParentId(),
+                request.getNewParent(),
+                request.getTeamId());
 
-        String roleName = userService.getRoleName(createdUser.getRoleId());
-
-        return new CreateUserResponse(
-                createdUser.getId(),
-                createdUser.getName(),
-                createdUser.getEmail(),
-                roleName,
-                createdUser.getPlayerNumber());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toCreateResponse(createdUser));
     }
 
     @PutMapping("/{id}/role")
@@ -138,5 +124,64 @@ public class UserController {
                 updatedUser.getId(),
                 roleName);
 
+    }
+
+    @PutMapping("/{id}/player")
+    public FetchUserResponse updatePlayer(
+            @PathVariable Long id,
+            @RequestBody UpdatePlayerRequest request) {
+        AppUser updated = userService.updatePlayer(
+                id,
+                request.getName(),
+                request.getEmail(),
+                request.getMobilePhoneNumber(),
+                request.getPlayerNumber(),
+                request.getTeamId(),
+                request.getParentId(),
+                request.getParentName(),
+                request.getParentEmail(),
+                request.getParentMobilePhoneNumber());
+        return toFetchResponse(updated);
+    }
+
+    /** Soft-delete: sets active=false. Player disappears from team lists. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> softDeletePlayer(@PathVariable Long id) {
+        userService.softDeletePlayer(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    private FetchUserResponse toFetchResponse(AppUser user) {
+        return new FetchUserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                userService.getRoleName(user.getRoleId()),
+                user.getPlayerNumber(),
+                user.getMobilePhoneNumber(),
+                user.getParentId(),
+                userService.getParentName(user.getParentId()),
+                userService.getParentEmail(user.getParentId()),
+                userService.getParentMobilePhoneNumber(user.getParentId()),
+                user.getTeamId(),
+                userService.getTeamName(user.getTeamId()),
+                user.isActive());
+    }
+
+    private CreateUserResponse toCreateResponse(AppUser user) {
+        return new CreateUserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                userService.getRoleName(user.getRoleId()),
+                user.getPlayerNumber(),
+                user.getMobilePhoneNumber(),
+                user.getParentId(),
+                userService.getParentName(user.getParentId()),
+                userService.getParentEmail(user.getParentId()),
+                userService.getParentMobilePhoneNumber(user.getParentId()),
+                user.getTeamId(),
+                userService.getTeamName(user.getTeamId()),
+                user.isActive());
     }
 }
