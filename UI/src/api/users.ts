@@ -10,8 +10,11 @@ export type ClubUser = {
   mobilePhoneNumber: string | null;
   parentId: number | null;
   parentName: string | null;
+  parentEmail: string | null;
+  parentMobilePhoneNumber: string | null;
   teamId: number | null;
   teamName: string | null;
+  active: boolean;
 };
 
 export type NewParentInput = {
@@ -31,6 +34,18 @@ export type CreateUserInput = {
   teamId?: number | null;
 };
 
+export type UpdatePlayerInput = {
+  name: string;
+  email: string;
+  mobilePhoneNumber?: string | null;
+  playerNumber?: number | null;
+  teamId: number;
+  parentId?: number | null;
+  parentName?: string | null;
+  parentEmail?: string | null;
+  parentMobilePhoneNumber?: string | null;
+};
+
 export async function createUser(input: CreateUserInput): Promise<ClubUser> {
   const response = await fetch(`${API_BASE_URL}/users`, {
     method: 'POST',
@@ -43,6 +58,30 @@ export async function createUser(input: CreateUserInput): Promise<ClubUser> {
   }
 
   return response.json();
+}
+
+export async function updatePlayer(id: number, input: UpdatePlayerInput): Promise<ClubUser> {
+  const response = await fetch(`${API_BASE_URL}/users/${id}/player`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function softDeletePlayer(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
 }
 
 export async function searchByName(name: string): Promise<ClubUser[]> {

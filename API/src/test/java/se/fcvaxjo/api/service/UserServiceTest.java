@@ -156,4 +156,44 @@ class UserServiceTest {
                 () -> userService.createUser(
                         "Kid2", "kid2@fcvaxjo.se", "PLAYER", null, null, null, newParent, 1L));
     }
+
+    @Test
+    void softDeletePlayer_setsInactive() {
+        Role playerRole = new Role();
+        playerRole.setId(3L);
+        playerRole.setName("PLAYER");
+
+        AppUser player = new AppUser();
+        player.setId(30L);
+        player.setRoleId(3L);
+        player.setActive(true);
+
+        when(userRepository.findById(30L)).thenReturn(Optional.of(player));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(playerRole));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser result = userService.softDeletePlayer(30L);
+
+        assertEquals(false, result.isActive());
+    }
+
+    @Test
+    void updatePlayer_rejectsNullTeam() {
+        Role playerRole = new Role();
+        playerRole.setId(3L);
+        playerRole.setName("PLAYER");
+
+        AppUser player = new AppUser();
+        player.setId(30L);
+        player.setRoleId(3L);
+        player.setActive(true);
+        player.setTeamId(1L);
+
+        when(userRepository.findById(30L)).thenReturn(Optional.of(player));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(playerRole));
+
+        assertThrows(BadRequestException.class,
+                () -> userService.updatePlayer(
+                        30L, "Kid", "kid@fcvaxjo.se", null, 7, null, null, null, null, null));
+    }
 }

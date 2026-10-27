@@ -35,6 +35,14 @@ export async function listTeamCoaches(teamId: number): Promise<ClubUser[]> {
   return response.json();
 }
 
+export async function listTeamPlayers(teamId: number): Promise<ClubUser[]> {
+  const response = await fetch(`${API_BASE_URL}/teams/${teamId}/players`);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.json();
+}
+
 export async function addTeamCoach(teamId: number, userId: number): Promise<ClubUser> {
   const response = await fetch(`${API_BASE_URL}/teams/${teamId}/coaches`, {
     method: 'POST',

@@ -60,4 +60,11 @@ public class AppUser {
      */
     @Column(name = "team_id", nullable = true)
     private Long teamId;
+
+    /**
+     * Soft delete flag. false = removed from the club lists but row kept.
+     * New users start as active.
+     */
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
 }

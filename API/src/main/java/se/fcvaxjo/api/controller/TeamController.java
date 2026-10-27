@@ -76,6 +76,15 @@ public class TeamController {
         return responses;
     }
 
+    @GetMapping("/{id}/players")
+    public List<FetchUserResponse> listPlayers(@PathVariable Long id) {
+        List<FetchUserResponse> responses = new ArrayList<>();
+        for (AppUser player : teamService.listPlayers(id)) {
+            responses.add(toFetchResponse(player));
+        }
+        return responses;
+    }
+
     @DeleteMapping("/{id}/coaches/{userId}")
     public ResponseEntity<Void> removeCoach(
             @PathVariable Long id,
@@ -94,7 +103,10 @@ public class TeamController {
                 user.getMobilePhoneNumber(),
                 user.getParentId(),
                 userService.getParentName(user.getParentId()),
+                userService.getParentEmail(user.getParentId()),
+                userService.getParentMobilePhoneNumber(user.getParentId()),
                 user.getTeamId(),
-                teamService.getTeamName(user.getTeamId()));
+                teamService.getTeamName(user.getTeamId()),
+                user.isActive());
     }
 }

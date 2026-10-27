@@ -96,9 +96,28 @@ public class TeamService {
         List<TeamCoach> links = teamCoachRepository.findByTeamId(teamId);
         List<AppUser> coaches = new ArrayList<>();
         for (TeamCoach link : links) {
-            userRepository.findById(link.getUserId()).ifPresent(coaches::add);
+            userRepository.findById(link.getUserId()).ifPresent(user -> {
+                if (user.isActive()) {
+                    coaches.add(user);
+                }
+            });
         }
         return coaches;
+    }
+
+    /**
+     * Active players on this team: users with team_id set, role PLAYER only.
+     */
+    public List<AppUser> listPlayers(Long teamId) {
+        getTeamById(teamId);
+        List<AppUser> onTeam = userRepository.findByTeamIdAndActiveTrue(teamId);
+        List<AppUser> players = new ArrayList<>();
+        for (AppUser user : onTeam) {
+            if ("PLAYER".equals(userService.getRoleName(user.getRoleId()))) {
+                players.add(user);
+            }
+        }
+        return players;
     }
 
     @Transactional

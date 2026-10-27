@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -86,5 +87,33 @@ class TeamServiceTest {
     @Test
     void createTeam_rejectsBlankName() {
         assertThrows(BadRequestException.class, () -> teamService.createTeam("  "));
+    }
+
+    @Test
+    void listPlayers_returnsOnlyPlayersOnTeam() {
+        Team team = new Team();
+        team.setId(1L);
+        team.setName("P15");
+
+        AppUser player = new AppUser();
+        player.setId(10L);
+        player.setName("Kid");
+        player.setRoleId(3L);
+        player.setTeamId(1L);
+
+        AppUser wrongRole = new AppUser();
+        wrongRole.setId(11L);
+        wrongRole.setRoleId(4L);
+        wrongRole.setTeamId(1L);
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
+        when(userRepository.findByTeamIdAndActiveTrue(1L)).thenReturn(List.of(player, wrongRole));
+        when(userService.getRoleName(3L)).thenReturn("PLAYER");
+        when(userService.getRoleName(4L)).thenReturn("PARENT");
+
+        List<AppUser> players = teamService.listPlayers(1L);
+
+        assertEquals(1, players.size());
+        assertEquals("Kid", players.get(0).getName());
     }
 }

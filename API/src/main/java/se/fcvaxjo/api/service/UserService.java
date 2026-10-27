@@ -118,7 +118,131 @@ public class UserService {
         user.setMobilePhoneNumber(mobilePhoneNumber);
         user.setParentId(parentId);
         user.setTeamId(teamId);
+        user.setActive(true);
         return userRepository.save(user);
+    }
+
+    /**
+     * Update a PLAYER. Team can change but not become null.
+     * Parent link can change; parent name/email/phone update the linked PARENT row.
+     */
+    @Transactional
+    public AppUser updatePlayer(Long id, String name, String email, String mobilePhoneNumber,
+            Integer playerNumber, Long teamId, Long parentId, String parentName, String parentEmail,
+            String parentMobilePhoneNumber) {
+        AppUser player = getUserById(id);
+        if (!"PLAYER".equals(getRoleName(player.getRoleId()))) {
+            throw new BadRequestException("Only a PLAYER can be updated with this endpoint");
+        }
+        if (!player.isActive()) {
+            throw new BadRequestException("Cannot edit an inactive player");
+        }
+
+        requireNonBlank(name, "Name is required");
+        requireNonBlank(email, "Email is required");
+        if (teamId == null) {
+            throw new BadRequestException("teamId is required (change team, do not clear it)");
+        }
+        resolveTeamIdForPlayer(teamId);
+
+        assertEmailAvailable(email, player.getId());
+        assertPhoneAvailable(mobilePhoneNumber, player.getId());
+        assertShirtAvailable(playerNumber, player.getId());
+
+        player.setName(name.trim());
+        player.setEmail(email.trim());
+        player.setMobilePhoneNumber(blankToNull(mobilePhoneNumber));
+        player.setPlayerNumber(playerNumber);
+        player.setTeamId(teamId);
+
+        if (parentId != null) {
+            AppUser parent = userRepository.findById(parentId)
+                    .orElseThrow(() -> new BadRequestException("Parent user not found"));
+            if (!"PARENT".equals(getRoleName(parent.getRoleId()))) {
+                throw new BadRequestException("parentId must point to a user with role PARENT");
+            }
+            if (!parent.isActive()) {
+                throw new BadRequestException("Cannot link an inactive parent");
+            }
+            player.setParentId(parentId);
+        }
+
+        if (player.getParentId() != null
+                && (parentName != null || parentEmail != null || parentMobilePhoneNumber != null)) {
+            AppUser parent = getUserById(player.getParentId());
+            if (parentName != null && !parentName.isBlank()) {
+                parent.setName(parentName.trim());
+            }
+            if (parentEmail != null) {
+                requireNonBlank(parentEmail, "Parent email is required");
+                assertEmailAvailable(parentEmail, parent.getId());
+                parent.setEmail(parentEmail.trim());
+            }
+            if (parentMobilePhoneNumber != null) {
+                String phone = blankToNull(parentMobilePhoneNumber);
+                if (phone != null) {
+                    assertPhoneAvailable(phone, parent.getId());
+                }
+                parent.setMobilePhoneNumber(phone);
+            }
+            userRepository.save(parent);
+        }
+
+        return userRepository.save(player);
+    }
+
+    /** Soft-delete a PLAYER (active = false). Row stays in the database. */
+    @Transactional
+    public AppUser softDeletePlayer(Long id) {
+        AppUser player = getUserById(id);
+        if (!"PLAYER".equals(getRoleName(player.getRoleId()))) {
+            throw new BadRequestException("Only a PLAYER can be removed this way");
+        }
+        if (!player.isActive()) {
+            throw new BadRequestException("Player is already inactive");
+        }
+        player.setActive(false);
+        return userRepository.save(player);
+    }
+
+    private void assertEmailAvailable(String email, Long currentUserId) {
+        if (email == null || email.isBlank()) {
+            return;
+        }
+        userRepository.findByEmail(email.trim()).ifPresent(other -> {
+            if (!other.getId().equals(currentUserId)) {
+                throw new BadRequestException("Email already in use");
+            }
+        });
+    }
+
+    private void assertPhoneAvailable(String mobilePhoneNumber, Long currentUserId) {
+        if (mobilePhoneNumber == null || mobilePhoneNumber.isBlank()) {
+            return;
+        }
+        userRepository.findByMobilePhoneNumber(mobilePhoneNumber.trim()).ifPresent(other -> {
+            if (!other.getId().equals(currentUserId)) {
+                throw new BadRequestException("Phone number already in use");
+            }
+        });
+    }
+
+    private void assertShirtAvailable(Integer playerNumber, Long currentUserId) {
+        if (playerNumber == null) {
+            return;
+        }
+        userRepository.findByPlayerNumber(playerNumber).ifPresent(other -> {
+            if (!other.getId().equals(currentUserId)) {
+                throw new BadRequestException("Shirt number already in use");
+            }
+        });
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void requireNonBlank(String value, String message) {
@@ -148,6 +272,26 @@ public class UserService {
                 .orElse(null);
     }
 
+    /** Parent email for responses. Null if the user has no parent. */
+    public String getParentEmail(Long parentId) {
+        if (parentId == null) {
+            return null;
+        }
+        return userRepository.findById(parentId)
+                .map(AppUser::getEmail)
+                .orElse(null);
+    }
+
+    /** Parent phone for responses. Null if the user has no parent. */
+    public String getParentMobilePhoneNumber(Long parentId) {
+        if (parentId == null) {
+            return null;
+        }
+        return userRepository.findById(parentId)
+                .map(AppUser::getMobilePhoneNumber)
+                .orElse(null);
+    }
+
     /** Team display name for responses. Null if the user has no team. */
     public String getTeamName(Long teamId) {
         if (teamId == null) {
@@ -167,19 +311,19 @@ public class UserService {
     }
 
     public List<AppUser> getAllUsers() {
-        return userRepository.findAll();
+        return userRepository.findByActiveTrue();
     }
 
     /**
      * Partial name search. Returns a list because several people can match
      * the same letters. Blank or null is rejected so we do not search for
-     * everything.
+     * everything. Inactive users are hidden.
      */
     public List<AppUser> searchByName(String name) {
         if (name == null || name.isBlank()) {
             throw new BadRequestException("Name cannot be null or blank");
         }
-        return userRepository.findByNameContainingIgnoreCase(name);
+        return userRepository.findByNameContainingIgnoreCaseAndActiveTrue(name);
     }
 
     /**
@@ -190,8 +334,12 @@ public class UserService {
         if (playerNumber == null) {
             throw new BadRequestException("Player number cannot be null");
         }
-        return userRepository.findByPlayerNumber(playerNumber)
+        AppUser user = userRepository.findByPlayerNumber(playerNumber)
                 .orElseThrow(() -> new NotFoundException("No user found with player number " + playerNumber));
+        if (!user.isActive()) {
+            throw new NotFoundException("No user found with player number " + playerNumber);
+        }
+        return user;
     }
 
     /**
@@ -202,8 +350,12 @@ public class UserService {
         if (mobilePhoneNumber == null || mobilePhoneNumber.isBlank()) {
             throw new BadRequestException("Phone number cannot be null or blank");
         }
-        return userRepository.findByMobilePhoneNumber(mobilePhoneNumber)
+        AppUser user = userRepository.findByMobilePhoneNumber(mobilePhoneNumber)
                 .orElseThrow(() -> new NotFoundException(
                         "No user found with phone number " + mobilePhoneNumber));
+        if (!user.isActive()) {
+            throw new NotFoundException("No user found with phone number " + mobilePhoneNumber);
+        }
+        return user;
     }
 }

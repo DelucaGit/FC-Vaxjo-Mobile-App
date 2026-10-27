@@ -290,3 +290,11 @@ Expo UI (27/10-2026):
 - **Teams** tab — create team, pick a team, add/remove coaches by name search
 - **Create** tab — PLAYER must pick a team from the list (create teams first if empty)
 - Search results show `teamName`
+
+Team roster: `GET /api/teams/{id}/players` lists PLAYERs with that `team_id`. Teams tab shows players (name, shirt #, parent) when a team is selected.
+
+Player edit / soft delete (27/10-2026):
+
+- `users.active` — soft delete (`DELETE /api/users/{id}` sets active=false). Inactive players leave team lists.
+- `PUT /api/users/{id}/player` — edit name, email, phone, shirt, team (required, can switch), parent name/email/phone.
+- Expo: tap a player on Teams → detail form → Save or Remove. Player and parent emails are editable; duplicates return 400.

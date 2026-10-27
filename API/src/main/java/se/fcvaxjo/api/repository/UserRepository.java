@@ -11,9 +11,20 @@ public interface UserRepository extends JpaRepository<AppUser, Long> {
     /** Partial name match, ignore case. Several rows can match. */
     List<AppUser> findByNameContainingIgnoreCase(String name);
 
+    /** Active users only for name search in the app. */
+    List<AppUser> findByNameContainingIgnoreCaseAndActiveTrue(String name);
+
     /** Exact shirt number. Unique, so at most one row. */
     Optional<AppUser> findByPlayerNumber(Integer playerNumber);
 
     /** Exact mobile phone. Unique when set, so at most one row. */
     Optional<AppUser> findByMobilePhoneNumber(String mobilePhoneNumber);
+
+    /** Users that point at this team (players use this). */
+    List<AppUser> findByTeamId(Long teamId);
+
+    /** Active players/users on a team. */
+    List<AppUser> findByTeamIdAndActiveTrue(Long teamId);
+
+    List<AppUser> findByActiveTrue();
 }

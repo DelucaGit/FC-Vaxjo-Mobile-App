@@ -11,6 +11,7 @@ import se.fcvaxjo.api.DTO.CreateUserResponse;
 import se.fcvaxjo.api.service.UserService;
 import java.util.List;
 import se.fcvaxjo.api.model.AppUser;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
 import se.fcvaxjo.api.DTO.ChangeRoleResponse;
+import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 import java.util.ArrayList;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -124,6 +126,31 @@ public class UserController {
 
     }
 
+    @PutMapping("/{id}/player")
+    public FetchUserResponse updatePlayer(
+            @PathVariable Long id,
+            @RequestBody UpdatePlayerRequest request) {
+        AppUser updated = userService.updatePlayer(
+                id,
+                request.getName(),
+                request.getEmail(),
+                request.getMobilePhoneNumber(),
+                request.getPlayerNumber(),
+                request.getTeamId(),
+                request.getParentId(),
+                request.getParentName(),
+                request.getParentEmail(),
+                request.getParentMobilePhoneNumber());
+        return toFetchResponse(updated);
+    }
+
+    /** Soft-delete: sets active=false. Player disappears from team lists. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> softDeletePlayer(@PathVariable Long id) {
+        userService.softDeletePlayer(id);
+        return ResponseEntity.noContent().build();
+    }
+
     private FetchUserResponse toFetchResponse(AppUser user) {
         return new FetchUserResponse(
                 user.getId(),
@@ -134,8 +161,11 @@ public class UserController {
                 user.getMobilePhoneNumber(),
                 user.getParentId(),
                 userService.getParentName(user.getParentId()),
+                userService.getParentEmail(user.getParentId()),
+                userService.getParentMobilePhoneNumber(user.getParentId()),
                 user.getTeamId(),
-                userService.getTeamName(user.getTeamId()));
+                userService.getTeamName(user.getTeamId()),
+                user.isActive());
     }
 
     private CreateUserResponse toCreateResponse(AppUser user) {
@@ -148,7 +178,10 @@ public class UserController {
                 user.getMobilePhoneNumber(),
                 user.getParentId(),
                 userService.getParentName(user.getParentId()),
+                userService.getParentEmail(user.getParentId()),
+                userService.getParentMobilePhoneNumber(user.getParentId()),
                 user.getTeamId(),
-                userService.getTeamName(user.getTeamId()));
+                userService.getTeamName(user.getTeamId()),
+                user.isActive());
     }
 }
