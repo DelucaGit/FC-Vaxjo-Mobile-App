@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { changePassword as apiChangePassword, login as apiLogin, logout as apiLogout } from '../api/auth';
 import { AuthSession, loadSession } from '../api/authStorage';
+import { setOnUnauthorized } from '../api/http';
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -28,6 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadSession()
       .then(setSession)
       .finally(() => setLoading(false));
+  }, []);
+
+  // When apiFetch refresh fails, drop React session so LoginScreen shows.
+  useEffect(() => {
+    setOnUnauthorized(() => setSession(null));
+    return () => setOnUnauthorized(null);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

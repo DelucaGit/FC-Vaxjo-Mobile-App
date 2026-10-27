@@ -30,4 +30,10 @@ public class AuthController {
     public LoginResponse changePassword(@RequestBody ChangePasswordRequest request) {
         return authService.changePassword(request.getCurrentPassword(), request.getNewPassword());
     }
+
+    /** Requires a still-valid JWT. Returns a new token (another 120 minutes). */
+    @PostMapping("/refresh")
+    public LoginResponse refresh() {
+        return authService.refresh();
+    }
 }

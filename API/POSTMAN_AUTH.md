@@ -34,4 +34,12 @@ Bootstrap admin (seeded once):
 6. **Soft-delete as COACH/ADMIN**  
    `DELETE /users/{playerId}` with staff token → 204
 
+7. **Refresh token (still valid JWT)**  
+   `POST /auth/refresh`  
+   Header: `Authorization: Bearer <token>`  
+   → 200 with a **new** `token` (another 120 minutes).  
+   No body needed. Expired/missing token → 401.
+
+JWT lifetime: **120 minutes** (`app.jwt.expiration-ms=7200000`).
+
 Wrong password on login → 400 `Invalid email or password`.

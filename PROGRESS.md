@@ -317,3 +317,7 @@ What shipped:
 Out of this slice (next): parent sees only children; player schedule rights; team-scoped coach limits.
 
 Jira (paste yourself): Epic — Staff and members can sign in safely… Stories 1–2 from the security plan; keep story 3 (parent children) for later.
+
+# JWT 120 minutes + silent refresh (27/10-2026)
+
+Decision: access tokens last **120 minutes** (`app.jwt.expiration-ms=7200000`). `POST /api/auth/refresh` (Bearer required) returns a new JWT for another 120 minutes. Expo `apiFetch` on 401 tries refresh once, then clears session and shows login. No separate refresh-token table yet. Branch: `feature/jwt-120min-refresh`.

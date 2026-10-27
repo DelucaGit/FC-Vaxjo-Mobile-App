@@ -93,6 +93,29 @@ public class AuthService {
                 false);
     }
 
+    /**
+     * Issues a new JWT for the currently authenticated user (sliding 120-minute window).
+     * Requires a still-valid Bearer token.
+     */
+    public LoginResponse refresh() {
+        Long userId = currentUserId();
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (!user.isActive()) {
+            throw new BadRequestException("This account is inactive");
+        }
+
+        String roleName = userService.getRoleName(user.getRoleId());
+        String token = jwtService.createToken(user.getId(), user.getEmail(), roleName);
+        return new LoginResponse(
+                token,
+                user.getId(),
+                user.getEmail(),
+                roleName,
+                user.isMustChangePassword());
+    }
+
     private Long currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getPrincipal() == null) {

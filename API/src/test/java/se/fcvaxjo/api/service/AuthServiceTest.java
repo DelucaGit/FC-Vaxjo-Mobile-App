@@ -121,4 +121,31 @@ class AuthServiceTest {
         assertEquals("new-jwt", response.getToken());
         verify(userRepository).save(user);
     }
+
+    @Test
+    void refresh_returnsNewTokenForLoggedInUser() {
+        AppUser user = new AppUser();
+        user.setId(5L);
+        user.setEmail("admin@fcvaxjo.se");
+        user.setRoleId(1L);
+        user.setActive(true);
+        user.setMustChangePassword(false);
+
+        var auth = new UsernamePasswordAuthenticationToken(
+                5L,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        when(userRepository.findById(5L)).thenReturn(Optional.of(user));
+        when(userService.getRoleName(1L)).thenReturn("ADMIN");
+        when(jwtService.createToken(5L, "admin@fcvaxjo.se", "ADMIN")).thenReturn("refreshed-jwt");
+
+        LoginResponse response = authService.refresh();
+
+        assertEquals("refreshed-jwt", response.getToken());
+        assertEquals(5L, response.getUserId());
+        assertEquals("ADMIN", response.getRoleName());
+        assertFalse(response.isMustChangePassword());
+    }
 }
