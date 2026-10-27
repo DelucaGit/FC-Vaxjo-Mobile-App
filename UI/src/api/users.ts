@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { readErrorMessage } from './http';
 
 export type ClubUser = {
   id: number;
@@ -27,27 +28,8 @@ export type CreateUserInput = {
   mobilePhoneNumber?: string | null;
   parentId?: number | null;
   newParent?: NewParentInput | null;
+  teamId?: number | null;
 };
-
-async function readErrorMessage(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-    if (!text) {
-      return `Request failed (${response.status})`;
-    }
-    try {
-      const json = JSON.parse(text) as { message?: string };
-      if (json.message) {
-        return json.message;
-      }
-    } catch {
-      // not JSON — use raw text
-    }
-    return text;
-  } catch {
-    return `Request failed (${response.status})`;
-  }
-}
 
 export async function createUser(input: CreateUserInput): Promise<ClubUser> {
   const response = await fetch(`${API_BASE_URL}/users`, {

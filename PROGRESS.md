@@ -279,8 +279,14 @@ Decision: club has named teams (e.g. P15).
 - PLAYER has one `team_id` (required on create). PARENT / ADMIN have none.
 - COACH ↔ team is many-to-many via `team_coaches` (`team_id` + `user_id`). A coach is not stored with `users.team_id`.
 
-API (Expo later):
+API:
 
 - `POST/GET /api/teams`, `GET /api/teams/{id}`
 - `POST/GET /api/teams/{id}/coaches`, `DELETE /api/teams/{id}/coaches/{userId}`
 - Create PLAYER must send `teamId` (team must exist) plus parent as before.
+
+Expo UI (27/10-2026):
+
+- **Teams** tab — create team, pick a team, add/remove coaches by name search
+- **Create** tab — PLAYER must pick a team from the list (create teams first if empty)
+- Search results show `teamName`

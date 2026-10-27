@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Team, listTeams } from '../api/teams';
 import { ClubUser, createUser, searchByName } from '../api/users';
 
 const ROLES = ['PLAYER', 'PARENT', 'COACH', 'ADMIN'] as const;
@@ -21,6 +22,9 @@ export default function CreateUserScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+
   const [parentSearch, setParentSearch] = useState('');
   const [parentMatches, setParentMatches] = useState<ClubUser[]>([]);
   const [selectedParent, setSelectedParent] = useState<ClubUser | null>(null);
@@ -28,6 +32,12 @@ export default function CreateUserScreen() {
   const [newParentName, setNewParentName] = useState('');
   const [newParentEmail, setNewParentEmail] = useState('');
   const [newParentPhone, setNewParentPhone] = useState('');
+
+  useEffect(() => {
+    listTeams()
+      .then(setTeams)
+      .catch(() => setTeams([]));
+  }, []);
 
   useEffect(() => {
     if (roleName !== 'PLAYER' || createNewParent || selectedParent) {
@@ -81,6 +91,11 @@ export default function CreateUserScreen() {
     }
 
     if (roleName === 'PLAYER') {
+      if (!selectedTeam) {
+        setError('Pick a team for this player.');
+        setMessage(null);
+        return;
+      }
       if (createNewParent) {
         if (!newParentName.trim() || !newParentEmail.trim() || !newParentPhone.trim()) {
           setError('New parent needs name, email, and phone.');
@@ -114,20 +129,24 @@ export default function CreateUserScreen() {
                 mobilePhoneNumber: newParentPhone.trim(),
               }
             : null,
+        teamId: roleName === 'PLAYER' && selectedTeam ? selectedTeam.id : null,
       });
 
       const parentInfo = created.parentName
         ? ` Parent: ${created.parentName}.`
         : '';
+      const teamInfo = created.teamName ? ` Team: ${created.teamName}.` : '';
       setMessage(
-        `Created ${created.name} (id ${created.id}, role ${created.roleName}).${parentInfo}`,
+        `Created ${created.name} (id ${created.id}, role ${created.roleName}).${parentInfo}${teamInfo}`,
       );
       setName('');
       setEmail('');
       setPlayerNumber('');
       setMobilePhoneNumber('');
       setRoleName('PLAYER');
+      setSelectedTeam(null);
       resetParentFields();
+      listTeams().then(setTeams).catch(() => setTeams([]));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Create failed.');
     } finally {
@@ -160,6 +179,7 @@ export default function CreateUserScreen() {
             key={role}
             onPress={() => {
               setRoleName(role);
+              setSelectedTeam(null);
               resetParentFields();
             }}
             style={[styles.modeButton, roleName === role ? styles.modeButtonActive : null]}
@@ -193,6 +213,40 @@ export default function CreateUserScreen() {
         placeholder="+46701112233"
         keyboardType="phone-pad"
       />
+
+      {roleName === 'PLAYER' ? (
+        <View style={styles.parentBox}>
+          <Text style={styles.parentTitle}>Team (required)</Text>
+          <Text style={styles.hint}>
+            Create teams on the Teams tab if the list is empty.
+          </Text>
+          {teams.length === 0 ? (
+            <Text style={styles.error}>No teams yet. Open the Teams tab first.</Text>
+          ) : (
+            <View style={styles.modeRow}>
+              {teams.map((team) => (
+                <Pressable
+                  key={team.id}
+                  onPress={() => setSelectedTeam(team)}
+                  style={[
+                    styles.modeButton,
+                    selectedTeam?.id === team.id ? styles.modeButtonActive : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modeButtonText,
+                      selectedTeam?.id === team.id ? styles.modeButtonTextActive : null,
+                    ]}
+                  >
+                    {team.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
 
       {roleName === 'PLAYER' ? (
         <View style={styles.parentBox}>
