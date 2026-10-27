@@ -8,12 +8,13 @@ import CreateUserScreen from './src/screens/CreateUserScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import TeamsScreen from './src/screens/TeamsScreen';
+import TrainingsScreen from './src/screens/TrainingsScreen';
 
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
   const { session, logout } = useAuth();
-  const canCreate = session?.roleName === 'ADMIN' || session?.roleName === 'COACH';
+  const isStaff = session?.roleName === 'ADMIN' || session?.roleName === 'COACH';
 
   return (
     <Tab.Navigator
@@ -33,7 +34,7 @@ function MainTabs() {
         component={SearchScreen}
         options={{ title: 'FC Växjö — Search' }}
       />
-      {canCreate ? (
+      {isStaff ? (
         <Tab.Screen
           name="Create"
           component={CreateUserScreen}
@@ -45,6 +46,13 @@ function MainTabs() {
         component={TeamsScreen}
         options={{ title: 'FC Växjö — Teams' }}
       />
+      {isStaff ? (
+        <Tab.Screen
+          name="Trainings"
+          component={TrainingsScreen}
+          options={{ title: 'FC Växjö — Trainings' }}
+        />
+      ) : null}
     </Tab.Navigator>
   );
 }

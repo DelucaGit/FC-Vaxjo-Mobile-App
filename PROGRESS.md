@@ -321,3 +321,11 @@ Jira (paste yourself): Epic — Staff and members can sign in safely… Stories 
 # JWT 120 minutes + silent refresh (27/10-2026)
 
 Decision: access tokens last **120 minutes** (`app.jwt.expiration-ms=7200000`). `POST /api/auth/refresh` (Bearer required) returns a new JWT for another 120 minutes. Expo `apiFetch` on 401 tries refresh once, then clears session and shows login. No separate refresh-token table yet. Branch: `feature/jwt-120min-refresh`.
+
+# Trainings + attendance (27/10-2026)
+
+Decision: a training belongs to one team and stores **starts_at** + **ends_at**. On create, we **snapshot** active PLAYERs into `training_attendance` (status null). Later joiners do not appear on old trainings. Coach/admin marks `PRESENT` / `ABSENT` / `EXCUSED`. ADMIN any team; COACH only teams in `team_coaches`.
+
+API: `POST/GET /api/trainings`, `GET /api/trainings/{id}`, `GET/PUT .../attendance`. Expo **Trainings** tab for staff. Branch: `feature/trainings-attendance`. Postman: `API/POSTMAN_TRAININGS.md`.
+
+Jira (paste yourself): Epic — Coaches can run trainings… Story — As a coach I would like to create a training… and mark present/absent/excused…
