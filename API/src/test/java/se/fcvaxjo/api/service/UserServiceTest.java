@@ -18,7 +18,9 @@ import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Role;
+import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.repository.RoleRepository;
+import se.fcvaxjo.api.repository.TeamRepository;
 import se.fcvaxjo.api.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +31,9 @@ class UserServiceTest {
 
     @Mock
     private RoleRepository roleRepository;
+
+    @Mock
+    private TeamRepository teamRepository;
 
     @InjectMocks
     private UserService userService;
@@ -71,11 +76,34 @@ class UserServiceTest {
 
         assertThrows(BadRequestException.class,
                 () -> userService.createUser(
-                        "Kid", "kid@fcvaxjo.se", "PLAYER", 10, null, null, null));
+                        "Kid", "kid@fcvaxjo.se", "PLAYER", 10, null, null, null, 1L));
     }
 
     @Test
-    void createPlayer_withExistingParent_setsParentId() {
+    void createPlayer_withoutTeam_throws() {
+        Role playerRole = new Role();
+        playerRole.setId(3L);
+        playerRole.setName("PLAYER");
+
+        Role parentRole = new Role();
+        parentRole.setId(4L);
+        parentRole.setName("PARENT");
+
+        AppUser parent = new AppUser();
+        parent.setId(20L);
+        parent.setRoleId(4L);
+
+        when(roleRepository.findByName("PLAYER")).thenReturn(Optional.of(playerRole));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(parent));
+        when(roleRepository.findById(4L)).thenReturn(Optional.of(parentRole));
+
+        assertThrows(BadRequestException.class,
+                () -> userService.createUser(
+                        "Kid", "kid@fcvaxjo.se", "PLAYER", 10, null, 20L, null, null));
+    }
+
+    @Test
+    void createPlayer_withExistingParentAndTeam_setsIds() {
         Role playerRole = new Role();
         playerRole.setId(3L);
         playerRole.setName("PLAYER");
@@ -89,9 +117,14 @@ class UserServiceTest {
         parent.setName("Parent One");
         parent.setRoleId(4L);
 
+        Team team = new Team();
+        team.setId(1L);
+        team.setName("P15");
+
         when(roleRepository.findByName("PLAYER")).thenReturn(Optional.of(playerRole));
         when(userRepository.findById(20L)).thenReturn(Optional.of(parent));
         when(roleRepository.findById(4L)).thenReturn(Optional.of(parentRole));
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
         when(userRepository.findByEmail("kid@fcvaxjo.se")).thenReturn(Optional.empty());
         when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> {
             AppUser saved = invocation.getArgument(0);
@@ -100,10 +133,11 @@ class UserServiceTest {
         });
 
         AppUser result = userService.createUser(
-                "Kid", "kid@fcvaxjo.se", "PLAYER", 10, null, 20L, null);
+                "Kid", "kid@fcvaxjo.se", "PLAYER", 10, null, 20L, null, 1L);
 
         assertEquals(30L, result.getId());
         assertEquals(20L, result.getParentId());
+        assertEquals(1L, result.getTeamId());
     }
 
     @Test
@@ -120,6 +154,6 @@ class UserServiceTest {
 
         assertThrows(BadRequestException.class,
                 () -> userService.createUser(
-                        "Kid2", "kid2@fcvaxjo.se", "PLAYER", null, null, null, newParent));
+                        "Kid2", "kid2@fcvaxjo.se", "PLAYER", null, null, null, newParent, 1L));
     }
 }

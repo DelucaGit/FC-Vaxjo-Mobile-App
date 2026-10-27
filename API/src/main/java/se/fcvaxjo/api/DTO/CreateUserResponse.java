@@ -16,4 +16,6 @@ public class CreateUserResponse {
     private String mobilePhoneNumber;
     private Long parentId;
     private String parentName;
+    private Long teamId;
+    private String teamName;
 }

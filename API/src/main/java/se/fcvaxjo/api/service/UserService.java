@@ -8,8 +8,10 @@ import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
+import se.fcvaxjo.api.repository.TeamRepository;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Role;
+import se.fcvaxjo.api.model.Team;
 import java.util.List;
 
 @Service
@@ -17,29 +19,45 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final TeamRepository teamRepository;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            TeamRepository teamRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.teamRepository = teamRepository;
     }
 
     /**
-     * Creates a user. When role is PLAYER, exactly one of parentId or newParent
-     * is required. newParent needs name, email, and phone. Both saves run in
-     * one transaction so a failed player does not leave an orphan parent.
+     * Creates a user. When role is PLAYER: exactly one of parentId or newParent,
+     * and a teamId that exists. newParent needs name, email, and phone.
      */
     @Transactional
     public AppUser createUser(String name, String email, String roleName, Integer playerNumber,
-            String mobilePhoneNumber, Long parentId, NewParentRequest newParent) {
+            String mobilePhoneNumber, Long parentId, NewParentRequest newParent, Long teamId) {
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new BadRequestException("This role does not exist"));
 
         Long resolvedParentId = null;
+        Long resolvedTeamId = null;
         if ("PLAYER".equals(roleName)) {
             resolvedParentId = resolveParentIdForPlayer(parentId, newParent);
+            resolvedTeamId = resolveTeamIdForPlayer(teamId);
         }
 
-        return saveNewUser(name, email, role.getId(), playerNumber, mobilePhoneNumber, resolvedParentId);
+        return saveNewUser(
+                name, email, role.getId(), playerNumber, mobilePhoneNumber, resolvedParentId, resolvedTeamId);
+    }
+
+    private Long resolveTeamIdForPlayer(Long teamId) {
+        if (teamId == null) {
+            throw new BadRequestException("A PLAYER needs a teamId");
+        }
+        teamRepository.findById(teamId)
+                .orElseThrow(() -> new BadRequestException("Team not found"));
+        return teamId;
     }
 
     private Long resolveParentIdForPlayer(Long parentId, NewParentRequest newParent) {
@@ -74,12 +92,13 @@ public class UserService {
                 parentRole.getId(),
                 null,
                 newParent.getMobilePhoneNumber().trim(),
+                null,
                 null);
         return createdParent.getId();
     }
 
     private AppUser saveNewUser(String name, String email, Long roleId, Integer playerNumber,
-            String mobilePhoneNumber, Long parentId) {
+            String mobilePhoneNumber, Long parentId, Long teamId) {
         if (email == null || email.isBlank()) {
             throw new BadRequestException("Email is required");
         }
@@ -98,6 +117,7 @@ public class UserService {
         user.setPlayerNumber(playerNumber);
         user.setMobilePhoneNumber(mobilePhoneNumber);
         user.setParentId(parentId);
+        user.setTeamId(teamId);
         return userRepository.save(user);
     }
 
@@ -125,6 +145,16 @@ public class UserService {
         }
         return userRepository.findById(parentId)
                 .map(AppUser::getName)
+                .orElse(null);
+    }
+
+    /** Team display name for responses. Null if the user has no team. */
+    public String getTeamName(Long teamId) {
+        if (teamId == null) {
+            return null;
+        }
+        return teamRepository.findById(teamId)
+                .map(Team::getName)
                 .orElse(null);
     }
 

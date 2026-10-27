@@ -53,4 +53,11 @@ public class AppUser {
      */
     @Column(name = "parent_id", nullable = true)
     private Long parentId;
+
+    /**
+     * The one TEAM for a PLAYER (e.g. P15). Required when creating a PLAYER.
+     * Null for PARENT / ADMIN. Coaches use team_coaches instead of this column.
+     */
+    @Column(name = "team_id", nullable = true)
+    private Long teamId;
 }

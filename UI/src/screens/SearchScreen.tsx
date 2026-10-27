@@ -104,6 +104,7 @@ export default function SearchScreen() {
           <Text>Shirt #: {user.playerNumber ?? '—'}</Text>
           <Text>Phone: {user.mobilePhoneNumber ?? '—'}</Text>
           <Text>Parent: {user.parentName ?? '—'}</Text>
+          <Text>Team: {user.teamName ?? '—'}</Text>
         </View>
       ))}
     </ScrollView>

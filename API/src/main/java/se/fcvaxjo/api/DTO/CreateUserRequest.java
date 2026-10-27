@@ -17,4 +17,7 @@ public class CreateUserRequest {
 
     /** New PARENT details when creating a PLAYER. Do not send with parentId. */
     private NewParentRequest newParent;
+
+    /** Required when role is PLAYER. Ignored for other roles. */
+    private Long teamId;
 }

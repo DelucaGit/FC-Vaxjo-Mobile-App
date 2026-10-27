@@ -101,7 +101,8 @@ public class UserController {
                 request.getPlayerNumber(),
                 request.getMobilePhoneNumber(),
                 request.getParentId(),
-                request.getNewParent());
+                request.getNewParent(),
+                request.getTeamId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(toCreateResponse(createdUser));
     }
@@ -124,30 +125,30 @@ public class UserController {
     }
 
     private FetchUserResponse toFetchResponse(AppUser user) {
-        String roleName = userService.getRoleName(user.getRoleId());
-        String parentName = userService.getParentName(user.getParentId());
         return new FetchUserResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                roleName,
+                userService.getRoleName(user.getRoleId()),
                 user.getPlayerNumber(),
                 user.getMobilePhoneNumber(),
                 user.getParentId(),
-                parentName);
+                userService.getParentName(user.getParentId()),
+                user.getTeamId(),
+                userService.getTeamName(user.getTeamId()));
     }
 
     private CreateUserResponse toCreateResponse(AppUser user) {
-        String roleName = userService.getRoleName(user.getRoleId());
-        String parentName = userService.getParentName(user.getParentId());
         return new CreateUserResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                roleName,
+                userService.getRoleName(user.getRoleId()),
                 user.getPlayerNumber(),
                 user.getMobilePhoneNumber(),
                 user.getParentId(),
-                parentName);
+                userService.getParentName(user.getParentId()),
+                user.getTeamId(),
+                userService.getTeamName(user.getTeamId()));
     }
 }

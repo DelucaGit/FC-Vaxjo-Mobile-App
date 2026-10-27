@@ -9,6 +9,8 @@ export type ClubUser = {
   mobilePhoneNumber: string | null;
   parentId: number | null;
   parentName: string | null;
+  teamId: number | null;
+  teamName: string | null;
 };
 
 export type NewParentInput = {

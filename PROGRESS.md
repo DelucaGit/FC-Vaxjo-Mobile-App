@@ -271,3 +271,16 @@ When creating a PLAYER, the coach must either:
 Expo Create tab: search parents by name (filters search results to role PARENT), or open “Create new parent” fields. Other roles skip the parent block.
 
 Responses include `parentId` and `parentName` so the UI can show who the parent is.
+
+# Teams API (27/10-2026)
+
+Decision: club has named teams (e.g. P15).
+
+- PLAYER has one `team_id` (required on create). PARENT / ADMIN have none.
+- COACH ↔ team is many-to-many via `team_coaches` (`team_id` + `user_id`). A coach is not stored with `users.team_id`.
+
+API (Expo later):
+
+- `POST/GET /api/teams`, `GET /api/teams/{id}`
+- `POST/GET /api/teams/{id}/coaches`, `DELETE /api/teams/{id}/coaches/{userId}`
+- Create PLAYER must send `teamId` (team must exist) plus parent as before.
