@@ -21,4 +21,8 @@ public class CreateUserResponse {
     private Long teamId;
     private String teamName;
     private boolean active;
+    /** Plain temporary password shown once. Null on later fetches. */
+    private String temporaryPassword;
+    /** Set when a new parent was created with the player. */
+    private String parentTemporaryPassword;
 }

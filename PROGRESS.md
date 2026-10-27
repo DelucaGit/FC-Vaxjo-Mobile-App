@@ -298,3 +298,22 @@ Player edit / soft delete (27/10-2026):
 - `users.active` — soft delete (`DELETE /api/users/{id}` sets active=false). Inactive players leave team lists.
 - `PUT /api/users/{id}/player` — edit name, email, phone, shirt, team (required, can switch), parent name/email/phone.
 - Expo: tap a player on Teams → detail form → Save or Remove. Player and parent emails are editable; duplicates return 400.
+
+# First security slice — login + role gates (27/10-2026)
+
+Decision: **local email + BCrypt + JWT now** (no Auth0 yet). IdP can replace `/api/auth/login` later without changing role names. Login id is **email** (no username column).
+
+What shipped:
+
+- `users.password_hash`, `users.must_change_password`
+- `POST /api/auth/login`, `POST /api/auth/change-password`
+- Create user generates a temporary password (returned once); new parent gets one too
+- Spring Security: JWT filter; only login is public; `@PreAuthorize` on create/soft-delete (ADMIN|COACH), role change + team admin ops (ADMIN only); COACH may only create PLAYER
+- Bootstrap admin seeder: `admin@fcvaxjo.se` / `TempAdmin1!` (must change after first login)
+- Expo: login screen, change-password gate, Bearer token on all API calls, Create tab only for ADMIN/COACH
+- Java tests: `AuthServiceTest`, create-user password flags in `UserServiceTest`
+- Postman checklist: `API/POSTMAN_AUTH.md`
+
+Out of this slice (next): parent sees only children; player schedule rights; team-scoped coach limits.
+
+Jira (paste yourself): Epic — Staff and members can sign in safely… Stories 1–2 from the security plan; keep story 3 (parent children) for later.

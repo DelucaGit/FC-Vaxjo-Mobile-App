@@ -1,12 +1,14 @@
 package se.fcvaxjo.api.service;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.repository.RoleRepository;
 
 @Component
+@Order(1)
 public class RoleSeeder implements CommandLineRunner {
 
     private final RoleRepository roleRepository;

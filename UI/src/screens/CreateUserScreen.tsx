@@ -9,13 +9,18 @@ import {
 } from 'react-native';
 import { Team, listTeams } from '../api/teams';
 import { ClubUser, createUser, searchByName } from '../api/users';
+import { useAuth } from '../auth/AuthContext';
 
-const ROLES = ['PLAYER', 'PARENT', 'COACH', 'ADMIN'] as const;
+const ALL_ROLES = ['PLAYER', 'PARENT', 'COACH', 'ADMIN'] as const;
 
 export default function CreateUserScreen() {
+  const { session } = useAuth();
+  const roles =
+    session?.roleName === 'COACH' ? (['PLAYER'] as const) : ALL_ROLES;
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [roleName, setRoleName] = useState<(typeof ROLES)[number]>('PLAYER');
+  const [roleName, setRoleName] = useState<(typeof ALL_ROLES)[number]>('PLAYER');
   const [playerNumber, setPlayerNumber] = useState('');
   const [mobilePhoneNumber, setMobilePhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -136,8 +141,14 @@ export default function CreateUserScreen() {
         ? ` Parent: ${created.parentName}.`
         : '';
       const teamInfo = created.teamName ? ` Team: ${created.teamName}.` : '';
+      const tempInfo = created.temporaryPassword
+        ? ` Temp password: ${created.temporaryPassword}.`
+        : '';
+      const parentTempInfo = created.parentTemporaryPassword
+        ? ` Parent temp password: ${created.parentTemporaryPassword}.`
+        : '';
       setMessage(
-        `Created ${created.name} (id ${created.id}, role ${created.roleName}).${parentInfo}${teamInfo}`,
+        `Created ${created.name} (id ${created.id}, role ${created.roleName}).${parentInfo}${teamInfo}${tempInfo}${parentTempInfo}`,
       );
       setName('');
       setEmail('');
@@ -174,7 +185,7 @@ export default function CreateUserScreen() {
 
       <Text style={styles.label}>Role</Text>
       <View style={styles.modeRow}>
-        {ROLES.map((role) => (
+        {roles.map((role) => (
           <Pressable
             key={role}
             onPress={() => {

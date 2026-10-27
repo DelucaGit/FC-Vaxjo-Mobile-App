@@ -67,4 +67,16 @@ public class AppUser {
      */
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean active = true;
+
+    /**
+     * BCrypt hash of the password. Never sent in list/search responses.
+     */
+    @Column(name = "password_hash", nullable = true)
+    private String passwordHash;
+
+    /**
+     * True until the user changes the temporary password after first login.
+     */
+    @Column(name = "must_change_password", nullable = false, columnDefinition = "boolean default true")
+    private boolean mustChangePassword = true;
 }

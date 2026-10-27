@@ -1,39 +1,101 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import CreateUserScreen from './src/screens/CreateUserScreen';
+import LoginScreen from './src/screens/LoginScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import TeamsScreen from './src/screens/TeamsScreen';
 
 const Tab = createBottomTabNavigator();
 
-export default function App() {
+function MainTabs() {
+  const { session, logout } = useAuth();
+  const canCreate = session?.roleName === 'ADMIN' || session?.roleName === 'COACH';
+
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" />
-      <Tab.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: '#1b4332' },
-          headerTintColor: '#fff',
-          tabBarActiveTintColor: '#1b4332',
-        }}
-      >
-        <Tab.Screen
-          name="Search"
-          component={SearchScreen}
-          options={{ title: 'FC Växjö — Search' }}
-        />
+    <Tab.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#1b4332' },
+        headerTintColor: '#fff',
+        tabBarActiveTintColor: '#1b4332',
+        headerRight: () => (
+          <Pressable onPress={() => logout()} style={styles.logout}>
+            <Text style={styles.logoutText}>Sign out</Text>
+          </Pressable>
+        ),
+      }}
+    >
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{ title: 'FC Växjö — Search' }}
+      />
+      {canCreate ? (
         <Tab.Screen
           name="Create"
           component={CreateUserScreen}
           options={{ title: 'FC Växjö — Create' }}
         />
-        <Tab.Screen
-          name="Teams"
-          component={TeamsScreen}
-          options={{ title: 'FC Växjö — Teams' }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+      ) : null}
+      <Tab.Screen
+        name="Teams"
+        component={TeamsScreen}
+        options={{ title: 'FC Växjö — Teams' }}
+      />
+    </Tab.Navigator>
   );
 }
+
+function RootNavigator() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#1b4332" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <LoginScreen />;
+  }
+
+  if (session.mustChangePassword) {
+    return <ChangePasswordScreen />;
+  }
+
+  return <MainTabs />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <NavigationContainer>
+        <StatusBar style="dark" />
+        <RootNavigator />
+      </NavigationContainer>
+    </AuthProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  logout: {
+    marginRight: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+});

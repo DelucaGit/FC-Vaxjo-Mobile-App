@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './config';
-import { readErrorMessage } from './http';
+import { apiFetch, readErrorMessage } from './http';
 
 export type ClubUser = {
   id: number;
@@ -15,6 +15,8 @@ export type ClubUser = {
   teamId: number | null;
   teamName: string | null;
   active: boolean;
+  temporaryPassword?: string | null;
+  parentTemporaryPassword?: string | null;
 };
 
 export type NewParentInput = {
@@ -47,9 +49,8 @@ export type UpdatePlayerInput = {
 };
 
 export async function createUser(input: CreateUserInput): Promise<ClubUser> {
-  const response = await fetch(`${API_BASE_URL}/users`, {
+  const response = await apiFetch(`${API_BASE_URL}/users`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
 
@@ -61,9 +62,8 @@ export async function createUser(input: CreateUserInput): Promise<ClubUser> {
 }
 
 export async function updatePlayer(id: number, input: UpdatePlayerInput): Promise<ClubUser> {
-  const response = await fetch(`${API_BASE_URL}/users/${id}/player`, {
+  const response = await apiFetch(`${API_BASE_URL}/users/${id}/player`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
 
@@ -75,7 +75,7 @@ export async function updatePlayer(id: number, input: UpdatePlayerInput): Promis
 }
 
 export async function softDeletePlayer(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/users/${id}`, {
     method: 'DELETE',
   });
 
@@ -85,7 +85,7 @@ export async function softDeletePlayer(id: number): Promise<void> {
 }
 
 export async function searchByName(name: string): Promise<ClubUser[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/users/search?name=${encodeURIComponent(name)}`,
   );
 
@@ -97,7 +97,7 @@ export async function searchByName(name: string): Promise<ClubUser[]> {
 }
 
 export async function searchByShirtNumber(number: number): Promise<ClubUser> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/users/search?number=${encodeURIComponent(String(number))}`,
   );
 
@@ -109,7 +109,7 @@ export async function searchByShirtNumber(number: number): Promise<ClubUser> {
 }
 
 export async function searchByPhone(phone: string): Promise<ClubUser> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/users/search?phone=${encodeURIComponent(phone)}`,
   );
 
