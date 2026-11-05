@@ -245,7 +245,8 @@ paths:
         Tre olika controller-metoder delar samma URL; Spring väljer metod utifrån vilken query-parameter som skickas.
         Skicka **exakt en** av `name`, `number`, `phone`.
         - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
-        - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404.
+        - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
+          med texten "User not found". Numret upprepas inte (F2).
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
           med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
         Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
@@ -257,7 +258,7 @@ paths:
         Namnsök mot ett annat lag ger 200 och en tom lista.
         Tröjnummer eller telefon som inte ligger på de lagen ger samma 404 som om personen saknas.
         Telefonens 404-text är "User not found" och upprepar inte numret (S1-12).
-        Tröjnumrets 404-text är oförändrad.
+        Tröjnumrets 404-text är samma "User not found" och upprepar inte numret (F2).
       x-roles: [ADMIN, CHAIRMAN, COACH]
       x-scope: ADMIN och CHAIRMAN hela klubben. COACH endast egna lag (`team_coaches`).
       x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber

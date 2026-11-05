@@ -554,7 +554,7 @@ class UserServiceTest {
         NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> userService.searchByPlayerNumber(22));
 
-        assertEquals("No user found with player number 22", ex.getMessage());
+        assertEquals("User not found", ex.getMessage());
     }
 
     @Test

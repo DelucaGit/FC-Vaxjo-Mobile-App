@@ -124,7 +124,12 @@ class KnownInactiveUserTest extends ClubApiTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("User not found"));
         get(Actor.ADMIN, "/api/users/search", "number", "44")
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User not found"));
+        var missingShirt = get(Actor.ADMIN, "/api/users/search", "number", "99")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User not found"));
+        assertBodyHides(missingShirt, "99");
         assertBodyHides(
                 get(Actor.ADMIN, "/api/teams/" + world.teamAlfaId() + "/players")
                         .andExpect(status().isOk()),

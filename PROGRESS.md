@@ -644,3 +644,9 @@ Why one sentence for every coach duplicate: a precise text on the coach's own te
 Decision (c): a PLAYER sees none of `parentName`, `parentEmail` or `parentMobilePhoneNumber`. That is the player's own row and every other read a player can reach. The check is the caller's role. A coach on the team, an admin and a chairman still see the fields when the parent is active.
 
 `player_ownRowHidesParentPhoneNumber` was the last test tagged `known-gap`. The tag is removed. No test keeps that tag.
+
+# F2 and F11: shirt 404 and inactive refresh (5/11-2026)
+
+Decision: a missing, inactive, or out-of-team shirt number is 404 `User not found`. The number is not in the body. The old test required `No user found with player number 22`. That text repeated the number, so the test now requires `User not found`.
+
+Refresh of an inactive account stays a check inside `AuthService.refresh`, but the answer is 401 `Login required`. The old 400 said "This account is inactive", which tells the caller the account exists. The filter already sends 401 on the HTTP path. The service now sends the same answer if it is called without the filter. The role matrix target column says 401.

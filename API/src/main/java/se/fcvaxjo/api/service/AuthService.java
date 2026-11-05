@@ -110,10 +110,13 @@ public class AuthService {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        // The JWT filter already stops inactive accounts. This stays so refresh
-        // cannot succeed if it is ever called without that filter.
+        // The JWT filter already stops inactive accounts over HTTP.
+        // This check stays so a direct call still refuses the account.
+        // 400 "This account is inactive" would say the account exists (F11).
+        // 401 "Login required" is the same answer the filter already sends,
+        // and the answer the role matrix now asks for.
         if (!user.isActive()) {
-            throw new BadRequestException("This account is inactive");
+            throw new UnauthorizedException("Login required");
         }
 
         String roleName = userService.getRoleName(user.getRoleId());
