@@ -392,3 +392,13 @@ Next: product owner approves before any push. Do not merge. The known-gap tests 
 # S1-1 follow-up — chairman may read personal data (5/11-2026)
 
 Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.
+
+# S1-1 follow-up — known-gap tags that now pass (5/11-2026)
+
+Decision: after the role matrix (PR #31) landed, the PLAYER and PARENT checks in `KnownPiiLeakTest` pass, so they run in the normal suite. The class no longer has the `known-gap` tag.
+
+These tests still have the tag, because this story does not make them pass:
+
+- A coach can still read every team (S1-3).
+- A player's own row still includes the parent's phone.
+- A missing phone number is still echoed in the 404 text (gap 6, story S1-12).
