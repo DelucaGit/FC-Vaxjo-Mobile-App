@@ -353,7 +353,45 @@ Jira (paste yourself):
 
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
-`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Merged as PR #26.
+`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`. Merged as PR #26.
+
+# Secure token storage — story S1-5a (5/11-2026)
+
+Decision: the access token and the refresh-token slot move from AsyncStorage to `expo-secure-store` (Expo SDK 58, `expo-secure-store` ~58.0.2).
+
+Why: AsyncStorage is plain text. The JWT is the login. SecureStore uses the iOS keychain and the Android keystore. Role, email, user id and must-change-password stay in AsyncStorage. They are not the login token.
+
+How the code is split, so it stays easy to explain:
+
+- `UI/src/api/tokenStorage.ts` is the only file that calls SecureStore. get/set/clear for the access token and the refresh token.
+- `UI/src/api/authStorage.ts` still owns the session. `saveSession` / `loadSession` / `clearSession` / `getToken` keep the same names. Login, refresh, change-password and logout did not need a new flow.
+- On web there is no keychain. The tokens stay in memory for that browser tab. They are still not written to AsyncStorage.
+
+Migration: older builds saved one JSON blob, `fcvaxjo_session`, with the JWT inside. On the next app open, `loadSession` copies that token into SecureStore and writes the profile back without it. If SecureStore already has a token, that newer copy is kept and the plain-text copy is still removed. A broken blob is deleted so a token cannot sit in AsyncStorage. A token without a full profile is deleted, not kept. We cannot rebuild a session from a token alone.
+
+Refresh token: the API contract (`LoginResponse`) still has one field, `token`. `POST /api/auth/refresh` sends that JWT and returns a new one. There is no separate refresh token yet. The storage module has a refresh slot anyway, so logout clears both and a later API can store one without calling SecureStore from a screen. `saveSession` clears the refresh slot because today's login response does not include one.
+
+`apiFetch` no longer uses a dynamic `import()` to call refresh. That import made a circle (auth imports apiFetch) and Jest cannot run it. `auth.ts` registers `refreshSession` with `setRefreshSession` instead.
+
+Plugin: `expo-secure-store` in `app.json`, with Android backup exclusion turned on. `faceIDPermission: false` because we do not ask for biometrics. `ios.config.usesNonExemptEncryption: false` because we use the platform keychain, not our own encryption. Apple asks this at submit time.
+
+Tests: Jest + `jest-expo` in `UI/`. Mocks for SecureStore and AsyncStorage. 24 tests. `npx tsc --noEmit`, `npx expo lint` and `npm test` pass.
+
+Open: email is still in the AsyncStorage profile, and the JWT payload still contains the email (gap analysis item 10, second half). Not part of this story.
+
+# Signed-in email leaves AsyncStorage (5/11-2026)
+
+Update to the note above: the email does not stay in AsyncStorage.
+
+Decision: the signed-in email is personal data, and the screens need it (Home greeting, More, change-password). It is saved with get/set/clear in `tokenStorage.ts`, the same file as the tokens, and removed from `fcvaxjo_session`. Logout clears it.
+
+Migration: on the next open, if the old JSON still has `email`, copy it into SecureStore (unless SecureStore already has one) and write the profile back without it. This also covers phones that already ran the token migration and only have the email left in the JSON. A broken blob is deleted.
+
+What stays in AsyncStorage, and why: `roleName` (which tabs to show), `userId` (Home loads that person), `mustChangePassword` (the gate after login). They are not contact data.
+
+Refresh is unchanged. `POST /api/auth/refresh` still sends the access token and stores the new JWT. `saveSession` still clears the refresh slot because the server does not send a separate refresh token.
+
+The JWT payload itself still contains the email. That is the API, not this storage change.
 
 # Role matrix and access tests (5/11-2026)
 
