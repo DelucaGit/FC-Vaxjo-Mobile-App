@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.security.access;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.stream.Stream;
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.Arguments;
 
+import se.fcvaxjo.api.service.AuthService;
 import se.fcvaxjo.api.support.Actor;
 import se.fcvaxjo.api.support.ClubApiTest;
 import se.fcvaxjo.api.support.ClubFixture;
@@ -27,10 +29,13 @@ class AnonymousAccessTest extends ClubApiTest {
 
     @Test
     void login_staysOpenWithoutAToken() throws Exception {
-        // x-roles PUBLIC. A bad password is 400, not 401. 401 would mean the door itself is locked.
+        // The route is public. A bad password is 401 with the same text as
+        // every other failed login (S1-9). That text is not "Login required",
+        // so the login service answered. The filter did not lock the door.
         post(Actor.ANON, "/api/auth/login",
                 SampleRequests.login("ingen@example.test", "not-the-shared-login"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(AuthService.INVALID_LOGIN_MESSAGE));
     }
 
     @ParameterizedTest(name = "{0} {1} utan token")

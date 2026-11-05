@@ -1,5 +1,7 @@
 package se.fcvaxjo.api.model;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -79,4 +81,16 @@ public class AppUser {
      */
     @Column(name = "must_change_password", nullable = false, columnDefinition = "boolean default true")
     private boolean mustChangePassword = true;
+
+    /**
+     * When this password was last replaced. Null until the first change.
+     *
+     * The JWT filter compares this with the token's {@code iat}. A token from
+     * before the change is rejected. There is no Flyway or Liquibase (ADR 0002).
+     * Hibernate adds the nullable column on startup ({@code ddl-auto=update}),
+     * the same way the other user columns were added. Existing rows stay null,
+     * so tokens that were already issued keep working until the next change.
+     */
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
 }

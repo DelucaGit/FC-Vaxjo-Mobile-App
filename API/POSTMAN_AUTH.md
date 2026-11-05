@@ -44,4 +44,4 @@ Bootstrap admin (seeded once):
 
 JWT lifetime: **120 minutes** (`app.jwt.expiration-ms=7200000`).
 
-Wrong password on login → 400 `Invalid email or password`.
+Wrong password, unknown email, or an inactive account → 401 `Invalid email or password` (the same message for all three). A blank email or password is still 400.

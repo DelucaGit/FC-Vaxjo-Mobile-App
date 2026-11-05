@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.security;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.http.HttpHeaders;
@@ -66,9 +67,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private boolean logInIfAccountStillMatches(String token) {
         Long userId;
         String roleName;
+        Instant issuedAt;
         try {
             userId = jwtService.getUserId(token);
             roleName = jwtService.getRoleName(token);
+            issuedAt = jwtService.getIssuedAt(token);
         } catch (RuntimeException ex) {
             // Expired or forged token: not logged in. A database error is not
             // caught here, so a real outage still fails the request.
@@ -78,7 +81,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (userId == null || roleName == null || roleName.isBlank()) {
             return false;
         }
-        if (!accountAccessService.tokenStillMatchesAccount(userId, roleName)) {
+        if (!accountAccessService.tokenStillMatchesAccount(userId, roleName, issuedAt)) {
             return false;
         }
 

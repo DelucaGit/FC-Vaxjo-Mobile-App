@@ -582,3 +582,29 @@ GET of an inactive user stays `known-gap`, including the chairman case the matri
 # S1-13 takes the inactive GET tests off the gap list (5/11-2026)
 
 S1-10, including the merged role matrix, is now on this branch. The inactive GET tests pass, so the `known-gap` tag is off for admin, chairman, coach, player and parent. The message is "User not found". The two IDOR tests stay in the normal suite. A player's own row still shows the parent's phone, and that test stays `known-gap`.
+
+# S1-9: harden login (5/11-2026)
+
+Decision: a failed login is one 401, and a password change kills tokens issued before that change.
+
+Why one message: "This account is inactive" and "This account has no password yet" told the caller that the email exists (gap analysis point 9). Wrong password, unknown email, inactive account, and an account with no hash now all return `Invalid email or password`. A blank email or password stays 400, because that is a missing field, not a lookup. When the email is missing, or the row has no hash, we still run one BCrypt compare against a throwaway hash and ignore the result. Skipping that compare would return faster and show that the account is not there. An inactive account uses its real hash, then we reject it even if the password was right. Rate limiting is still not built.
+
+Why `passwordChangedAt`: the filter already reads the user on every request (S1-4 / PR #29). A new column is enough. There is no Flyway and no Liquibase (ADR 0002), so the column is the new field on `AppUser`. Hibernate adds it with `ddl-auto=update`, the same way the other user columns were added. Existing rows stay null, so tokens that are already out keep working until the next change. `AuthService.changePassword` sets the time. `UserService` is not touched. Creating a user, and the dev seeders rewriting a demo password, do not set the field.
+
+Why whole seconds: JWT `iat` has no milliseconds. Comparing the raw times would make a change in the same second look "later" than the new token, and that token would die immediately. We reject only when `passwordChangedAt` is in a later second than `iat`. The window is under one second. A token with no `iat` after a real change is rejected, because we cannot show it is new enough.
+
+What shipped:
+
+- `AccountAccessService.tokenStillMatchesAccount` takes `issuedAt` and applies the second check.
+- Login failures are `UnauthorizedException` (401). Protected routes still say `Login required`.
+- Tests: unit tests for the three 401 cases and the second boundary. `LoginAccessTest` calls the API for the same three cases. `JwtAuthFilterIntegrationTest` logs in a real active coach, changes the password, and checks that the old token is 401 and the new one still works.
+- `docs/api/openapi.yaml` describes both 401 texts. The open question about login status is closed.
+- No `known-gap` tag covered this. Nothing was untagged.
+
+Branch: `cursor/s1-9-harda-inloggning-761e`. The branch also contains S1-13, so this note stays last. Login of an inactive account is 401 `Invalid email or password`. `GET /api/users/{id}` of that account is 404 `User not found`.
+
+# S1-9 follow-up: same-second window and closed gaps (5/11-2026)
+
+Decision: the password check stays a strict `>` on whole seconds. `>=` would reject the token from a login in the same second as the password change, because that token and `passwordChangedAt` share a second.
+
+Gap analysis: S1-10, S1-12 and S1-13 are marked closed. The phone number is no longer repeated in the 404 text (S1-12). The phone number is still a query parameter, so it can still show up in access logs. That part stays open.

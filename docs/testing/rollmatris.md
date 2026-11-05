@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, S1-10 och S1-13. IDOR-läsningarna är 403. Inaktiv rad är 404.
+Senast uppdaterad: 2026-11-05, S1-10, S1-13 och S1-9. IDOR-läsningarna är 403. Inaktiv rad är 404. Misslyckad inloggning är 401.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -77,7 +77,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 
 | Anrop | Mål | Kod idag |
 |---|---|---|
-| `POST /api/auth/login` | Publik. 200 för aktiv användare, 400 för fel lösenord eller inaktiv | Stämmer. Inaktiv stoppas redan här |
+| `POST /api/auth/login` | Publik. 200 för aktiv användare. Fel lösenord, okänd e-post och inaktiv ger samma 401 | Stämmer (S1-9). Saknad e-post eller lösenord är fortfarande 400 |
 | `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
 | `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 400 | Inaktiv token får 401 i filtret, inte 400 |
 
@@ -122,7 +122,7 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 
 ### Anonymt anrop
 
-Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` ska ge 401 utan token, inklusive de planerade `/api/public/**` (de är inte byggda och får inte vara öppna). Login med fel lösenord är 400. `AnonymousAccessTest` läser filen, så en ny path kommer med av sig själv. Koden gör detta idag.
+Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` ska ge 401 utan token, inklusive de planerade `/api/public/**` (de är inte byggda och får inte vara öppna). Login med fel lösenord, okänd e-post eller inaktivt konto är 401 med texten "Invalid email or password" (S1-9). Saknad e-post eller lösenord är 400. `AnonymousAccessTest` läser filen, så en ny path kommer med av sig själv. Koden gör detta idag.
 
 ### Trasig token
 
@@ -178,6 +178,6 @@ Beslut: `GET /api/users/{id}` på en inaktiv användare är **404 "User not foun
 
 **PARENT, annat barn.** `childId` för det andra barnet är 403. Ett id som inte finns är 404, som kontraktet säger. Laglistan är 403.
 
-**Inaktiv spelare.** Login är 400. En gammal token får 401 (S1-4). `GET /api/users/{id}` på den inaktiva raden är 404 "User not found" för alla roller (S1-13). Listor och sök tar inte med raden.
+**Inaktiv spelare.** Login är 401 med samma text som fel lösenord, `Invalid email or password` (S1-9). En redan utfärdad token stoppas av filtret (S1-4). `GET /api/users/{id}` på den inaktiva raden är 404 "User not found" för alla roller (S1-13). Listor och sök tar inte med raden.
 
 **Anonym och trasig token.** 401 utan persondata i svaret. Inget hål där i den här körningen.
