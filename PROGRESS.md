@@ -364,14 +364,18 @@ Decision: keep the role check on the controller (`@PreAuthorize`). Check the tea
 What shipped:
 
 - COACH may create `PLAYER` only when they train that `teamId`. Otherwise 403. The check runs before any insert, so a refused call does not leave a new parent behind.
-- COACH may not create a standalone `PARENT`. A parent has no team, so there is no `team_coaches` row to check. The coach creates the parent only as `newParent` on a player in their own team. ADMIN may still create a parent with no child. CHAIRMAN should get that same right when PR #26 is merged into this base. The role is not on this branch yet.
+- COACH may not create a standalone `PARENT`. A parent has no team, so there is no `team_coaches` row to check. The coach creates the parent only as `newParent` on a player in their own team. ADMIN and CHAIRMAN may create a parent with no child.
 - COACH may soft-delete a player only on their own team. ADMIN still can on every team.
 - COACH may edit a player only when they train both the current team and the new team. That closes the same hole: a coach could otherwise rewrite another parent's phone number.
 - Unknown team ids return 403 for a coach (not 400 "Team not found"), so the error does not reveal which teams exist. Same order as trainings.
 - No schema change. `existsByTeamIdAndUserId` is a parameterized Spring Data query.
-- CHAIRMAN is not part of this story. It is still only in the planned OpenAPI fields.
+- CHAIRMAN may create, edit and remove players on every team, same as ADMIN. A chairman may not create a coach or an admin.
 
 Tests: `UserServiceTest` (mocked) and `CoachOwnTeamIntegrationTest` (HTTP + H2). The test profile uses an in-memory database so the suite does not need local Postgres or a real password.
+
+# Chairman uses the same player rules as admin (5/11-2026)
+
+After master and the read-access branch were merged in, CHAIRMAN is real. For creating, editing and removing players the chairman is club-wide staff, same as ADMIN. A coach is still limited to `team_coaches`. A chairman may create a parent with no child. A chairman may not create a coach or an admin. That question in ADR 0006 stays open. Read rules from S1-1 are unchanged: chairman, admin and coach may read personal data for every team.
 
 # Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
 

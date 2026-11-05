@@ -30,19 +30,18 @@ public class UserService {
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int TEMP_PASSWORD_LENGTH = 10;
 
-    /**
-     * Returned as 403. Kept in one place so create, update and remove say the same thing.
-     * The controller already limits the call to ADMIN and COACH. This message is about the team.
-     */
     private static final String MANAGE_PLAYERS_DENIED =
-            "Only ADMIN or a coach of this team can manage its players";
+            "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players";
 
     /**
-     * A parent with no child is not on a team, so team_coaches cannot limit the coach.
-     * CHAIRMAN is not on this branch yet. When that role arrives it should be allowed here too.
+     * A parent with no child is not on a team, so team_coaches cannot limit a coach.
+     * Admin and chairman may still create that parent. They look after every team.
      */
     private static final String STANDALONE_PARENT_DENIED =
             "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
+
+    private static final String CREATE_DENIED =
+            "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -67,6 +66,8 @@ public class UserService {
     /**
      * Creates a user with a generated temporary password.
      * ADMIN may create any role, including a parent with no child.
+     * CHAIRMAN may create PLAYER and PARENT on any team, including a parent with no child.
+     * Creating a coach or another admin stays with ADMIN.
      * COACH may create a PLAYER on a team they train. A new parent is allowed only
      * inside that same request, after the team check, so the parent is tied to that child.
      */
@@ -104,10 +105,21 @@ public class UserService {
         if (hasRole("ADMIN")) {
             return;
         }
+        if (hasRole("CHAIRMAN") && chairmanMayCreateThisRole(roleName)) {
+            return;
+        }
         if (hasRole("COACH") && coachMayCreateThisRole(roleName)) {
             return;
         }
         throw new AccessDeniedException(deniedCreateMessage(roleName));
+    }
+
+    /**
+     * The chairman looks after the whole club, so a parent does not have to belong to one child.
+     * Creating a coach or an admin is still only ADMIN. ADR 0006 leaves that question open.
+     */
+    private boolean chairmanMayCreateThisRole(String roleName) {
+        return "PLAYER".equals(roleName) || "PARENT".equals(roleName);
     }
 
     /**
@@ -122,23 +134,32 @@ public class UserService {
         if (hasRole("COACH") && "PARENT".equals(roleName)) {
             return STANDALONE_PARENT_DENIED;
         }
-        return "Only ADMIN or COACH can create users; COACH may only create PLAYER";
+        return CREATE_DENIED;
     }
 
     /**
-     * ADMIN keeps access to every team. A coach is allowed only for teams they train.
+     * Admin and chairman may manage players on any team.
+     * A coach is allowed only for teams they train.
      * Called before we check that the team row exists, for the same reason as trainings:
      * a coach should get 403 for someone else's team id, not 400 "Team not found",
      * so the error does not reveal which ids exist.
      */
     private void assertCanManageTeam(Long teamId) {
-        if (hasRole("ADMIN")) {
+        if (callerLooksAfterEveryTeam()) {
             return;
         }
         if (coachTrainsTeam(teamId)) {
             return;
         }
         throw new AccessDeniedException(MANAGE_PLAYERS_DENIED);
+    }
+
+    /**
+     * Admin and chairman are responsible for every team.
+     * A coach is not, so they still need a row in team_coaches.
+     */
+    private boolean callerLooksAfterEveryTeam() {
+        return hasRole("ADMIN") || hasRole("CHAIRMAN");
     }
 
     /**

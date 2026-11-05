@@ -43,7 +43,7 @@ import se.fcvaxjo.api.repository.UserRepository;
 class UserServiceTest {
 
     private static final String NOT_THIS_TEAM =
-            "Only ADMIN or a coach of this team can manage its players";
+            "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players";
 
     private static final String STANDALONE_PARENT_DENIED =
             "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
@@ -192,7 +192,7 @@ class UserServiceTest {
                         "Other Coach", "coach2@fcvaxjo.se", "COACH", null, null, null, null, null));
 
         assertEquals(
-                "Only ADMIN or COACH can create users; COACH may only create PLAYER",
+                "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER",
                 error.getMessage());
     }
 
@@ -287,6 +287,78 @@ class UserServiceTest {
         assertEquals(4L, result.getUser().getRoleId());
         assertNull(result.getUser().getTeamId());
         assertNotNull(result.getTemporaryPassword());
+    }
+
+    @Test
+    void createStandaloneParent_asChairman_isAllowed() {
+        login(4L, "CHAIRMAN");
+
+        Role parentRole = new Role();
+        parentRole.setId(4L);
+        parentRole.setName("PARENT");
+        when(roleRepository.findByName("PARENT")).thenReturn(Optional.of(parentRole));
+        when(userRepository.findByEmail("chair-parent@fcvaxjo.se")).thenReturn(Optional.empty());
+        when(userRepository.findByMobilePhoneNumber("0701222222")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed-temp");
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> {
+            AppUser saved = invocation.getArgument(0);
+            saved.setId(41L);
+            return saved;
+        });
+
+        CreatedUserResult result = userService.createUser(
+                "Chair Parent", "chair-parent@fcvaxjo.se", "PARENT", null, "0701222222", null, null, null);
+
+        assertEquals(4L, result.getUser().getRoleId());
+        assertNull(result.getUser().getTeamId());
+    }
+
+    @Test
+    void createPlayer_asChairman_doesNotNeedATeamLink() {
+        login(4L, "CHAIRMAN");
+        stubPlayerRoleAndParent();
+        stubTeam(9L);
+        when(userRepository.findByEmail("kid@fcvaxjo.se")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed-temp");
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> {
+            AppUser saved = invocation.getArgument(0);
+            saved.setId(31L);
+            return saved;
+        });
+
+        CreatedUserResult result = userService.createUser(
+                "Kid", "kid@fcvaxjo.se", "PLAYER", 10, null, 20L, null, 9L);
+
+        assertEquals(9L, result.getUser().getTeamId());
+        verify(teamCoachRepository, never()).existsByTeamIdAndUserId(any(), any());
+    }
+
+    @Test
+    void createCoach_asChairman_isForbidden() {
+        login(4L, "CHAIRMAN");
+
+        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+                () -> userService.createUser(
+                        "New Coach", "new-coach@fcvaxjo.se", "COACH", null, null, null, null, null));
+
+        assertEquals(
+                "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER",
+                error.getMessage());
+    }
+
+    @Test
+    void softDeletePlayer_asChairman_anyTeam() {
+        login(4L, "CHAIRMAN");
+
+        AppUser player = activePlayerOnTeam(30L, 9L);
+        when(userRepository.findById(30L)).thenReturn(Optional.of(player));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(playerRole()));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser result = userService.softDeletePlayer(30L);
+
+        assertFalse(result.isActive());
+        verify(teamCoachRepository, never()).existsByTeamIdAndUserId(any(), any());
     }
 
     @Test

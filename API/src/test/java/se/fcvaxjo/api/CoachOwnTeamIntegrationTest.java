@@ -50,7 +50,7 @@ import se.fcvaxjo.api.security.JwtService;
 class CoachOwnTeamIntegrationTest {
 
     private static final String NOT_THIS_TEAM =
-            "Only ADMIN or a coach of this team can manage its players";
+            "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players";
 
     private static final String STANDALONE_PARENT_DENIED =
             "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
@@ -82,6 +82,7 @@ class CoachOwnTeamIntegrationTest {
     private Team ownTeam;
     private Team otherTeam;
     private AppUser admin;
+    private AppUser chairman;
     private AppUser coach;
     private AppUser parent;
     private AppUser playerOnOwnTeam;
@@ -93,6 +94,7 @@ class CoachOwnTeamIntegrationTest {
         otherTeam = saveTeam("P13");
 
         admin = saveUser("Club Admin", "admin-s13@fcvaxjo.se", "ADMIN", null, null, null);
+        chairman = saveUser("Chair", "chair-s13@fcvaxjo.se", "CHAIRMAN", null, null, null);
         coach = saveUser("Coach P15", "coach-s13@fcvaxjo.se", "COACH", null, null, null);
         parent = saveUser("Parent", "parent-s13@fcvaxjo.se", "PARENT", null, null, null);
         playerOnOwnTeam = saveUser("Own Player", "own-s13@fcvaxjo.se", "PLAYER", ownTeam.getId(), parent.getId(), 15);
@@ -159,6 +161,51 @@ class CoachOwnTeamIntegrationTest {
         AppUser created = userRepository.findByEmail("club-parent@fcvaxjo.se").orElseThrow();
         assertEquals(roleId("PARENT"), created.getRoleId());
         assertNull(created.getParentId());
+    }
+
+    @Test
+    void chairmanCreatesStandaloneParent() throws Exception {
+        CreateUserRequest body = new CreateUserRequest();
+        body.setName("Chair Parent");
+        body.setEmail("chair-parent@fcvaxjo.se");
+        body.setRoleName("PARENT");
+        body.setMobilePhoneNumber("0701000019");
+
+        mockMvc.perform(post("/api/users")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairman))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(body)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.roleName").value("PARENT"))
+                .andExpect(jsonPath("$.teamId").value(nullValue()));
+    }
+
+    @Test
+    void chairmanManagesPlayersOnAnyTeam() throws Exception {
+        CreateUserRequest body = playerRequest("Chair Kid", "chair-kid@fcvaxjo.se", otherTeam.getId(), parent.getId());
+
+        mockMvc.perform(post("/api/users")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairman))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(body)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.teamId").value(otherTeam.getId()));
+
+        AppUser kid = userRepository.findByEmail("chair-kid@fcvaxjo.se").orElseThrow();
+        UpdatePlayerRequest update = updateRequest("Chair Kid Renamed", "chair-kid@fcvaxjo.se", otherTeam.getId());
+
+        mockMvc.perform(put("/api/users/" + kid.getId() + "/player")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairman))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(update)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Chair Kid Renamed"));
+
+        mockMvc.perform(delete("/api/users/" + kid.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairman)))
+                .andExpect(status().isNoContent());
+
+        assertFalse(userRepository.findById(kid.getId()).orElseThrow().isActive());
     }
 
     @Test
