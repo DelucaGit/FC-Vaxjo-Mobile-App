@@ -187,8 +187,8 @@ paths:
         CHAIRMAN som sätter `ADMIN` eller `CHAIRMAN` får 403
         "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN".
         COACH får bara skapa `PLAYER` i ett lag hen tränar.
-        En förälder som COACH skapar måste skickas som `newParent` på den spelaren, så föräldern kopplas till barnet.
-        `roleName=PARENT` från en COACH ger 403
+        En förälder som COACH skapar måste skickas som `newParent` på en aktiv spelare i det laget (beslut b).
+        `roleName=PARENT` från en COACH ger 400
         "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train".
         Annan otillåten roll ger 403
         "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER, PARENT and COACH. A COACH may only create PLAYER".
@@ -200,7 +200,9 @@ paths:
           Kontrollen sker före kontrollen att laget finns, så en coach får 403 även för ett okänt lag-id,
         - ADMIN och CHAIRMAN: laget måste finnas (400 "Team not found"),
         - exakt en av `parentId` eller `newParent` (annars 400),
-        - `parentId` måste peka på en användare med roll PARENT.
+        - `parentId` måste peka på en aktiv användare med roll PARENT.
+          Inaktiv förälder ger 400 "Cannot link an inactive parent".
+          Annan roll ger 400 "parentId must point to a user with role PARENT".
         `newParent` sparas bara om lagkontrollen redan har gått igenom. Då pekar spelarens `parentId` på den nya föräldern.
         För andra roller ignoreras `parentId`, `newParent` och `teamId`.
         När `roleName` är `COACH` sparas inte `playerNumber`, även om det skickas med. En tränare har inget tröjnummer.

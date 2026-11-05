@@ -76,3 +76,8 @@ Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 - PLAYER, PARENT och COACH får 403 i båda fallen. S1-13 sa 404 för alla. Arkitekten beslutade F3: svaret ska vara detsamma som för ett saknat id för den rollen, så statuskoden inte säger att kontot finns (ADR 0004).
 - Listor och sök (`GET /api/users`, namn, tröjnummer, telefon, lagets spelare och tränare) visade redan bara `active=true`. Det är oförändrat.
 - Att slå på kontot igen blir en egen endpoint senare. Den byggs inte här. Ändra och mjukradera ser fortfarande den inaktiva raden när anroparen får hantera laget, så de kan säga "Player is already inactive". En tränare som skickar ett id som saknas, eller en spelare i ett annat lag, får 403 (F8). ADMIN och CHAIRMAN får 404 när id saknas.
+
+## Genomförande (F4, beslut b)
+- En tränare får skapa en förälder bara som `newParent` på en aktiv spelare i ett lag hen tränar. En fristående `PARENT` är 400, inte 403. ADMIN och CHAIRMAN får fortfarande skapa en förälder utan barn.
+- `parentId` som är inaktiv, eller som inte har rollen PARENT, är 400 när spelaren skapas. Samma regel fanns redan vid uppdatering.
+- `getParentName`, `getParentEmail` och `getParentMobilePhoneNumber` ger null när föräldern är inaktiv, så namn, e-post och telefon inte följer med i svaret.

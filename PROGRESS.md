@@ -618,3 +618,11 @@ Why: S1-13 answered 404 for every role. That let a player, a parent, or a coach 
 The old tests in `KnownInactiveUserTest` required 404 for the coach, the player and the parent. Those tests conflict with F3, so they now require 403. ADMIN and CHAIRMAN stay on 404. No `known-gap` tag was removed. The remaining known-gap test is still the parent's phone on a player's own row.
 
 A coach's write checks the team before it describes the player. A missing id never reaches "User not found" for that role. An inactive player on the coach's own team is still 400 "Cannot edit an inactive player" or "Player is already inactive", because the coach may manage that team and the row is there to edit.
+
+# F4: hide an inactive parent, and close how a coach creates one (5/11-2026)
+
+Decision (b): a coach may create a parent only together with an active player on a team they train. A standalone parent is 400. ADMIN and CHAIRMAN may still create a parent with no child. Linking a player to a parentId that is inactive, or that is not a PARENT, is 400 for every role. The three parent contact fields are null when that parent is inactive.
+
+Why 400 and not 403: the coach is allowed to create users. The mistake is that this parent is not tied to a player on their team. 403 stays for a role they may not create at all, and for a team they do not train. That team check still runs first, so a parent is not saved as a side effect of a player on another team.
+
+The open question in the role matrix is closed. Gap analysis point 12 is closed.
