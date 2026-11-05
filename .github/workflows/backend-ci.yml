@@ -43,8 +43,9 @@ jobs:
       - name: Run the normal build
         # verify = compile, test, and package.
         # API/pom.xml sets excludedGroups to known-gap, so those tests are not part of this run.
-        # The test profile is not an env var. Each Spring test has @ActiveProfiles("test"),
+        # The test profile is not an env var. Most Spring tests have @ActiveProfiles("test"),
         # which loads API/src/test/resources/application-test.properties (in-memory H2).
+        # The no-profile check and the dev-seed check bring their own H2 settings.
         working-directory: API
         run: bash mvnw -B verify
 

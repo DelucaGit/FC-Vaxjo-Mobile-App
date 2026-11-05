@@ -33,6 +33,7 @@ import se.fcvaxjo.api.repository.UserRepository;
  * + up to 10 trainings with attendance snapshots.
  * Idempotent per team. Resets bootstrap admin password for local login.
  * Only runs with the "dev" profile so production never gets demo users or known passwords.
+ * There is no default profile. A start without SPRING_PROFILES_ACTIVE must not create this bean.
  * Passwords come from DEMO_PASSWORD and BOOTSTRAP_ADMIN_PASSWORD (API/.env), never from code.
  * If DEMO_PASSWORD is not set, the whole demo seed is skipped.
  */
