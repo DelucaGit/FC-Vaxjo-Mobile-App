@@ -68,12 +68,14 @@ export function canCreateTeam(roleName: string | null | undefined): boolean {
   return roleName === 'ADMIN' || roleName === 'CHAIRMAN';
 }
 
+/** A chairman may create these. Not ADMIN and not another chairman. */
+const ROLES_A_CHAIRMAN_MAY_ASSIGN: readonly ClubRoleName[] = ['PLAYER', 'PARENT', 'COACH'];
+
 /**
  * Roles shown on "create user".
  * A coach may only create a player (the API enforces that).
- * A chairman is above a coach, so the picker includes at least that.
- * ADR 0006 still asks whether a chairman may create a coach, and
- * POST /api/users does not allow CHAIRMAN yet, so we do not offer more.
+ * A chairman may create a player, a parent, or a coach, on any team.
+ * A chairman may not assign ADMIN or CHAIRMAN.
  * An admin may assign every club role, including chairman.
  */
 export function assignableRoles(
@@ -82,7 +84,10 @@ export function assignableRoles(
   if (roleName === 'ADMIN') {
     return ROLES_AN_ADMIN_MAY_ASSIGN;
   }
-  if (roleName === 'COACH' || roleName === 'CHAIRMAN') {
+  if (roleName === 'CHAIRMAN') {
+    return ROLES_A_CHAIRMAN_MAY_ASSIGN;
+  }
+  if (roleName === 'COACH') {
     return ['PLAYER'];
   }
   return [];

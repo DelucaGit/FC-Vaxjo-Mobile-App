@@ -36,4 +36,41 @@ public enum ClubRole {
     public boolean canCreateTeam() {
         return this == ADMIN || this == CHAIRMAN;
     }
+
+    /**
+     * Linking a coach is club work, separate from creating the team (ADR 0006).
+     * A coach does not assign coaches, not even on a team they already belong to.
+     * The check is written out again so a later change to team creation does not
+     * silently change who may link a coach.
+     */
+    public boolean canLinkCoach() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
+     * Trainings for every team, not one team.
+     * A coach is left out on purpose. A coach may only manage trainings
+     * on teams they are linked to, and that link lives in team_coaches.
+     * ClubRole does not know those rows, so the team check stays in TrainingService.
+     */
+    public boolean canManageAllTrainings() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
+     * Club-lead roles. A chairman must not hand these out.
+     * Only an admin may create or assign ADMIN and CHAIRMAN.
+     */
+    public boolean isClubLead() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
+     * Email and phone of other people.
+     * The chairman looks after the whole club, so this is not limited to one team.
+     * A coach is allowed here too. Limiting a coach to their own teams is a later change.
+     */
+    public boolean canReadPersonalData() {
+        return this == ADMIN || this == CHAIRMAN || this == COACH;
+    }
 }

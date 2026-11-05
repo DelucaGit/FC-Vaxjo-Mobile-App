@@ -1,11 +1,12 @@
 import { clearSession, getToken } from './authStorage';
 
 /**
- * A chairman already sees the coach screens (trainings, create a player
- * or a parent) for every team. The API still answers a bare 403
- * ("Access Denied") until that contract is updated. That text is not
- * useful on screen, so we replace only the generic refusal.
+ * Spring's bare 403 is the text "Access Denied". That is not useful
+ * on screen, so we replace only that generic refusal.
  * A specific reason, such as a coach opening the wrong team, stays as-is.
+ * A chairman may already create a player, a parent, or a coach, and may
+ * manage trainings. A bare 403 can still happen (for example assigning
+ * ADMIN). The friendly sentence is what we show in that case.
  */
 const ROLE_NOT_READY_MESSAGE =
   'Den här funktionen är inte tillgänglig för din roll än.';
@@ -50,8 +51,10 @@ async function readServerMessage(response: Response): Promise<string> {
 }
 
 type UnauthorizedHandler = () => void;
+type RefreshSession = () => Promise<unknown>;
 
 let onUnauthorized: UnauthorizedHandler | null = null;
+let refreshCurrentSession: RefreshSession | null = null;
 
 /** AuthProvider registers this so a failed refresh clears React session state. */
 export function setOnUnauthorized(handler: UnauthorizedHandler | null): void {
@@ -59,8 +62,17 @@ export function setOnUnauthorized(handler: UnauthorizedHandler | null): void {
 }
 
 /**
- * fetch wrapper that attaches the JWT when the user is logged in.
- * On 401: try refresh once, retry the request; if refresh fails, clear session.
+ * auth.ts calls this. http.ts must not import auth.ts, because auth.ts
+ * already imports apiFetch. A direct import would be a circle.
+ */
+export function setRefreshSession(refresh: RefreshSession | null): void {
+  refreshCurrentSession = refresh;
+}
+
+/**
+ * fetch wrapper that attaches the access token when the user is logged in.
+ * On 401: ask for a new access token once and retry. If that fails, clear
+ * the secure-store tokens and the saved profile.
  */
 export async function apiFetch(
   url: string,
@@ -90,8 +102,10 @@ export async function apiFetch(
   }
 
   try {
-    const { refreshSession } = await import('./auth');
-    await refreshSession();
+    if (!refreshCurrentSession) {
+      throw new Error('Refresh is not set up');
+    }
+    await refreshCurrentSession();
     return apiFetch(url, init, true);
   } catch {
     await clearSession();

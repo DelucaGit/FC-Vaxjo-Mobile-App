@@ -60,8 +60,10 @@ public class TeamController {
         return new TeamResponse(team.getId(), team.getName());
     }
 
+    // Same rule as ClubRole.canLinkCoach. The chairman links a coach on any team.
+    // There is no team filter: ADMIN and CHAIRMAN are not limited to one team (ADR 0006).
     @PostMapping("/{id}/coaches")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ResponseEntity<FetchUserResponse> addCoach(
             @PathVariable Long id,
             @RequestBody AddCoachRequest request) {
@@ -70,7 +72,12 @@ public class TeamController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toFetchResponse(coach));
     }
 
+    /**
+     * Coach email and phone. A player must not collect the staff contact list here.
+     * The chairman may read every team. We do not check team_coaches for this call.
+     */
     @GetMapping("/{id}/coaches")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<FetchUserResponse> listCoaches(@PathVariable Long id) {
         List<FetchUserResponse> responses = new ArrayList<>();
         for (AppUser coach : teamService.listCoaches(id)) {
@@ -79,7 +86,13 @@ public class TeamController {
         return responses;
     }
 
+    /**
+     * Each player, plus the parent's name, email and phone.
+     * That parent phone is why a child must not call this for any team.
+     * The chairman may, including teams they are not linked to.
+     */
     @GetMapping("/{id}/players")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<FetchUserResponse> listPlayers(@PathVariable Long id) {
         List<FetchUserResponse> responses = new ArrayList<>();
         for (AppUser player : teamService.listPlayers(id)) {
@@ -88,8 +101,9 @@ public class TeamController {
         return responses;
     }
 
+    // Same rule as addCoach: only ADMIN and CHAIRMAN, and they may do it on any team.
     @DeleteMapping("/{id}/coaches/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ResponseEntity<Void> removeCoach(
             @PathVariable Long id,
             @PathVariable Long userId) {

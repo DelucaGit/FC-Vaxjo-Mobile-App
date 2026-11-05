@@ -12,7 +12,7 @@ jest.mock('./http', () => {
 const mockedFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
 
 // Creating a player or a parent both go through POST /api/users.
-// The API still rejects CHAIRMAN with a bare 403. The screen shows this text.
+// If that call still comes back as a bare 403, the screen shows this text.
 test('create user turns a bare 403 into the role message', async () => {
   mockedFetch.mockResolvedValue(
     new Response(JSON.stringify({ message: 'Access Denied' }), {

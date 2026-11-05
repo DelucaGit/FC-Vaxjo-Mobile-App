@@ -42,3 +42,7 @@ coverage/
 # generated native folders
 /ios
 /android
+
+# tests and lint
+coverage/
+.eslintcache

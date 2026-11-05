@@ -24,6 +24,13 @@ import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.service.TrainingService;
 
+/**
+ * Staff trainings. ADMIN and CHAIRMAN manage every team
+ * (ClubRole.canManageAllTrainings).
+ * COACH is allowed through the role check. TrainingService then
+ * limits a coach to teams in team_coaches.
+ * A player or parent uses /api/my/trainings instead of these URLs.
+ */
 @RestController
 @RequestMapping("/api/trainings")
 public class TrainingController {
@@ -35,7 +42,7 @@ public class TrainingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public ResponseEntity<TrainingResponse> create(@RequestBody CreateTrainingRequest request) {
         Training created = trainingService.createTraining(
                 request.getTeamId(),
@@ -46,7 +53,7 @@ public class TrainingController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<TrainingResponse> listByTeam(@RequestParam Long teamId) {
         List<TrainingResponse> responses = new ArrayList<>();
         for (Training training : trainingService.listByTeam(teamId)) {
@@ -56,13 +63,13 @@ public class TrainingController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public TrainingResponse getById(@PathVariable Long id) {
         return toResponse(trainingService.getById(id));
     }
 
     @GetMapping("/{id}/attendance")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<AttendanceResponse> listAttendance(@PathVariable Long id) {
         List<AttendanceResponse> responses = new ArrayList<>();
         for (TrainingAttendance row : trainingService.listAttendance(id)) {
@@ -78,7 +85,7 @@ public class TrainingController {
     }
 
     @PutMapping("/{id}/attendance/{playerId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public AttendanceResponse updateAttendance(
             @PathVariable Long id,
             @PathVariable Long playerId,

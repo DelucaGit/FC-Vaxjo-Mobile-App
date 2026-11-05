@@ -54,7 +54,7 @@ describe('club roles', () => {
     expect(roleLabel(null)).toBe('');
   });
 
-  test('create-user picker knows CHAIRMAN without giving a chairman more than a coach', () => {
+  test('create-user picker matches the API', () => {
     expect(assignableRoles('ADMIN')).toEqual([
       'PLAYER',
       'PARENT',
@@ -62,8 +62,9 @@ describe('club roles', () => {
       'CHAIRMAN',
       'ADMIN',
     ]);
+    // POST /api/users: a chairman may create a player, a parent, or a coach.
+    expect(assignableRoles('CHAIRMAN')).toEqual(['PLAYER', 'PARENT', 'COACH']);
     expect(assignableRoles('COACH')).toEqual(['PLAYER']);
-    expect(assignableRoles('CHAIRMAN')).toEqual(['PLAYER']);
     expect(assignableRoles('PLAYER')).toEqual([]);
     expect(assignableRoles('PARENT')).toEqual([]);
   });
