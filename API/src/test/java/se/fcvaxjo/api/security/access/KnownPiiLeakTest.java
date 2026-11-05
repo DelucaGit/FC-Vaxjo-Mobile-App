@@ -19,8 +19,8 @@ import se.fcvaxjo.api.support.ClubFixture;
  * Those tests run in the normal suite.
  *
  * Tests that still fail stay tagged {@code known-gap}, so Maven skips them.
- * A player's own row still includes the parent's phone. A missing phone number
- * is still echoed in the 404 text (gap 6, story S1-12).
+ * A player's own row still includes the parent's phone.
+ * A missing phone number is not repeated in the 404 text (gap 6, story S1-12).
  */
 class KnownPiiLeakTest extends ClubApiTest {
 
@@ -157,10 +157,9 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("GAP-6: saknat telefonnummer ska inte stå i feltexten")
     void missingPhoneNumber_isNotRepeatedInTheError() throws Exception {
-        // Gap 6 stays its own story (S1-12). The 404 text still echoes the number that was searched for.
+        // The caller already sent the number. ADR 0004 says the 404 must not repeat it.
         var response = get(Actor.ADMIN, "/api/users/search", "phone", ClubFixture.PHONE_MISSING)
                 .andExpect(status().isNotFound());
 

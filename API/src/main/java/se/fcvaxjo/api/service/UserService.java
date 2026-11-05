@@ -720,9 +720,12 @@ public class UserService {
 
     /**
      * Exact phone search. Returns one user because the number is unique when set.
-     * Blank or null is rejected. Missing number throws, same idea as getUserById.
-     * A coach who does not train that person's team gets the same 404 as a
-     * number that is not in the club. The sentence is unchanged on purpose.
+     * Blank or null is rejected. A missing or inactive number throws, same idea as getUserById.
+     * The 404 text does not repeat the number. The caller already sent it, and a phone
+     * number is personal data (ADR 0004, S1-12). An inactive row uses the same text, so the
+     * answer does not reveal which of the two cases it was.
+     * A coach who does not train that person's team gets that same 404. The text stays
+     * "User not found", so another team looks like a number that is not in the club.
      */
     public AppUser searchByMobilePhoneNumber(String mobilePhoneNumber) {
         if (mobilePhoneNumber == null || mobilePhoneNumber.isBlank()) {
@@ -757,9 +760,9 @@ public class UserService {
 
     private AppUser findActiveUserByPhone(String mobilePhoneNumber) {
         AppUser user = userRepository.findByMobilePhoneNumber(mobilePhoneNumber)
-                .orElseThrow(() -> missingPhone(mobilePhoneNumber));
+                .orElseThrow(this::missingPhone);
         if (!user.isActive()) {
-            throw missingPhone(mobilePhoneNumber);
+            throw missingPhone();
         }
         return user;
     }
@@ -785,7 +788,7 @@ public class UserService {
     private AppUser findPhoneOnOwnTeams(String mobilePhoneNumber) {
         List<Long> teamIds = teamIdsThisCoachTrains();
         if (teamIds.isEmpty()) {
-            throw missingPhone(mobilePhoneNumber);
+            throw missingPhone();
         }
         Optional<AppUser> onTeam = userRepository
                 .findByMobilePhoneNumberAndActiveTrueAndTeamIdIn(mobilePhoneNumber, teamIds);
@@ -808,7 +811,7 @@ public class UserService {
                 return parent.get();
             }
         }
-        throw missingPhone(mobilePhoneNumber);
+        throw missingPhone();
     }
 
     private List<AppUser> searchOwnTeamsByName(String name) {
@@ -876,9 +879,13 @@ public class UserService {
         return new NotFoundException("No user found with player number " + playerNumber);
     }
 
-    /** Same sentence the club-wide search already used. See {@link #missingShirt}. */
-    private NotFoundException missingPhone(String mobilePhoneNumber) {
-        return new NotFoundException("No user found with phone number " + mobilePhoneNumber);
+    /**
+     * Same words as GET of a missing user (S1-12).
+     * The number is not included. A phone number is personal data (ADR 0004).
+     * Inactive, missing, and "another team" all use this one sentence.
+     */
+    private NotFoundException missingPhone() {
+        return new NotFoundException("User not found");
     }
 
     private record SavedUser(AppUser user, String temporaryPassword) {

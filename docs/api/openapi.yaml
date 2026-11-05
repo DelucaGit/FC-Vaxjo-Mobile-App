@@ -223,7 +223,7 @@ paths:
         - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
         - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404.
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
-          (felmeddelandet innehåller det sökta numret).
+          med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
         Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
         eftersom träffen innehåller kontaktuppgifter.
@@ -232,7 +232,8 @@ paths:
         spelare med det `teamId`, tränare kopplade till de lagen, och föräldrar till aktiva spelare där.
         Namnsök mot ett annat lag ger 200 och en tom lista.
         Tröjnummer eller telefon som inte ligger på de lagen ger samma 404 som om personen saknas.
-        404-texten är oförändrad.
+        Telefonens 404-text är "User not found" och upprepar inte numret (S1-12).
+        Tröjnumrets 404-text är oförändrad.
       x-roles: [ADMIN, CHAIRMAN, COACH]
       x-scope: ADMIN och CHAIRMAN hela klubben. COACH endast egna lag (`team_coaches`).
       x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
@@ -1049,7 +1050,7 @@ components:
       properties:
         message:
           type: string
-          description: Felmeddelande på engelska. Kan innehålla personuppgifter (t.ex. sökt telefonnummer).
+          description: Felmeddelande på engelska. Ska inte upprepa telefonnummer, e-post eller namn (ADR 0004).
 
     LoginRequest:
       type: object

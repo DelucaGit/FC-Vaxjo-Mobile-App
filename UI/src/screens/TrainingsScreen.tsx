@@ -84,7 +84,9 @@ export default function TrainingsScreen() {
 
   const loadTeams = useCallback(async () => {
     try {
-      // Coaches only see (and can open) teams they are linked to.
+      // A coach only sees teams they are linked to.
+      // A chairman looks after every team, not only teams they coach.
+      // GET /api/my/teams allows COACH and ADMIN, so the chairman uses the full list.
       const next =
         session?.roleName === 'COACH' ? await listMyTeams() : await listTeams();
       setTeams(next);
@@ -102,7 +104,7 @@ export default function TrainingsScreen() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load teams.');
     }
-  }, [session?.roleName]);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
