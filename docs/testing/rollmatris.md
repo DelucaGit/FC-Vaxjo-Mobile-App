@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, F4. En tränare skapar en förälder bara tillsammans med en aktiv spelare i eget lag. En fristående förälder är 400. En inaktiv förälder syns inte i kontaktfälten.
+Senast uppdaterad: 2026-11-05, F7. En tränare som skapar en dubblett av e-post eller telefon får 400 `Could not create the user`. ADMIN och CHAIRMAN behåller den exakta texten.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -94,6 +94,8 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | `PUT /api/users/{id}/role` | 200 vilken roll som helst | 200 bara PLAYER till COACH, inte egen roll, inte ADMIN/CHAIRMAN | 403 | 403 | 403 | 403 | 403 | Stämmer efter S1-8 |
 
 Beslut (b), stängt: en tränare får skapa en förälder bara tillsammans med en aktiv spelare i ett lag hen tränar (`newParent` på den spelaren). Allt annat om den föräldern är 400, inklusive en fristående `PARENT`. ADMIN och CHAIRMAN får skapa en förälder utan barn. En inaktiv förälder syns inte i `parentName`, `parentEmail` eller `parentMobilePhoneNumber`. Att koppla en spelare till en inaktiv förälder, eller till någon som inte är PARENT, är 400.
+
+F7: när en tränare skapar en användare och e-post eller telefon redan finns, är svaret 400 `Could not create the user`. Samma text i eget lag och i ett annat lag, och samma text för båda fälten. ADMIN och CHAIRMAN behåller de exakta texterna.
 
 ### Lag
 

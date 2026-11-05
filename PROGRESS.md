@@ -632,3 +632,9 @@ The open question in the role matrix is closed. Gap analysis point 12 is closed.
 Decision: `PasswordChange.storeHash` is the only production write of a password hash. It sets `passwordChangedAt` to now. That covers `saveNewUser`, `AuthService.changePassword`, `AdminSeeder`, and every hash write in `DemoClubSeeder`, including `resetDemoLogin`.
 
 Why the first login still works: S1-9 keeps the strict `>` on whole seconds. The token is rejected only when the hash was written in a later second than `iat`. Creating the user, then logging in, is the same second or a later one, so the first token is accepted. A token from before a rewrite, such as the demo seeder resetting a password, is 401.
+
+# F7: a coach duplicate does not name the field (5/11-2026)
+
+Decision: a coach who creates a user with an email or phone that is already stored gets 400 `Could not create the user`. ADMIN and CHAIRMAN still get `User already exists` and `Phone number already in use`.
+
+Why one sentence for every coach duplicate: a precise text on the coach's own team, and a vague text for everyone else, would still show that the vague answer means "this person is outside my team". The same 400 also hides whether the clash was the email or the phone. 409 would be a new status that still means the value is taken. 400 is the status create already uses for a bad request.

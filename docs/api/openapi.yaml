@@ -192,6 +192,9 @@ paths:
         En förälder som COACH skapar måste skickas som `newParent` på en aktiv spelare i det laget (beslut b).
         `roleName=PARENT` från en COACH ger 400
         "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train".
+        En dubblett av e-post eller telefon ger tränaren 400 "Could not create the user",
+        oavsett om personen ligger i eget lag eller inte (F7). Texten säger inte vilket fält.
+        ADMIN och CHAIRMAN får fortfarande "User already exists" och "Phone number already in use".
         Annan otillåten roll ger 403
         "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER, PARENT and COACH. A COACH may only create PLAYER".
 

@@ -50,6 +50,15 @@ public class UserService {
     private static final String CREATE_DENIED =
             "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER, PARENT and COACH. A COACH may only create PLAYER";
 
+    /**
+     * One 400 for every duplicate a coach hits, email or phone, own team or not.
+     * "User already exists" for one case and another sentence for the other
+     * would still tell the coach that the person sits outside their team (F7).
+     * 400 matches the other create errors. 409 would be a new status that
+     * still means "this value is taken". ADMIN and CHAIRMAN keep the exact text.
+     */
+    private static final String COACH_CREATE_REJECTED = "Could not create the user";
+
     /** Same text on create and on role change, so the 403 is easy to recognise. */
     private static final String CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD =
             "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN";
@@ -298,11 +307,11 @@ public class UserService {
             throw new BadRequestException("Email is required");
         }
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new BadRequestException("User already exists");
+            throw duplicateOnCreate("User already exists");
         }
         if (mobilePhoneNumber != null && !mobilePhoneNumber.isBlank()
                 && userRepository.findByMobilePhoneNumber(mobilePhoneNumber).isPresent()) {
-            throw new BadRequestException("Phone number already in use");
+            throw duplicateOnCreate("Phone number already in use");
         }
 
         String temporaryPassword = generateTemporaryPassword();
@@ -329,6 +338,16 @@ public class UserService {
             builder.append(TEMP_PASSWORD_CHARS.charAt(index));
         }
         return builder.toString();
+    }
+
+    /**
+     * ADMIN and CHAIRMAN may see which field is taken. A coach may not (F7).
+     */
+    private BadRequestException duplicateOnCreate(String staffMessage) {
+        if (hasRole("COACH") && !callerLooksAfterEveryTeam()) {
+            return new BadRequestException(COACH_CREATE_REJECTED);
+        }
+        return new BadRequestException(staffMessage);
     }
 
     /**
