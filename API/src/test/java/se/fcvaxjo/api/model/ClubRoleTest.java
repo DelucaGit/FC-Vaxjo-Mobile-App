@@ -58,6 +58,15 @@ class ClubRoleTest {
     }
 
     @Test
+    void onlyAdminAndChairmanCanReadEveryTeam() {
+        assertTrue(ClubRole.ADMIN.canReadEveryTeam());
+        assertTrue(ClubRole.CHAIRMAN.canReadEveryTeam());
+        assertFalse(ClubRole.COACH.canReadEveryTeam());
+        assertFalse(ClubRole.PLAYER.canReadEveryTeam());
+        assertFalse(ClubRole.PARENT.canReadEveryTeam());
+    }
+
+    @Test
     void adminChairmanAndCoachMayReadOtherPeople() {
         assertTrue(ClubRole.ADMIN.canReadPersonalData());
         assertTrue(ClubRole.CHAIRMAN.canReadPersonalData());

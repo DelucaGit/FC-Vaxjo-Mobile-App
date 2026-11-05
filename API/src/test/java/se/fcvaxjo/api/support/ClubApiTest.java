@@ -116,6 +116,12 @@ public abstract class ClubApiTest {
         return perform(MockMvcRequestBuilders.delete(path), actor);
     }
 
+    /** Sends the header exactly as given, so a test can try a broken token or a wrong prefix. */
+    protected ResultActions getWithAuthorization(String authorizationHeader, String path) throws Exception {
+        return mockMvc.perform(MockMvcRequestBuilders.get(path)
+                .header("Authorization", authorizationHeader));
+    }
+
     protected void assertBodyHides(ResultActions actions, String... hidden) throws Exception {
         String body = actions.andReturn().getResponse().getContentAsString();
         for (String value : hidden) {

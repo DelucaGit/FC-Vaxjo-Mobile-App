@@ -58,6 +58,18 @@ public enum ClubRole {
     }
 
     /**
+     * People on every team, not only the teams in team_coaches.
+     * ADMIN and CHAIRMAN look after the whole club, so the list, the search
+     * and a single user are not limited to one team.
+     * A coach is left out on purpose. A coach may read people only on teams
+     * they are linked to. ClubRole does not know those rows, so the team
+     * check stays in UserService, next to the check already used for writes.
+     */
+    public boolean canReadEveryTeam() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
      * Club-lead roles. A chairman must not hand these out.
      * Only an admin may create or assign ADMIN and CHAIRMAN.
      */
@@ -67,8 +79,10 @@ public enum ClubRole {
 
     /**
      * Email and phone of other people.
-     * The chairman looks after the whole club, so this is not limited to one team.
-     * A coach is allowed here too. Limiting a coach to their own teams is a later change.
+     * ADMIN and CHAIRMAN may read them for every team ({@link #canReadEveryTeam()}).
+     * A coach may read them only for teams they train. That limit is not decided
+     * here, because this enum does not know the team_coaches rows.
+     * PLAYER and PARENT may not read other people's contact details.
      */
     public boolean canReadPersonalData() {
         return this == ADMIN || this == CHAIRMAN || this == COACH;

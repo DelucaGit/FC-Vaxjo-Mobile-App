@@ -92,6 +92,9 @@ public class TeamService {
     }
 
     public List<AppUser> listCoaches(Long teamId) {
+        // Before "team not found", same idea as trainings. A coach of another team
+        // gets 403, not a 404 that confirms the id.
+        userService.assertCallerMayReadTeam(teamId);
         getTeamById(teamId);
         List<TeamCoach> links = teamCoachRepository.findByTeamId(teamId);
         List<AppUser> coaches = new ArrayList<>();
@@ -119,6 +122,9 @@ public class TeamService {
      * Active players on this team: users with team_id set, role PLAYER only.
      */
     public List<AppUser> listPlayers(Long teamId) {
+        // A coach who swaps the team id in the URL must not see the other parent's phone.
+        // The check stays in the service, on the same team_coaches row as a write.
+        userService.assertCallerMayReadTeam(teamId);
         getTeamById(teamId);
         List<AppUser> onTeam = userRepository.findByTeamIdAndActiveTrue(teamId);
         List<AppUser> players = new ArrayList<>();

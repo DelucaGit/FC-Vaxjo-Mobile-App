@@ -11,9 +11,10 @@ info:
     `CHAIRMAN` finns som roll (ADR 0006). Behörigheter som ännu inte matchar ADR:n
     är markerade med `x-roles-planned`.
 
-    Läsning av persondata (användarlistan, sök, en annan användare, lagets tränare och spelare)
+    Läsning av persondata (sök, en annan användare, lagets tränare och spelare)
     kräver ADMIN, CHAIRMAN eller COACH. PLAYER och PARENT får 403.
-    Ordföranden är inte begränsad till ett lag.
+    ADMIN och CHAIRMAN ser hela klubben. COACH ser bara lag där hen finns i `team_coaches`.
+    Hela användarlistan `GET /api/users` är bara ADMIN och CHAIRMAN.
     Undantag: `GET /api/users/{id}` när id är den inloggade själv.
 
     **Konventioner**
@@ -161,9 +162,10 @@ paths:
       summary: Lista alla aktiva användare
       description: |
         Returnerar alla användare med `active=true`, inklusive kontaktuppgifter och förälderns kontaktuppgifter.
-        Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403, eftersom listan är andras persondata.
-        Ordföranden får hela listan, inte bara ett lag.
-      x-roles: [ADMIN, CHAIRMAN, COACH]
+        Bara ADMIN och CHAIRMAN. Listan är hela klubben, inte ett lag.
+        COACH, PLAYER och PARENT får 403. En tränare listar personer via lagets spelare och tränare.
+      x-roles: [ADMIN, CHAIRMAN]
+      x-scope: Hela klubben. COACH använder lagets spelare och tränare, bara för lag i team_coaches.
       x-source: UserController.getAllUsers → UserService.getAllUsers
       responses:
         '200':
@@ -238,12 +240,19 @@ paths:
         - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
         - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404.
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
-          (felmeddelandet innehåller det sökta numret).
+          med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
         Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
         eftersom träffen innehåller kontaktuppgifter.
-        Ordföranden får söka i hela klubben.
+        ADMIN och CHAIRMAN söker i hela klubben.
+        COACH får bara träffar på lag där hen finns i `team_coaches`:
+        spelare med det `teamId`, tränare kopplade till de lagen, och föräldrar till aktiva spelare där.
+        Namnsök mot ett annat lag ger 200 och en tom lista.
+        Tröjnummer eller telefon som inte ligger på de lagen ger samma 404 som om personen saknas.
+        Telefonens 404-text är "User not found" och upprepar inte numret (S1-12).
+        Tröjnumrets 404-text är oförändrad.
       x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN hela klubben. COACH endast egna lag (`team_coaches`).
       x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
       parameters:
         - name: name
@@ -285,19 +294,28 @@ paths:
       operationId: getUserById
       summary: Hämta en användare
       description: |
-        ADMIN, CHAIRMAN och COACH får hämta vem som helst, även inaktiva användare.
-        Ordföranden är inte begränsad till ett lag.
+        Bara aktiva användare (`active=true`). En inaktiv rad (`active=false`, mjukt borttagen)
+        ger 404 med texten "User not found" för alla roller, även ADMIN (ADR 0004, S1-13).
+        Samma text som när id saknas, så svaret inte säger att kontot finns.
+        Att slå på kontot igen blir en egen endpoint senare. Den finns inte här.
+        ADMIN och CHAIRMAN får hämta vem som helst som är aktiv. De är inte begränsade till ett lag.
+        COACH får hämta en aktiv person på ett lag hen tränar (spelarens `teamId`, en tränare i `team_coaches`,
+        eller en förälder till en aktiv spelare där), och sitt eget id.
+        Annat id som inte är en inaktiv rad ger 403 "You can only read users on a team you train",
+        även när användaren inte finns.
         PLAYER och PARENT får bara hämta sitt eget id (samma id som i JWT).
-        Annat id ger 403 med meddelandet "You can only read your own user record",
+        Annat id som inte är en inaktiv rad ger 403 med meddelandet "You can only read your own user record",
         även när användaren inte finns. Vi svarar 403 före 404 så att man inte kan testa om ett id finns.
-        Behörig roll som frågar efter ett okänt id får "User not found" (404).
+        ADMIN eller CHAIRMAN som frågar efter ett okänt id får "User not found" (404).
 
         En spelare som hämtar sig själv får fortfarande hela `FetchUserResponse`,
         inklusive den kopplade förälderns kontaktuppgifter. Att plocka bort de fälten
         är dataminimering (ADR 0004) och ingår inte i den här ändringen.
       x-roles: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
-      x-scope: PLAYER och PARENT endast eget användar-id. CHAIRMAN ser alla lag. COACH är inte begränsad till egna lag ännu.
-      x-source: UserController.getUserById → UserService.assertCallerMayReadUser, UserService.getUserById
+      x-scope: |
+        ADMIN och CHAIRMAN alla lag, bara aktiva användare. COACH endast aktiva personer på lag i `team_coaches`, plus eget id.
+        PLAYER och PARENT endast eget användar-id. Inaktiv användare är 404 för alla roller.
+      x-source: UserController.getUserById → UserService.readActiveUser
       responses:
         '200':
           description: Användaren.
@@ -306,7 +324,13 @@ paths:
               schema: { $ref: '#/components/schemas/FetchUserResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '404':
+          description: |
+            Okänt id, eller en inaktiv användare (`active=false`). Texten är "User not found" i båda fallen,
+            för alla roller inklusive ADMIN.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
     delete:
       tags: [Users]
       operationId: softDeletePlayer
@@ -505,10 +529,12 @@ paths:
         Returnerar fullständig `FetchUserResponse` (e-post, telefon).
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403.
         Behörigheten kontrolleras före existens, så en spelare får 403 även för ett lag som inte finns.
-        Behörig roll: "Team not found" (404).
+        ADMIN och CHAIRMAN: "Team not found" (404).
         Ordföranden får läsa tränare i alla lag, även lag hen inte är kopplad till.
-        COACH är inte begränsad till egna lag ännu (det är en senare story).
+        COACH bara lag där hen finns i `team_coaches`. Annars 403, även för ett lag som inte finns,
+        så svaret inte visar vilka id som finns.
       x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TeamController.listCoaches → TeamService.listCoaches
       responses:
         '200':
@@ -600,8 +626,10 @@ paths:
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403, även för ett lag som inte finns
         (behörigheten kontrolleras före "Team not found").
         Ordföranden får läsa spelare i alla lag, även lag hen inte är kopplad till.
-        COACH är inte begränsad till egna lag ännu (det är en senare story).
+        COACH bara lag där hen finns i `team_coaches`. Annars 403, även för ett lag som inte finns.
+        ADMIN och CHAIRMAN får "Team not found" (404) för ett okänt lag.
       x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TeamController.listPlayers → TeamService.listPlayers
       responses:
         '200':
@@ -1053,7 +1081,7 @@ components:
       properties:
         message:
           type: string
-          description: Felmeddelande på engelska. Kan innehålla personuppgifter (t.ex. sökt telefonnummer).
+          description: Felmeddelande på engelska. Ska inte upprepa telefonnummer, e-post eller namn (ADR 0004).
 
     LoginRequest:
       type: object
@@ -1290,7 +1318,7 @@ x-open-questions:
   - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
   - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?
-  - Ska GET /api/users/{id} returnera inaktiva (mjukt raderade) användare?
+  - "GET /api/users/{id} för en inaktiv användare är avgjort (S1-13): 404 \"User not found\" för alla roller. Återaktivering är en senare endpoint."
   - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"
   - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?
   - "CHAIRMAN (ADR 0006, S1-8): ordföranden får skapa PLAYER, PARENT och COACH, och byta en annan användares PLAYER till COACH. Ordföranden får inte sätta ADMIN eller CHAIRMAN och får inte byta sin egen roll. Öppet: ska ordföranden se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"

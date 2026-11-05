@@ -15,12 +15,12 @@ import se.fcvaxjo.api.support.ClubFixture;
  * Gap analysis point 2: who may read other people's contact details.
  *
  * PLAYER and PARENT are refused on the lists, the search, and someone else's row.
+ * A coach is limited to teams they are linked to in team_coaches (S1-10).
  * Those tests run in the normal suite.
  *
  * Tests that still fail stay tagged {@code known-gap}, so Maven skips them.
- * A coach is not limited to their own team yet. A player's own row still
- * includes the parent's phone. A missing phone number is still echoed in the
- * 404 text (gap 6, story S1-12).
+ * A player's own row still includes the parent's phone.
+ * A missing phone number is not repeated in the 404 text (gap 6, story S1-12).
  */
 class KnownPiiLeakTest extends ClubApiTest {
 
@@ -38,10 +38,9 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("S1-2: tränare ska inte lista hela klubben")
     void coach_cannotListTheWholeDirectory() throws Exception {
-        // A coach should use their own team roster. Limiting that is a later story, so this still fails.
+        // The club list is every person. A coach opens one team they train instead.
         get(Actor.COACH_ALFA, "/api/users").andExpect(status().isForbidden());
     }
 
@@ -60,10 +59,9 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("S1-2: tränare ska inte läsa en spelare i ett annat lag")
     void coachFromOtherTeam_cannotReadPlayer() throws Exception {
-        // Coach team scope is not in this change. Alfa's coach can still open Beta's player.
+        // Alfa's coach has no team_coaches row for Lag Beta.
         get(Actor.COACH_ALFA, "/api/users/" + world.playerBetaId())
                 .andExpect(status().isForbidden());
     }
@@ -97,10 +95,9 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("S1-2: tränare från andra laget ska inte se spelarens telefon")
     void coachFromOtherTeam_cannotSeePlayerPhoneNumber() throws Exception {
-        // mobilePhoneNumber and parentMobilePhoneNumber are x-pii. COACH is not limited to their own team yet.
+        // mobilePhoneNumber and parentMobilePhoneNumber are x-pii. COACH_BETA does not train Lag Alfa.
         String otherTeamRoster = "/api/teams/" + world.teamAlfaId() + "/players";
 
         get(Actor.COACH_BETA, otherTeamRoster)
@@ -122,10 +119,9 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("S1-2: tränare från andra laget ska inte se tränarens telefon")
     void coachFromOtherTeam_cannotSeeCoachPhoneNumber() throws Exception {
-        // Same later story as the player roster: a coach can still open another team's coaches.
+        // Same team_coaches rule as the player roster.
         get(Actor.COACH_BETA, "/api/teams/" + world.teamAlfaId() + "/coaches")
                 .andExpect(status().isForbidden());
     }
@@ -152,20 +148,18 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("S1-2: tränares sök träffar bara eget lag")
     void coach_searchDoesNotReturnOtherTeam() throws Exception {
-        // Name search is the club directory in disguise. Limiting a coach to their own team is a later story.
+        // "Beta" is the other team. Those people are not on Alfa's teams, so the list is empty.
         get(Actor.COACH_ALFA, "/api/users/search", "name", "Beta")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("GAP-6: saknat telefonnummer ska inte stå i feltexten")
     void missingPhoneNumber_isNotRepeatedInTheError() throws Exception {
-        // Gap 6 stays its own story (S1-12). The 404 text still echoes the number that was searched for.
+        // The caller already sent the number. ADR 0004 says the 404 must not repeat it.
         var response = get(Actor.ADMIN, "/api/users/search", "phone", ClubFixture.PHONE_MISSING)
                 .andExpect(status().isNotFound());
 

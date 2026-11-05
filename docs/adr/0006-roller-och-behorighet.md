@@ -9,7 +9,7 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 - Hierarki: **ADMIN > CHAIRMAN (ordförande) > COACH > PLAYER = PARENT.** En användare har en roll.
 - **ADMIN** har full behörighet, inklusive att tilldela ADMIN.
 - **CHAIRMAN** har klubbens verksamhetsbehörighet: skapa lag, koppla tränare till lag och ta bort den kopplingen, och skapa och ändra träningar för alla lag (samma som ADMIN). Bara ADMIN och CHAIRMAN skapar lag och hanterar vilka tränare som hör till ett lag. De får göra det i alla lag.
-- **COACH** får, **bara inom egna lag** (`team_coaches`), skapa spelare och föräldrar, ändra spelare, ta bort spelare ur lag och hantera träningar och närvaro.
+- **COACH** får, **bara inom egna lag** (`team_coaches`), skapa spelare och föräldrar, ändra spelare, ta bort spelare ur lag, hantera träningar och närvaro, och lista, läsa och söka spelare, tränare och föräldrar i de lagen. Hela klubblistan är bara för ADMIN och CHAIRMAN.
 - **PLAYER** ser sitt eget schema. **PARENT** ser sina egna barns scheman. Ingen av dem ser andra användares kontaktuppgifter.
 - Allt kontrolleras i backend med `@PreAuthorize` för roll och service-kontroll för lagomfång.
 
@@ -62,3 +62,16 @@ Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 - COACH är oförändrad: bara lag där hen finns i `team_coaches`.
 - PLAYER och PARENT får 403 på personalens tränings-URL:er. De läser sitt schema via `/api/my/trainings`.
 - Det finns fortfarande ingen URL för att byta titel eller tid på en träning. "Ändra" är den ändring ADMIN redan kan göra: markera närvaro.
+
+## Genomförande (S1-10)
+- `ClubRole.canReadEveryTeam()` är sant för ADMIN och CHAIRMAN. COACH, PLAYER och PARENT är falskt. Lagkontrollen för en tränare ligger i `UserService`, samma `team_coaches`-rad som när tränaren skapar eller ändrar en spelare (S1-3) och hanterar träningar (S1-11). Rollen vet inte vilka rader som finns i tabellen.
+- `GET /api/users` är hela klubben. Bara ADMIN och CHAIRMAN. COACH får 403 och använder laglistan i stället.
+- `GET /api/users/{id}`: COACH får läsa en spelare vars `teamId` är ett lag hen tränar, en tränare som är kopplad till ett sådant lag, en förälder till en aktiv spelare där, och sin egen rad. Annars 403. ADMIN och CHAIRMAN ser alla. PLAYER och PARENT är oförändrade: bara sin egen rad.
+- Sök på namn ger bara träffar i tränarens lag. Ett annat lag ger en tom lista. Sök på tröjnummer eller telefon som inte ligger där ger samma 404-text som när personen saknas. Texten ändras inte här.
+- `GET /api/teams/{id}/players` och `.../coaches`: COACH bara egna lag. Kontrollen sker före "Team not found", så ett okänt lag-id ger 403 för en tränare. ADMIN och CHAIRMAN ser alla lag, även lag de inte är kopplade till.
+
+## Genomförande (S1-13)
+- Läsningen i S1-10 gäller aktiva användare. En rad med `active=false` är dold för alla roller, även ADMIN, CHAIRMAN och tränaren i spelarens eget lag.
+- `GET /api/users/{id}` svarar 404 "User not found". Samma text som när id saknas (S1-12), så svaret inte säger att kontot finns. Det är dataminimering (ADR 0004).
+- Listor och sök (`GET /api/users`, namn, tröjnummer, telefon, lagets spelare och tränare) visade redan bara `active=true`. Det är oförändrat.
+- Att slå på kontot igen blir en egen endpoint senare. Den byggs inte här. Ändra, mjukradera och byt roll använder fortfarande den inaktiva raden, så de kan säga till exempel "Player is already inactive".
