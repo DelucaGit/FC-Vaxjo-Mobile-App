@@ -348,3 +348,21 @@ Jira (paste yourself):
 - Story: `As a player I would like to see my team's trainings and my attendance status because I need to know when to show up.`
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
+
+# Coach only on own teams (5/11-2026)
+
+Story S1-3. A coach could create, edit and remove players on any team, because the API only checked the role.
+
+Decision: keep the role check on the controller (`@PreAuthorize`). Check the team in `UserService`, the same way trainings already do. The link is `team_coaches`, not `users.team_id`, because one coach can train several teams.
+
+What shipped:
+
+- COACH may create `PLAYER` only when they train that `teamId`. Otherwise 403. The check runs before any insert, so a refused call does not leave a new parent behind.
+- COACH may create a standalone `PARENT` (ADR 0006). A parent has no team.
+- COACH may soft-delete a player only on their own team. ADMIN still can on every team.
+- COACH may edit a player only when they train both the current team and the new team. That closes the same hole: a coach could otherwise rewrite another parent's phone number.
+- Unknown team ids return 403 for a coach (not 400 "Team not found"), so the error does not reveal which teams exist. Same order as trainings.
+- No schema change. `existsByTeamIdAndUserId` is a parameterized Spring Data query.
+- CHAIRMAN is not part of this story. It is still only in the planned OpenAPI fields.
+
+Tests: `UserServiceTest` (mocked) and `CoachOwnTeamIntegrationTest` (HTTP + H2). The test profile uses an in-memory database so the suite does not need local Postgres or a real password.
