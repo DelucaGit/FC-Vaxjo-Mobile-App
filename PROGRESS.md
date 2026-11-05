@@ -348,3 +348,18 @@ Jira (paste yourself):
 - Story: `As a player I would like to see my team's trainings and my attendance status because I need to know when to show up.`
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
+
+# S1-4: old JWT stops when the account changes (5/11-2026)
+
+Decision: on every request, look up the user in the database. Do not add a token version column.
+
+Why: a token lasts 120 minutes. After a soft delete (`active=false`) or a role change, the old token must get 401 on the next call. A database read does that for tokens that are already out in the app, and it needs no schema change. A version number would also work, but it needs a new column, a migration, and a rule for tokens that have no version yet. Traffic for one club is small, so one read by primary key per request is enough.
+
+What shipped:
+
+- `AccountAccessService` answers "is this user still active, and is the role in the token still their role?"
+- `JwtAuthFilter` logs the request in only when that answer is yes. It does not write the 401 itself, so login stays public.
+- Same 401 body as before: `{ "message": "Login required" }`. We do not say "inactive" here, because that would tell a caller the account exists.
+- Turning the account back on, or changing the role back, makes the same token work again. After a role change the person can also log in again and get a token with the new role. Refresh cannot upgrade an old role.
+- Tests: `AccountAccessServiceTest`, `JwtAuthFilterTest`, `JwtAuthFilterIntegrationTest` (H2, so `mvn test` does not need local Postgres).
+- `docs/api/openapi.yaml` describes the new 401 cases. The open question about role change waiting for expiry is closed.
