@@ -15,6 +15,7 @@ import se.fcvaxjo.api.DTO.NewParentRequest;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.repository.RoleRepository;
@@ -310,9 +311,54 @@ public class UserService {
         }
     }
 
+    /**
+     * Admin, chairman and coach may read any user.
+     * The chairman is not limited to one team: this method does not look at team_coaches.
+     * A player or parent may read only their own id.
+     */
+    public void assertCallerMayReadUser(Long userId) {
+        if (callerMayReadOtherPeople()) {
+            return;
+        }
+        if (isLoggedInUser(userId)) {
+            return;
+        }
+        throw new AccessDeniedException("You can only read your own user record");
+    }
+
+    /**
+     * The rule itself is {@link ClubRole#canReadPersonalData()}.
+     * The token carries one role name, so we ask each club role in turn.
+     */
+    private boolean callerMayReadOtherPeople() {
+        for (ClubRole role : ClubRole.values()) {
+            if (hasRole(role.name()) && role.canReadPersonalData()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public AppUser getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    /**
+     * The JWT filter stores the user id as a Long.
+     * A different principal type is not a club user we can compare.
+     */
+    private boolean isLoggedInUser(Long userId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || userId == null) {
+            return false;
+        }
+        Object principal = auth.getPrincipal();
+        if (!(principal instanceof Long)) {
+            return false;
+        }
+        Long loggedInUserId = (Long) principal;
+        return loggedInUserId.equals(userId);
     }
 
     public String getRoleName(Long roleId) {
