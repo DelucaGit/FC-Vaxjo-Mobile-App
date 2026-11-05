@@ -627,19 +627,29 @@ public class UserService {
 
     /**
      * Exact phone search. Returns one user because the number is unique when set.
-     * Blank or null is rejected. Missing number throws, same idea as getUserById.
+     * Blank or null is rejected. A missing or inactive number throws, same idea as getUserById.
+     * The 404 text does not repeat the number. The caller already sent it, and a phone
+     * number is personal data (ADR 0004). An inactive row uses the same text, so the
+     * answer does not reveal which of the two cases it was.
      */
     public AppUser searchByMobilePhoneNumber(String mobilePhoneNumber) {
         if (mobilePhoneNumber == null || mobilePhoneNumber.isBlank()) {
             throw new BadRequestException("Phone number cannot be null or blank");
         }
         AppUser user = userRepository.findByMobilePhoneNumber(mobilePhoneNumber)
-                .orElseThrow(() -> new NotFoundException(
-                        "No user found with phone number " + mobilePhoneNumber));
+                .orElseThrow(this::phoneSearchNotFound);
         if (!user.isActive()) {
-            throw new NotFoundException("No user found with phone number " + mobilePhoneNumber);
+            throw phoneSearchNotFound();
         }
         return user;
+    }
+
+    /**
+     * Shared 404 for a phone search that does not return a person.
+     * The message stays generic on purpose: it must not contain the number that was searched.
+     */
+    private NotFoundException phoneSearchNotFound() {
+        return new NotFoundException("User not found");
     }
 
     private record SavedUser(AppUser user, String temporaryPassword) {
