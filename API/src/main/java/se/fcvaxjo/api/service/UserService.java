@@ -15,6 +15,7 @@ import se.fcvaxjo.api.DTO.NewParentRequest;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.repository.RoleRepository;
@@ -27,6 +28,14 @@ public class UserService {
     private static final String TEMP_PASSWORD_CHARS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int TEMP_PASSWORD_LENGTH = 10;
+
+    /** Same text on create and on role change, so the 403 is easy to recognise. */
+    private static final String CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD =
+            "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN";
+    private static final String CHAIRMAN_MAY_ONLY_CREATE_COACH =
+            "CHAIRMAN may only create a COACH";
+    private static final String CHAIRMAN_MAY_ONLY_PROMOTE_PLAYER =
+            "CHAIRMAN may only change a PLAYER to COACH";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -47,7 +56,8 @@ public class UserService {
 
     /**
      * Creates a user with a generated temporary password.
-     * ADMIN may create any role. COACH may only create PLAYER (and linked new parent).
+     * ADMIN may create any role. CHAIRMAN may only create COACH.
+     * COACH may only create PLAYER (and a linked new parent).
      */
     @Transactional
     public CreatedUserResult createUser(String name, String email, String roleName, Integer playerNumber,
@@ -76,10 +86,36 @@ public class UserService {
         if (hasRole("ADMIN")) {
             return;
         }
+        if (hasRole("CHAIRMAN")) {
+            assertChairmanMayCreate(roleName);
+            return;
+        }
         if (hasRole("COACH") && "PLAYER".equals(roleName)) {
             return;
         }
         throw new AccessDeniedException("Only ADMIN or COACH can create users; COACH may only create PLAYER");
+    }
+
+    /**
+     * The chairman may add a coach, which is how a youth player can be invited in as staff.
+     * Club-lead roles stay with ADMIN, so a chairman cannot create another chairman or an admin.
+     */
+    private void assertChairmanMayCreate(String roleName) {
+        if (isClubLeadRole(roleName)) {
+            throw new AccessDeniedException(CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD);
+        }
+        if (!"COACH".equals(roleName)) {
+            throw new AccessDeniedException(CHAIRMAN_MAY_ONLY_CREATE_COACH);
+        }
+    }
+
+    private boolean isClubLeadRole(String roleName) {
+        for (ClubRole role : ClubRole.values()) {
+            if (role.name().equals(roleName)) {
+                return role.isClubLead();
+            }
+        }
+        return false;
     }
 
     private boolean hasRole(String roleName) {
@@ -361,12 +397,55 @@ public class UserService {
                 .orElse(null);
     }
 
+    /**
+     * Replaces the user's role.
+     * ADMIN may set any role. CHAIRMAN may only turn a PLAYER into a COACH,
+     * and may never set ADMIN or CHAIRMAN.
+     */
+    @Transactional
     public AppUser changeUserRole(Long id, String roleName) {
         AppUser user = getUserById(id);
-        Role role = roleRepository.findByName(roleName)
+        Role newRole = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new BadRequestException("This role does not exist"));
-        user.setRoleId(role.getId());
+
+        String currentRoleName = getRoleName(user.getRoleId());
+        assertCallerMayChangeRole(currentRoleName, newRole.getName());
+
+        if ("PLAYER".equals(currentRoleName) && "COACH".equals(newRole.getName())) {
+            clearPlayerOnlyFields(user);
+        }
+
+        user.setRoleId(newRole.getId());
         return userRepository.save(user);
+    }
+
+    private void assertCallerMayChangeRole(String currentRoleName, String newRoleName) {
+        if (hasRole("ADMIN")) {
+            return;
+        }
+        if (!hasRole("CHAIRMAN")) {
+            throw new AccessDeniedException("Only ADMIN or CHAIRMAN can change roles");
+        }
+        if (isClubLeadRole(newRoleName)) {
+            throw new AccessDeniedException(CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD);
+        }
+        if ("PLAYER".equals(currentRoleName) && "COACH".equals(newRoleName)) {
+            return;
+        }
+        throw new AccessDeniedException(CHAIRMAN_MAY_ONLY_PROMOTE_PLAYER);
+    }
+
+    /**
+     * A coach is not a child on a team roster.
+     * These three fields belong to a player, so they must not stay behind on a coach:
+     * the shirt number is unique, the parent link would still point at a coach,
+     * and team_id is the player roster (coaches use team_coaches, which is a later step).
+     * The parent account itself is left as it is.
+     */
+    private void clearPlayerOnlyFields(AppUser user) {
+        user.setParentId(null);
+        user.setPlayerNumber(null);
+        user.setTeamId(null);
     }
 
     public List<AppUser> getAllUsers() {

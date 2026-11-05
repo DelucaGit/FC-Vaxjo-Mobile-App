@@ -95,8 +95,9 @@ public class UserController {
         return toFetchResponse(userService.getUserById(id));
     }
 
+    // CHAIRMAN may create a coach. The service still blocks ADMIN and CHAIRMAN as the new role.
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public ResponseEntity<CreateUserResponse> createUser(@RequestBody CreateUserRequest request) {
         CreatedUserResult created = userService.createUser(
                 request.getName(),
@@ -111,8 +112,9 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toCreateResponse(created));
     }
 
+    // CHAIRMAN may turn a player into a coach. The service still blocks ADMIN and CHAIRMAN as the new role.
     @PutMapping("/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ChangeRoleResponse updateUserRole(
             @PathVariable Long id,
             @RequestBody ChangeRoleRequest request) {

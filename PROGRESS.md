@@ -354,3 +354,19 @@ Jira (paste yourself):
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
 `POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+
+# S1-8: chairman can make a coach (5/11-2026)
+
+Decision: the chairman may create a user with role COACH, and may change a PLAYER into a COACH. The chairman may never set ADMIN or CHAIRMAN (403). ADMIN keeps the old rights and may still set any role. The chairman may not create other roles, and may not do other role changes. That keeps this story small. Linking a coach to a team stays a separate step (`team_coaches`).
+
+When a player becomes a coach, three player-only fields are cleared. The same happens whether ADMIN or CHAIRMAN does the change:
+
+- `parentId` becomes empty. The parent account stays. A coach is not a child on that parent's list.
+- `playerNumber` becomes empty, so the shirt number is free. A coach has no shirt number.
+- `teamId` becomes empty. Players belong to a team through that column. Coaches belong through `team_coaches`, and this story does not write that table. The person is a coach with no team until someone links them.
+
+Old attendance rows stay. They are history.
+
+After the change the person must log in again to get a token that says COACH. The old token still says PLAYER. The filter that rejects a token whose role no longer matches the database is S1-4 and is not on this branch yet. Until that lands, the old token works until it expires, but it still has the player's rights.
+
+No schema change. The role name is already a text column. Branch: `cursor/s1-8-chairman-skapar-tranare-80dc`.

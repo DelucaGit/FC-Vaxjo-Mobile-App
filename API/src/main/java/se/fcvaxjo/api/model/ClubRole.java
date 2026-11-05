@@ -36,4 +36,12 @@ public enum ClubRole {
     public boolean canCreateTeam() {
         return this == ADMIN || this == CHAIRMAN;
     }
+
+    /**
+     * Club-lead roles. A chairman must not hand these out.
+     * Only an admin may create or assign ADMIN and CHAIRMAN.
+     */
+    public boolean isClubLead() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
 }

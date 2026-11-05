@@ -153,10 +153,13 @@ paths:
       tags: [Users]
       operationId: createUser
       summary: Skapa användare med temporärt lösenord
-      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
-      x-scope-planned: ADMIN och CHAIRMAN får skapa alla roller utom ADMIN (öppen fråga om CHAIRMAN får skapa COACH). COACH får skapa PLAYER och PARENT, men bara spelare i egna lag (`team_coaches`).
+      x-scope-planned: COACH får skapa PLAYER och PARENT, men bara spelare i egna lag (`team_coaches`). Det är inte byggt än.
       description: |
-        ADMIN får skapa alla roller. COACH får bara skapa `PLAYER` (och ny förälder via `newParent`);
+        ADMIN får skapa alla roller.
+        CHAIRMAN får bara skapa `COACH`. Roll `ADMIN` eller `CHAIRMAN` ger 403
+        "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN".
+        Annan roll ger 403 "CHAIRMAN may only create a COACH".
+        COACH får bara skapa `PLAYER` (och ny förälder via `newParent`);
         annars 403 "Only ADMIN or COACH can create users; COACH may only create PLAYER".
 
         För `roleName=PLAYER` gäller:
@@ -164,11 +167,15 @@ paths:
         - `parentId` måste peka på en användare med roll PARENT,
         - `teamId` krävs och laget måste finnas.
         För andra roller ignoreras `parentId`, `newParent` och `teamId`.
+        En ny COACH får alltså inget lag och ingen förälder här. Att koppla tränaren till ett lag
+        görs med `POST /api/teams/{id}/coaches` och ingår inte i det här anropet.
 
         Övriga regler: `email` krävs och måste vara unik ("User already exists"); `mobilePhoneNumber` unik om satt.
         Ett temporärt lösenord (10 tecken) genereras och returneras **en gång** i svaret; `mustChangePassword=true`.
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH får endast skapa PLAYER. Ingen kontroll av att COACH tränar laget i `teamId`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: |
+        ADMIN får skapa alla roller. CHAIRMAN får bara skapa COACH och aldrig ADMIN eller CHAIRMAN.
+        COACH får endast skapa PLAYER. Ingen kontroll av att COACH tränar laget i `teamId`.
       x-source: UserController.createUser → UserService.createUser
       requestBody:
         required: true
@@ -279,12 +286,29 @@ paths:
       tags: [Users]
       operationId: changeUserRole
       summary: Byt roll på en användare
-      x-roles-planned: [ADMIN, CHAIRMAN]
-      x-scope-planned: CHAIRMAN får inte ge eller ta bort rollen ADMIN (ADR 0006).
       description: |
-        Ersätter användarens roll. Fel: "This role does not exist" (400), "User not found" (404).
-        Obs: redan utfärdade JWT behåller den gamla rollen tills de går ut (rollen ligger i token).
-      x-roles: [ADMIN]
+        ADMIN får byta till vilken roll som helst.
+        CHAIRMAN får bara byta en PLAYER till COACH.
+        Om CHAIRMAN försöker sätta rollen ADMIN eller CHAIRMAN blir det 403
+        "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN".
+        Annat byte blir 403 "CHAIRMAN may only change a PLAYER to COACH".
+        COACH, PLAYER och PARENT får 403 "Access Denied" (de når inte service-lagret).
+        Okänd roll är 400 "This role does not exist". Saknad användare är 404 "User not found".
+
+        När en PLAYER blir COACH töms `parentId`, `playerNumber` och `teamId` (ADR 0006, S1-8).
+        Förälderns eget konto ligger kvar, men kopplingen tas bort.
+        Tröjnumret blir ledigt. Personen lämnar spelarlistan.
+        Ingen rad skapas i `team_coaches`. Koppling till lag som tränare är ett eget anrop.
+
+        Efter bytet måste personen logga in igen för att få en token med den nya rollen.
+        Den gamla JWT:n har kvar den tidigare rollen. När filtret avvisar en token vars roll
+        inte längre stämmer med databasen blir nästa anrop 401. Det filtret är S1-4 och är
+        inte inne på den här grenen än. Tills dess läser `JwtAuthFilter` rollen ur token,
+        så den gamla token fungerar tills den går ut (högst 120 minuter) men ger den gamla rollens rättigheter.
+      x-roles: [ADMIN, CHAIRMAN]
+      x-scope: |
+        CHAIRMAN får bara byta PLAYER till COACH och får aldrig sätta ADMIN eller CHAIRMAN.
+        ADMIN får sätta vilken roll som helst. PLAYER till COACH tömmer föräldralänk, tröjnummer och `teamId`.
       x-source: UserController.updateUserRole → UserService.changeUserRole
       requestBody:
         required: true
@@ -1155,6 +1179,6 @@ x-open-questions:
   - Ska GET /api/users/{id} returnera inaktiva (mjukt raderade) användare?
   - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"
   - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?
-  - "CHAIRMAN (ADR 0006): får ordföranden skapa COACH och byta roller, och se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"
+  - "CHAIRMAN (ADR 0006, S1-8): ordföranden får skapa COACH och byta PLAYER till COACH, men inte sätta ADMIN eller CHAIRMAN. Öppet: ska ordföranden se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"
   - Samtycke för tränarens publika kontaktuppgifter: hur lagras det (fält per uppgift + tidsstämpel), och vem kan ändra det (bara tränaren själv)?
-  - Rollbyte (PUT /api/users/{id}/role) slår inte igenom förrän token går ut/förnyas – refresh läser dock rollen från DB. Accepterat?
+  - "Rollbyte sparas direkt. Personen måste logga in igen för att få en token med den nya rollen. JwtAuthFilter på den här grenen jämför ännu inte token-rollen med databasen (det gör S1-4). Tills dess fungerar den gamla token tills den går ut."
