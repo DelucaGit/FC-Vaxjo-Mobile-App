@@ -13,8 +13,8 @@ import se.fcvaxjo.api.support.SampleRequests;
 /**
  * Story S1-4, gap analysis point 4.
  * The JWT filter reads the database, so an old token for an inactive account
- * is rejected. GET /api/users/{id} still returns that row, so only those tests
- * stay tagged {@code known-gap}.
+ * is rejected. The architect decision is that GET of that row is 404 for every role.
+ * Those GET tests still fail, so they stay tagged {@code known-gap}.
  */
 class KnownInactiveUserTest extends ClubApiTest {
 
@@ -42,10 +42,17 @@ class KnownInactiveUserTest extends ClubApiTest {
 
     @Test
     @Tag("known-gap")
-    @DisplayName("S1-4: admin ska inte hämta en inaktiv spelare på den vanliga läsningen")
+    @DisplayName("S1-4: admin ska få 404 för en inaktiv spelare")
     void admin_cannotReadInactivePlayer() throws Exception {
-        // The row stays in the database, but this GET should not hand it out.
+        // Architect decision: an inactive account is 404 for every role, not a row with email and phone.
         get(Actor.ADMIN, inactivePlayer()).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Tag("known-gap")
+    @DisplayName("S1-4: ordförande ska få 404 för en inaktiv spelare")
+    void chairman_cannotReadInactivePlayer() throws Exception {
+        get(Actor.CHAIRMAN, inactivePlayer()).andExpect(status().isNotFound());
     }
 
     @Test
@@ -57,8 +64,9 @@ class KnownInactiveUserTest extends ClubApiTest {
 
     @Test
     @Tag("known-gap")
-    @DisplayName("S1-4: spelare ska inte hämta en inaktiv spelare")
+    @DisplayName("S1-4: spelare ska få 404 för en inaktiv spelare")
     void player_cannotReadInactivePlayer() throws Exception {
+        // Today this is 403, because a player may only read their own id. The decision is 404 for every role.
         get(Actor.PLAYER_ALFA, inactivePlayer()).andExpect(status().isNotFound());
     }
 

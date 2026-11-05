@@ -464,6 +464,7 @@ public class UserService {
      * A player or parent may read only their own id.
      * The check runs before the controller returns the row. A forbidden id is 403,
      * including an id that does not exist, so the caller cannot probe for rows.
+     * A coach who swaps in a player from another team gets that 403, so the phone stays out.
      */
     public void assertCallerMayReadUser(Long userId) {
         if (callerReadsEveryTeam()) {
@@ -485,8 +486,9 @@ public class UserService {
      * ADMIN and CHAIRMAN may open any team's roster.
      * A coach may open only a team they train. That is the same team_coaches
      * row already checked when they create or edit a player.
-     * Called before the team lookup, so an unknown id is 403 for a coach
-     * and does not confirm that the id exists.
+     * Called before the team lookup, so a swapped id is 403 and does not
+     * confirm that the team exists. The player list carries the parent phone,
+     * which is why this check cannot wait until after the rows are loaded.
      */
     public void assertCallerMayReadTeam(Long teamId) {
         if (callerReadsEveryTeam()) {
