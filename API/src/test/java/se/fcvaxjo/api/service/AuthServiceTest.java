@@ -186,6 +186,26 @@ class AuthServiceTest {
         assertFalse(response.isMustChangePassword());
     }
 
+    @Test
+    void refresh_inactiveAccount_doesNotSayTheAccountIsInactive() {
+        AppUser user = new AppUser();
+        user.setId(5L);
+        user.setEmail("off@example.test");
+        user.setRoleId(1L);
+        user.setActive(false);
+
+        var auth = new UsernamePasswordAuthenticationToken(
+                5L,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_PLAYER")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(userRepository.findById(5L)).thenReturn(Optional.of(user));
+
+        UnauthorizedException error = assertThrows(UnauthorizedException.class, () -> authService.refresh());
+
+        assertEquals("Login required", error.getMessage());
+    }
+
     private AppUser activeUser(String email, String passwordHash) {
         AppUser user = new AppUser();
         user.setId(5L);

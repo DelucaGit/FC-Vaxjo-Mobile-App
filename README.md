@@ -37,13 +37,15 @@ From the `API` folder:
 
 Base URL: `http://localhost:8080/api`
 
-Local runs use the Spring profile `dev` by default (`SPRING_PROFILES_ACTIVE` overrides it). In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`. Production must set another profile and its own secrets as Railway variables.
+Local runs use the Spring profile `dev` by default (`SPRING_PROFILES_ACTIVE` overrides it). In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings, and SQL logging is on. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`.
+
+Production turns SQL logging off. Set the environment variable `SPRING_PROFILES_ACTIVE=prod` (Railway variables, not a file in Git). That loads `application-prod.properties`. Do not set `dev` at the same time. The default file also has `spring.jpa.show-sql=false`, so a forgotten profile does not print SQL. Passwords and `JWT_SECRET` stay in environment variables. Nothing secret is written in the prod file.
 
 Run the tests from the `API` folder. You do not need local PostgreSQL or `API/.env`.
 
 Each Spring test turns on the `test` profile with `@ActiveProfiles("test")`. That loads `API/src/test/resources/application-test.properties`: an in-memory H2 database and a test-only JWT secret. GitHub Actions runs the same two commands (`.github/workflows/backend-ci.yml`).
 
-The normal build skips tests tagged `known-gap`. That tag marks rules the code still breaks. `API/pom.xml` sets `excludedGroups` to `known-gap`, so `./mvnw test` stays green. The known-gap run is the measuring stick. Those tests fail until the story is fixed.
+The normal build skips tests tagged `known-gap`. That tag marks rules the code still breaks. `API/pom.xml` sets `excludedGroups` to `known-gap`, so `./mvnw test` stays green. After F6 no test carries that tag. The known-gap command is still there for the next rule that needs a measuring stick.
 
 Normal build, Git Bash on Windows and Linux or Mac:
 

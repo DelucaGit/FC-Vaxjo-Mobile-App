@@ -86,12 +86,11 @@ class AnonymousAccessTest extends ClubApiTest {
         } else if (path.contains("/trainings/")) {
             path = path.replace("{id}", String.valueOf(world.trainingAlfaId()));
             path = path.replace("{playerId}", String.valueOf(world.playerAlfaId()));
+        } else if (path.contains("/matches/")) {
+            path = path.replace("{id}", String.valueOf(world.matchAlfaId()));
         }
         if ("/api/trainings".equals(template)) {
             path = path + "?teamId=" + world.teamAlfaId();
-        }
-        if ("/api/users/search".equals(template)) {
-            path = path + "?name=Alfa";
         }
         if (path.contains("{")) {
             throw new IllegalStateException("Path still has a placeholder: " + path);

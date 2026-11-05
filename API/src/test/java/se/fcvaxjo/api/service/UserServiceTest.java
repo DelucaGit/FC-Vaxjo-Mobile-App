@@ -254,10 +254,11 @@ class UserServiceTest {
     }
 
     @Test
-    void createStandaloneParent_asCoach_isForbidden() {
+    void createStandaloneParent_asCoach_isBadRequest() {
+        // Decision (b): a coach parent that is not tied to a player on their team is 400, not 403.
         login(2L, "COACH");
 
-        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+        BadRequestException error = assertThrows(BadRequestException.class,
                 () -> userService.createUser(
                         "Parent", "parent@fcvaxjo.se", "PARENT", null, "0701111111", null, null, null));
 
@@ -287,6 +288,7 @@ class UserServiceTest {
         assertEquals(4L, result.getUser().getRoleId());
         assertNull(result.getUser().getTeamId());
         assertNotNull(result.getTemporaryPassword());
+        assertNotNull(result.getUser().getPasswordChangedAt());
     }
 
     @Test
@@ -552,7 +554,7 @@ class UserServiceTest {
         NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> userService.searchByPlayerNumber(22));
 
-        assertEquals("No user found with player number 22", ex.getMessage());
+        assertEquals("User not found", ex.getMessage());
     }
 
     @Test
