@@ -27,22 +27,25 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 
 ## Genomförande (S1-8)
 
-Öppen fråga från beslutet: får ordföranden skapa tränare och byta roller? Ja, i ett smalt fall. Syftet är att en ungdom ska kunna bli tränare.
+Öppen fråga från beslutet: får ordföranden skapa tränare och byta roller? Ja. Syftet är att en ungdom ska kunna bli tränare. Reglerna bygger på S1-3 (PR #27), där ordföranden redan är personal för spelare och föräldrar i alla lag. Den här storyn mergas efter den.
 
 - ADMIN och CHAIRMAN får skapa en användare med rollen COACH (`POST /api/users`).
-- ADMIN och CHAIRMAN får byta en PLAYER till COACH (`PUT /api/users/{id}/role`).
+- CHAIRMAN får också skapa PLAYER och PARENT, i vilket lag som helst. Det är samma personalregel som i S1-3.
+- ADMIN och CHAIRMAN får byta en annan användares PLAYER till COACH (`PUT /api/users/{id}/role`).
 - CHAIRMAN får inte sätta ADMIN eller CHAIRMAN, varken när en användare skapas eller när rollen byts. Svaret är 403 med texten "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN".
+- Den som inte är ADMIN får inte byta sin egen roll. Svaret är 403 med texten "You cannot change your own role". ADMIN får fortfarande byta sin egen roll.
 - ADMIN behåller sina tidigare rättigheter och får fortfarande sätta vilken roll som helst.
-- CHAIRMAN får inte skapa andra roller än COACH, och får inte göra andra rollbyten än PLAYER till COACH. Det håller ändringen liten. Att en tränare skapar spelare i egna lag är en annan story.
+
+En tränare har inget tröjnummer. `playerNumber` nollställs både när en COACH skapas och när en PLAYER blir COACH. Kolumnen är unik, så numret ska inte ligga kvar och blockera en spelare.
 
 När en spelare blir tränare händer tre enkla saker. Samma sak oavsett om det är ADMIN eller CHAIRMAN som byter rollen:
 
 - **Föräldrakopplingen tas bort.** `parentId` blir tom. Förälderns eget konto ligger kvar. En tränare ska inte ligga kvar som barn i förälderns lista.
-- **Tröjnumret tas bort.** `playerNumber` blir tomt. Numret är unikt, så det blir ledigt för en annan spelare. En tränare har inget tröjnummer.
-- **Laget på spelaren tas bort.** `teamId` blir tomt. En spelare tillhör ett lag via den kolumnen. En tränare tillhör lag via `team_coaches`. Den kopplingen görs inte här. Personen är tränare utan lag tills någon kopplar hen till ett lag (det är en egen story).
+- **Tröjnumret tas bort.** `playerNumber` blir tomt.
+- **Laget på spelaren tas bort.** `teamId` blir tomt. En spelare tillhör ett lag via den kolumnen. En tränare tillhör lag via `team_coaches`. Den kopplingen görs inte här. Personen är tränare utan lag tills någon kopplar hen till ett lag.
 
 Gamla närvarorader ligger kvar. De är historik och skrivs inte om.
 
-Efter bytet måste personen logga in igen för att få en token med rollen COACH. Den gamla token säger fortfarande PLAYER. När filtret jämför token med databasen och rollen inte längre stämmer blir nästa anrop 401. På den här grenen gör `JwtAuthFilter` ännu inte den jämförelsen (det är S1-4, som inte är mergad). Tills det filtret är inne fungerar den gamla token tills den går ut, men den ger fortfarande spelarens rättigheter, inte tränarens.
+Efter bytet måste personen logga in igen för att få en token med rollen COACH. Den gamla token säger fortfarande PLAYER. När filtret jämför token med databasen och rollen inte längre stämmer blir nästa anrop 401. Det filtret är S1-4 (PR #29) och är inte mergat här än. Testerna sparar redan en riktig aktiv användare och låter token peka på just det id:t och den rollen.
 
 Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).

@@ -23,11 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jayway.jsonpath.JsonPath;
 
+import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.Role;
+import se.fcvaxjo.api.repository.RoleRepository;
+import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
 
 /**
- * Chairman may create a coach and turn a player into a coach.
- * The filter on this branch reads the role from the token, so a made-up user id is enough.
+ * Chairman may create a player, a parent, or a coach, and turn a player into a coach.
+ * The token points at a real active user with that role. A made-up id is rejected
+ * once the JWT filter looks the account up (PR #29).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -44,22 +49,34 @@ class ChairmanCoachAuthorizationTest {
     @Autowired
     private JwtService jwtService;
 
-    @Test
-    void chairmanAndAdminCanCreateACoach() throws Exception {
-        String chairmanEmail = email("chair-coach");
-        long chairmanCoachId = createUser("CHAIRMAN", userJson("Chair Coach", chairmanEmail, "COACH"));
-        expectUser(chairmanCoachId, "COACH");
+    @Autowired
+    private RoleRepository roleRepository;
 
-        String adminEmail = email("admin-coach");
-        long adminCoachId = createUser("ADMIN", userJson("Admin Coach", adminEmail, "COACH"));
-        expectUser(adminCoachId, "COACH");
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void chairmanAndAdminCanCreateACoachWithoutAShirtNumber() throws Exception {
+        long chairmanCoachId = createUser("CHAIRMAN", coachJson("Chair Coach", email("chair-coach"), 9));
+        expectCoachWithoutRoster(chairmanCoachId);
+
+        long adminCoachId = createUser("ADMIN", coachJson("Admin Coach", email("admin-coach"), 8));
+        expectCoachWithoutRoster(adminCoachId);
+    }
+
+    @Test
+    void chairmanCanCreateParentAndPlayer() throws Exception {
+        long teamId = createTeam("S1-8 Staff " + UUID.randomUUID());
+        long parentId = createUser("CHAIRMAN", userJson("Parent", email("parent"), "PARENT"));
+        long playerId = createUser("CHAIRMAN", playerJson(email("player"), parentId, teamId, 12));
+        expectUser(parentId, "PARENT");
+        expectUser(playerId, "PLAYER");
     }
 
     @Test
     void chairmanCannotCreateAdminOrChairman() throws Exception {
         expectCreateForbidden("ADMIN", CANNOT_ASSIGN_CLUB_LEAD);
         expectCreateForbidden("CHAIRMAN", CANNOT_ASSIGN_CLUB_LEAD);
-        expectCreateForbidden("PLAYER", "CHAIRMAN may only create a COACH");
     }
 
     @Test
@@ -143,6 +160,30 @@ class ChairmanCoachAuthorizationTest {
     }
 
     @Test
+    void chairmanCannotChangeOwnRole() throws Exception {
+        AppUser chairman = saveCaller("CHAIRMAN");
+
+        mockMvc.perform(put("/api/users/" + chairman.getId() + "/role")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairman, "CHAIRMAN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"roleName\":\"COACH\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("You cannot change your own role"));
+    }
+
+    @Test
+    void adminCanChangeOwnRole() throws Exception {
+        AppUser admin = saveCaller("ADMIN");
+
+        mockMvc.perform(put("/api/users/" + admin.getId() + "/role")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin, "ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"roleName\":\"COACH\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roleName").value("COACH"));
+    }
+
+    @Test
     void coachCannotChangeARole() throws Exception {
         long playerId = createUser("ADMIN", userJson("Player", email("player"), "PARENT"));
 
@@ -199,13 +240,41 @@ class ChairmanCoachAuthorizationTest {
                 .andExpect(jsonPath("$.roleName").value(roleName));
     }
 
+    private void expectCoachWithoutRoster(long userId) throws Exception {
+        mockMvc.perform(get("/api/users/" + userId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roleName").value("COACH"))
+                .andExpect(jsonPath("$.playerNumber").value(nullValue()))
+                .andExpect(jsonPath("$.parentId").value(nullValue()))
+                .andExpect(jsonPath("$.teamId").value(nullValue()));
+    }
+
     private long idOf(MvcResult result) throws Exception {
         return ((Number) JsonPath.read(result.getResponse().getContentAsString(), "$.id")).longValue();
     }
 
     private String bearer(String roleName) {
-        String token = jwtService.createToken(1L, roleName.toLowerCase() + "@fcvaxjo.se", roleName);
+        return bearer(saveCaller(roleName), roleName);
+    }
+
+    private String bearer(AppUser user, String roleName) {
+        String token = jwtService.createToken(user.getId(), user.getEmail(), roleName);
         return "Bearer " + token;
+    }
+
+    /**
+     * The JWT filter accepts the token only when this row is active and the role matches.
+     */
+    private AppUser saveCaller(String roleName) {
+        Role role = roleRepository.findByName(roleName).orElseThrow();
+        AppUser user = new AppUser();
+        user.setName(roleName + " tester");
+        user.setEmail(roleName.toLowerCase() + "-" + UUID.randomUUID() + "@example.com");
+        user.setRoleId(role.getId());
+        user.setActive(true);
+        user.setMustChangePassword(false);
+        return userRepository.saveAndFlush(user);
     }
 
     private String email(String label) {
@@ -214,6 +283,11 @@ class ChairmanCoachAuthorizationTest {
 
     private String userJson(String name, String email, String roleName) {
         return "{\"name\":\"" + name + "\",\"email\":\"" + email + "\",\"roleName\":\"" + roleName + "\"}";
+    }
+
+    private String coachJson(String name, String email, int playerNumber) {
+        return "{\"name\":\"" + name + "\",\"email\":\"" + email
+                + "\",\"roleName\":\"COACH\",\"playerNumber\":" + playerNumber + "}";
     }
 
     private String playerJson(String email, long parentId, long teamId, int playerNumber) {

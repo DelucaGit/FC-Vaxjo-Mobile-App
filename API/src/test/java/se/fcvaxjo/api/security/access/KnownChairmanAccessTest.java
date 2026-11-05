@@ -14,12 +14,13 @@ import se.fcvaxjo.api.support.SampleRequests;
 /**
  * ADR 0006 pieces that are still x-roles-planned.
  * Creating a team is already allowed and is tested in {@link TeamAccessTest}.
- * Not one of S1-1..S1-4. Same {@code known-gap} tag so the normal build stays green.
+ * Turning a player into a coach is allowed now, so that one test runs in the normal build.
+ * The other cases stay tagged {@code known-gap} until their stories land.
  */
-@Tag("known-gap")
 class KnownChairmanAccessTest extends ClubApiTest {
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna skapa en spelare")
     void chairman_canCreatePlayer() throws Exception {
         post(Actor.CHAIRMAN, "/api/users",
@@ -29,6 +30,7 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ändra en spelare")
     void chairman_canUpdatePlayer() throws Exception {
         put(Actor.CHAIRMAN, "/api/users/" + world.playerAlfaId() + "/player",
@@ -42,6 +44,7 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ta bort en spelare ur laget")
     void chairman_canRemovePlayer() throws Exception {
         delete(Actor.CHAIRMAN, "/api/users/" + world.extraPlayerId())
@@ -51,12 +54,12 @@ class KnownChairmanAccessTest extends ClubApiTest {
     @Test
     @DisplayName("ADR 0006: ordförande ska kunna byta roll, men inte till ADMIN")
     void chairman_canChangeNonAdminRole() throws Exception {
-        // x-scope-planned: CHAIRMAN must not grant or remove ADMIN. COACH is allowed by that text.
         put(Actor.CHAIRMAN, "/api/users/" + world.extraPlayerId() + "/role", SampleRequests.role("COACH"))
                 .andExpect(status().isOk());
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna koppla en tränare till ett lag")
     void chairman_canAddCoach() throws Exception {
         post(Actor.CHAIRMAN, "/api/teams/" + world.teamAlfaId() + "/coaches",
@@ -65,6 +68,7 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ta bort en tränare från ett lag")
     void chairman_canRemoveCoach() throws Exception {
         delete(Actor.CHAIRMAN, "/api/teams/" + world.teamBetaId() + "/coaches/" + world.coachBetaId())

@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,13 +17,17 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.ClubRole;
+import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.repository.RoleRepository;
+import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
 
 /**
- * The login filter reads the role from the token. It does not load the user.
- * A made-up user id is enough to prove who may create a team.
+ * The next JWT filter loads the user and rejects a token whose id is not in
+ * the database, or whose role no longer matches. A made-up id would then look
+ * like "not logged in", so this test saves a real active user first.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -37,6 +43,9 @@ class CreateTeamAuthorizationTest {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Test
     void chairmanRoleIsStored() {
@@ -81,8 +90,16 @@ class CreateTeamAuthorizationTest {
     }
 
     private String bearer(String roleName) {
-        String email = roleName.toLowerCase() + "@fcvaxjo.se";
-        String token = jwtService.createToken(1L, email, roleName);
+        Role role = roleRepository.findByName(roleName).orElseThrow();
+        AppUser user = new AppUser();
+        user.setName(roleName + " tester");
+        user.setEmail(roleName.toLowerCase() + "-" + UUID.randomUUID() + "@example.com");
+        user.setRoleId(role.getId());
+        user.setActive(true);
+        user.setMustChangePassword(false);
+        AppUser saved = userRepository.saveAndFlush(user);
+
+        String token = jwtService.createToken(saved.getId(), saved.getEmail(), roleName);
         return "Bearer " + token;
     }
 

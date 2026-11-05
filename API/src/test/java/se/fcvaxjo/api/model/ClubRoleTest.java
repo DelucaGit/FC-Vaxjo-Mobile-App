@@ -38,4 +38,13 @@ class ClubRoleTest {
         assertFalse(ClubRole.PLAYER.isClubLead());
         assertFalse(ClubRole.PARENT.isClubLead());
     }
+
+    @Test
+    void adminChairmanAndCoachMayReadOtherPeople() {
+        assertTrue(ClubRole.ADMIN.canReadPersonalData());
+        assertTrue(ClubRole.CHAIRMAN.canReadPersonalData());
+        assertTrue(ClubRole.COACH.canReadPersonalData());
+        assertFalse(ClubRole.PLAYER.canReadPersonalData());
+        assertFalse(ClubRole.PARENT.canReadPersonalData());
+    }
 }

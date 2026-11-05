@@ -349,11 +349,53 @@ Jira (paste yourself):
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
 
+# Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
+
+Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
+
+What shipped:
+
+- `GET /api/users`, all three `/api/users/search` queries, `GET /api/teams/{id}/coaches` and `GET /api/teams/{id}/players` are ADMIN or COACH only. PLAYER and PARENT get 403.
+- `GET /api/users/{id}` stays open for the caller's own id, because the home screen loads the logged-in name from that URL. Anyone else's id is 403, and we answer 403 before 404 so a forbidden id does not reveal that the row exists. The check is `UserService.assertCallerMayReadUser`, same shape as `assertCallerMayCreate`.
+- `GET /api/teams` and `GET /api/teams/{id}` stay open to every logged-in role. They return id and name only, not contact details.
+- COACH is still not limited to their own teams on these reads. That is story S1-3.
+- CHAIRMAN is not added. That role does not exist yet (story S1-2).
+- A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
+
+Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.
+
+
 # CHAIRMAN role (5/11-2026)
 
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
 `POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Merged as PR #26.
+
+# S1-1 follow-up — chairman may read personal data (5/11-2026)
+
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.
+
+# Coach only on own teams (5/11-2026)
+
+Story S1-3. A coach could create, edit and remove players on any team, because the API only checked the role.
+
+Decision: keep the role check on the controller (`@PreAuthorize`). Check the team in `UserService`, the same way trainings already do. The link is `team_coaches`, not `users.team_id`, because one coach can train several teams.
+
+What shipped:
+
+- COACH may create `PLAYER` only when they train that `teamId`. Otherwise 403. The check runs before any insert, so a refused call does not leave a new parent behind.
+- COACH may not create a standalone `PARENT`. A parent has no team, so there is no `team_coaches` row to check. The coach creates the parent only as `newParent` on a player in their own team. ADMIN and CHAIRMAN may create a parent with no child.
+- COACH may soft-delete a player only on their own team. ADMIN still can on every team.
+- COACH may edit a player only when they train both the current team and the new team. That closes the same hole: a coach could otherwise rewrite another parent's phone number.
+- Unknown team ids return 403 for a coach (not 400 "Team not found"), so the error does not reveal which teams exist. Same order as trainings.
+- No schema change. `existsByTeamIdAndUserId` is a parameterized Spring Data query.
+- CHAIRMAN may create, edit and remove players on every team, same as ADMIN. A chairman may not create a coach or an admin.
+
+Tests: `UserServiceTest` (mocked) and `CoachOwnTeamIntegrationTest` (HTTP + H2). The test profile uses an in-memory database so the suite does not need local Postgres or a real password.
+
+# Chairman uses the same player rules as admin (5/11-2026)
+
+After master and the read-access branch were merged in, CHAIRMAN is real. For creating, editing and removing players the chairman is club-wide staff, same as ADMIN. A coach is still limited to `team_coaches`. A chairman may create a parent with no child. A chairman may not create a coach or an admin. That question in ADR 0006 stays open. Read rules from S1-1 are unchanged: chairman, admin and coach may read personal data for every team.
 
 # Role matrix and access tests (5/11-2026)
 
@@ -376,16 +418,18 @@ Next: product owner approves before any push. Do not merge. The known-gap tests 
 
 # S1-8: chairman can make a coach (5/11-2026)
 
-Decision: the chairman may create a user with role COACH, and may change a PLAYER into a COACH. The chairman may never set ADMIN or CHAIRMAN (403). ADMIN keeps the old rights and may still set any role. The chairman may not create other roles, and may not do other role changes. That keeps this story small. Linking a coach to a team stays a separate step (`team_coaches`).
+Decision: build on S1-3. The chairman is already club-wide staff for players and parents. This story adds the coach. The chairman may create PLAYER, PARENT and COACH, and may change another user's PLAYER into a COACH. The chairman may never set ADMIN or CHAIRMAN (403). Anyone who is not ADMIN gets 403 if they try to change their own role. ADMIN keeps the old rights and may still set any role, including their own. Linking a coach to a team stays a separate step (`team_coaches`). This branch is merged after PR #27.
+
+When a coach is created, `playerNumber` is cleared even if the request sends one. A coach has no shirt number, and the column is unique.
 
 When a player becomes a coach, three player-only fields are cleared. The same happens whether ADMIN or CHAIRMAN does the change:
 
 - `parentId` becomes empty. The parent account stays. A coach is not a child on that parent's list.
-- `playerNumber` becomes empty, so the shirt number is free. A coach has no shirt number.
-- `teamId` becomes empty. Players belong to a team through that column. Coaches belong through `team_coaches`, and this story does not write that table. The person is a coach with no team until someone links them.
+- `playerNumber` becomes empty, so the shirt number is free.
+- `teamId` becomes empty. Players belong to a team through that column. Coaches belong through `team_coaches`, and this story does not write that table.
 
 Old attendance rows stay. They are history.
 
-After the change the person must log in again to get a token that says COACH. The old token still says PLAYER. The filter that rejects a token whose role no longer matches the database is S1-4 and is not on this branch yet. Until that lands, the old token works until it expires, but it still has the player's rights.
+After the change the person must log in again to get a token that says COACH. The old token still says PLAYER. PR #29 makes the JWT filter reject a token whose role no longer matches the database. That filter is not on this branch yet. The tests already save a real active user and point the token at that id and role, so they keep working when the filter lands.
 
 No schema change. The role name is already a text column. Branch: `cursor/s1-8-chairman-skapar-tranare-80dc`.
