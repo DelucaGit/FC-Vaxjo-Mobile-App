@@ -444,6 +444,14 @@ What shipped:
 - After master gained `CHAIRMAN`, the same check covers that role. A CHAIRMAN token is rejected once the role in the database is no longer CHAIRMAN. `CreateTeamAuthorizationTest` now creates a real user, because a token for a missing user is 401.
 - After PR #31, the inactive-token tests in `KnownInactiveUserTest` run in the normal suite. GET of an inactive row stays tagged `known-gap`, because this story does not hide that row.
 
+# Chairman links coaches (5/11-2026)
+
+Decision: ADMIN and CHAIRMAN may link a coach to any team and remove that link. COACH, PLAYER and PARENT get 403, including a coach on their own team. The rule lives in `ClubRole.canLinkCoach` and in `@PreAuthorize` on the two coach endpoints, same style as creating a team. The service still only checks that the user is a COACH. Creating a coach, or turning a player into a coach, stays in story S1-8.
+
+Why a separate method from `canCreateTeam`: the two rights match today, but they are different actions. Changing one later must not silently change the other.
+
+After the role matrix (PR #31) was merged in, `chairman_canAddCoach` and `chairman_canRemoveCoach` no longer have the `known-gap` tag. Creating, editing, or removing a player, and changing a role, still have that tag.
+
 # S1-1 follow-up — chairman may read personal data (5/11-2026)
 
 Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.

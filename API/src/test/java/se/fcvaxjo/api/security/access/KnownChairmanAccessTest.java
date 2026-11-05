@@ -12,14 +12,15 @@ import se.fcvaxjo.api.support.ClubFixture;
 import se.fcvaxjo.api.support.SampleRequests;
 
 /**
- * ADR 0006 pieces that are still x-roles-planned.
+ * ADR 0006 writes for the chairman.
  * Creating a team is already allowed and is tested in {@link TeamAccessTest}.
- * Not one of S1-1..S1-4. Same {@code known-gap} tag so the normal build stays green.
+ * Adding and removing a coach is allowed too (S1-7), so those two tests run in the normal build.
+ * The other methods still get 403. They keep the {@code known-gap} tag.
  */
-@Tag("known-gap")
 class KnownChairmanAccessTest extends ClubApiTest {
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna skapa en spelare")
     void chairman_canCreatePlayer() throws Exception {
         post(Actor.CHAIRMAN, "/api/users",
@@ -29,6 +30,7 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ändra en spelare")
     void chairman_canUpdatePlayer() throws Exception {
         put(Actor.CHAIRMAN, "/api/users/" + world.playerAlfaId() + "/player",
@@ -42,6 +44,7 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ta bort en spelare ur laget")
     void chairman_canRemovePlayer() throws Exception {
         delete(Actor.CHAIRMAN, "/api/users/" + world.extraPlayerId())
@@ -49,6 +52,7 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
+    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna byta roll, men inte till ADMIN")
     void chairman_canChangeNonAdminRole() throws Exception {
         // x-scope-planned: CHAIRMAN must not grant or remove ADMIN. COACH is allowed by that text.
