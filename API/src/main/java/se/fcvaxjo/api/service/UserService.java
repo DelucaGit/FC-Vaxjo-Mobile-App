@@ -549,9 +549,44 @@ public class UserService {
         return teamIds;
     }
 
+    /**
+     * The person returned by GET /api/users/{id}.
+     *
+     * active=false is a soft delete. Every role, including ADMIN, gets 404.
+     * The sentence is "User not found", the same words as a missing id (S1-12).
+     * "This account is inactive" would tell the caller that the row exists (ADR 0004).
+     * A later endpoint will turn the account back on. This GET does not.
+     *
+     * The inactive check runs first. A player, a parent, or a coach on another
+     * team gets 403 for an id they may not read, including an id that is missing
+     * (S1-10). This story still wants 404 for an inactive row, for those roles too.
+     * Writes keep using {@link #getUserById(Long)}, which can see the inactive row.
+     */
+    public AppUser readActiveUser(Long id) {
+        AppUser stored = userRepository.findById(id).orElse(null);
+        if (stored != null && !stored.isActive()) {
+            throw userNotFound();
+        }
+        assertCallerMayReadUser(id);
+        if (stored == null) {
+            throw userNotFound();
+        }
+        return stored;
+    }
+
+    /**
+     * Loads the row even when active is false.
+     * Update, soft-delete and role change need the row so they can say
+     * "already inactive" or "cannot edit". GET must use {@link #readActiveUser(Long)}.
+     */
     public AppUser getUserById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(this::userNotFound);
+    }
+
+    /** One sentence for a missing id and for a soft-deleted account. */
+    private NotFoundException userNotFound() {
+        return new NotFoundException("User not found");
     }
 
     /**

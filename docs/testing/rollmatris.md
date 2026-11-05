@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, S1-6 del 2 mergad in i S1-10 (IDOR-läsningarna är 403).
+Senast uppdaterad: 2026-11-05, S1-10 och S1-13. IDOR-läsningarna är 403. Inaktiv rad är 404.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -32,7 +32,7 @@ Det kör bara mätstickan.
 | S1-1 | Topp 5, punkt 1 | Inga seed-lösenord och ingen demoklubb i testprofilen | Gröna (`TestProfileSafetyTest`) |
 | S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | Tränarens laggräns är grön (S1-10), även de två IDOR-bytena. Telefon i 404-texten är grön (S1-12). Kvar som `known-gap`: spelarens egen rad visar förälderns telefon |
 | S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest` är grön och körs i vanliga bygget |
-| S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är 404 för alla roller | Token-testerna är gröna. GET-testerna, nu även ordförande, är kvar som `known-gap` |
+| S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är 404 för alla roller | Token-testerna och GET-testerna är gröna (S1-13), även ordförande. Taggen `known-gap` är borta |
 | ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (PR #26), koppla eller ta bort en tränare (S1-7), skapa/ändra/ta bort spelare (S1-3) och byta en spelare till tränare (S1-8) | De testerna är gröna i `KnownChairmanAccessTest` och `TeamAccessTest` |
 | GAP-6 | Övriga, punkt 6 | 404-texten ekar det sökta telefonnumret | Grön (S1-12). Testet i `KnownPiiLeakTest` körs i vanliga bygget. Texten är "User not found" |
 
@@ -86,7 +86,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT eget barn | PARENT annat barn | Kod idag |
 |---|---|---|---|---|---|---|---|---|
 | `GET /api/users` | 200, all PII | 200, all PII | 403 (hela klubben) | 403 | 403 | 403 | 403 | 200 för ADMIN och CHAIRMAN. 403 för COACH, PLAYER och PARENT. **S1-10** |
-| `GET /api/users/{id}` | 200, inte inaktiv | 200, inte inaktiv | 200 i eget lag, 403 annars | 403 | 200 bara sig själv, utan förälderns telefon. 403 för andra | 403 | 403 | COACH är begränsad till egna lag. Spelare och förälder får 403 för andras id, även när id saknas. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiv rad lämnas ut. **S1-10**, **S1-4** |
+| `GET /api/users/{id}` | 200 för aktiv. 404 för inaktiv | 200 för aktiv. 404 för inaktiv | 200 i eget lag, 403 annars. 404 för inaktiv | 403 för aktiv. 404 för inaktiv | 200 bara sig själv, utan förälderns telefon. 403 för andra. 404 för inaktiv | 403. 404 för inaktiv | 403 för aktiv. 404 för inaktiv | COACH är begränsad till egna lag. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiv rad är 404 "User not found" för alla roller. **S1-10**, **S1-13** |
 | `GET /api/users/search` | 200 | 200 | 200 bara eget lag | tomt | 403 | 403 | 403 | COACH ser bara egna lag. Saknat telefonnummer ger 404 "User not found". **S1-10**, **S1-12** |
 | `POST /api/users` | 201 | 201 spelare, förälder eller tränare. Inte ADMIN | 201 PLAYER i eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 och S1-8 |
 | `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
@@ -156,7 +156,7 @@ Nyckeln i testerna är testprofilens `app.jwt.secret`, plus en uppenbart påhitt
 
 ### Inaktiv rad
 
-Beslut: `GET /api/users/{id}` på en inaktiv användare är **404 för ADMIN, CHAIRMAN, COACH, PLAYER och PARENT**. En redan utfärdad token för det inaktiva kontot är 401 (det stämmer, S1-4). Själva GET:en lämnar fortfarande ut raden för personal (200) och ger 403 för spelare och förälder, inte 404. De testerna är `known-gap` och pekar på S1-4.
+Beslut: `GET /api/users/{id}` på en inaktiv användare är **404 "User not found" för ADMIN, CHAIRMAN, COACH, PLAYER och PARENT**. En redan utfärdad token för det inaktiva kontot är 401 (det stämmer, S1-4). GET:en stämmer efter S1-13. Taggen `known-gap` är borta från de testerna. Ett id som saknas är fortfarande 403 för spelare, förälder och en tränare utanför laget, och 404 för admin och ordförande.
 
 ### Planerade publika anrop
 
@@ -164,20 +164,20 @@ Beslut: `GET /api/users/{id}` på en inaktiv användare är **404 för ADMIN, CH
 
 ## Vad som läcker idag, per roll
 
-**ADMIN.** Ser klubbens persondata, och det ska en admin. `GET /api/users/{id}` lämnar ut en inaktiv spelare (S1-4, ska vara 404). Sök på ett nummer som inte finns säger "User not found" och upprepar inte numret (S1-12).
+**ADMIN.** Ser klubbens persondata, och det ska en admin. `GET /api/users/{id}` på en inaktiv spelare är 404 "User not found" (S1-13). Sök på ett nummer som inte finns säger "User not found" och upprepar inte numret (S1-12).
 
-**CHAIRMAN.** Får skapa lag, koppla tränare, sköta spelare och markera träning i alla lag. Samma hål som admin på den inaktiva raden: 200 i stället för 404 (S1-4).
+**CHAIRMAN.** Får skapa lag, koppla tränare, sköta spelare och markera träning i alla lag. En inaktiv rad är 404 "User not found", samma som för admin (S1-13).
 
 **COACH, eget lag.** Får förälderns telefon på den egna laglistan, och det ska de. `GET /api/users` är 403. Sök ger bara träffar i egna lag (S1-10).
 
 **COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 403 (S1-10). Skapa, ändra och mjukradera i det andra laget är 403 (S1-3). Träningar med ett annat lag-id är 403, även om laget inte finns. `/api/my/teams` är redan spärrat.
 
-**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden gör det fortfarande (S1-2). En inaktiv annans id ger 403, inte 404 (S1-4).
+**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden gör det fortfarande (S1-2). En inaktiv annans id ger 404 "User not found" (S1-13).
 
 **PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Katalogen är 403.
 
 **PARENT, annat barn.** `childId` för det andra barnet är 403. Ett id som inte finns är 404, som kontraktet säger. Laglistan är 403.
 
-**Inaktivt konto.** Login är 400. En gammal token får 401 på skyddade anrop. `GET /api/users/{id}` är inte 404 än (S1-4).
+**Inaktiv spelare.** Login är 400. En gammal token får 401 (S1-4). `GET /api/users/{id}` på den inaktiva raden är 404 "User not found" för alla roller (S1-13). Listor och sök tar inte med raden.
 
 **Anonym och trasig token.** 401 utan persondata i svaret. Inget hål där i den här körningen.

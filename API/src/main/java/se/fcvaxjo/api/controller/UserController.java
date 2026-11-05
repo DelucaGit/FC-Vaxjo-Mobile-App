@@ -107,16 +107,16 @@ public class UserController {
     }
 
     /**
-     * ADMIN and CHAIRMAN may read any user. A coach may read a person on a team they train,
-     * and their own id. A player or parent may read only their own id, because the home
-     * screen loads their name from this URL.
-     * The check runs before the row is returned, so a forbidden id is 403, not 404.
-     * A 404 would show that the id exists.
+     * ADMIN and CHAIRMAN may read any active user. A coach may read an active person
+     * on a team they train, and their own id. A player or parent may read only their
+     * own id, because the home screen loads their name from this URL.
+     * An inactive account is hidden from every role, including ADMIN (ADR 0004).
+     * The answer is 404 "User not found", the same words as a missing id.
+     * Who may call, and the 403 for a forbidden active id, stays in {@code readActiveUser}.
      */
     @GetMapping("/{id}")
     public FetchUserResponse getUserById(@PathVariable Long id) {
-        userService.assertCallerMayReadUser(id);
-        return toFetchResponse(userService.getUserById(id));
+        return toFetchResponse(userService.readActiveUser(id));
     }
 
     /**
