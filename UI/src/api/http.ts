@@ -1,7 +1,36 @@
 import { clearSession, getToken } from './authStorage';
 
+/**
+ * Spring's bare 403 is the text "Access Denied". That is not useful
+ * on screen, so we replace only that generic refusal.
+ * A specific reason, such as a coach opening the wrong team, stays as-is.
+ * A chairman may already create a player, a parent, or a coach, and may
+ * manage trainings. A bare 403 can still happen (for example assigning
+ * ADMIN). The friendly sentence is what we show in that case.
+ */
+const ROLE_NOT_READY_MESSAGE =
+  'Den här funktionen är inte tillgänglig för din roll än.';
+
+function isGenericForbidden(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized.length === 0 ||
+    normalized === 'access denied' ||
+    normalized === 'forbidden' ||
+    normalized === 'request failed (403)'
+  );
+}
+
 /** Shared helper so API modules can show the server "message" field. */
 export async function readErrorMessage(response: Response): Promise<string> {
+  const message = await readServerMessage(response);
+  if (response.status === 403 && isGenericForbidden(message)) {
+    return ROLE_NOT_READY_MESSAGE;
+  }
+  return message;
+}
+
+async function readServerMessage(response: Response): Promise<string> {
   try {
     const text = await response.text();
     if (!text) {

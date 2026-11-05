@@ -15,7 +15,11 @@ export async function listTeams(): Promise<Team[]> {
   return response.json();
 }
 
-/** Teams the current COACH is linked to (ADMIN gets all). */
+/**
+ * Teams the current COACH is linked to. ADMIN gets every team.
+ * A chairman looks after every team, and this URL does not allow CHAIRMAN,
+ * so those screens call listTeams() instead.
+ */
 export async function listMyTeams(): Promise<Team[]> {
   const response = await apiFetch(`${API_BASE_URL}/my/teams`);
   if (!response.ok) {

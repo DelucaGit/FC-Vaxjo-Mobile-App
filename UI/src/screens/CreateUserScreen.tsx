@@ -10,18 +10,17 @@ import {
 import { Team, listTeams } from '../api/teams';
 import { ClubUser, createUser, searchByName } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
+import { assignableRoles, roleLabel } from '../auth/roles';
+import type { ClubRoleName } from '../auth/roles';
 import { colors, radius } from '../theme/colors';
-
-const ALL_ROLES = ['PLAYER', 'PARENT', 'COACH', 'ADMIN'] as const;
 
 export default function CreateUserScreen() {
   const { session } = useAuth();
-  const roles =
-    session?.roleName === 'COACH' ? (['PLAYER'] as const) : ALL_ROLES;
+  const roles = assignableRoles(session?.roleName);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [roleName, setRoleName] = useState<(typeof ALL_ROLES)[number]>('PLAYER');
+  const [roleName, setRoleName] = useState<ClubRoleName>('PLAYER');
   const [playerNumber, setPlayerNumber] = useState('');
   const [mobilePhoneNumber, setMobilePhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,15 +44,20 @@ export default function CreateUserScreen() {
       .catch(() => setTeams([]));
   }, []);
 
+  const showParentSearch =
+    roleName === 'PLAYER' && !createNewParent && !selectedParent;
+  // Hide stale hits without clearing them inside an effect. The search
+  // effect only writes matches after the network call returns.
+  const visibleParentMatches =
+    showParentSearch && parentSearch.trim().length > 0 ? parentMatches : [];
+
   useEffect(() => {
-    if (roleName !== 'PLAYER' || createNewParent || selectedParent) {
-      setParentMatches([]);
+    if (!showParentSearch) {
       return;
     }
 
     const trimmed = parentSearch.trim();
     if (trimmed.length < 1) {
-      setParentMatches([]);
       return;
     }
 
@@ -67,7 +71,7 @@ export default function CreateUserScreen() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [parentSearch, roleName, createNewParent, selectedParent]);
+  }, [parentSearch, showParentSearch]);
 
   function resetParentFields() {
     setParentSearch('');
@@ -202,7 +206,7 @@ export default function CreateUserScreen() {
                 roleName === role ? styles.modeButtonTextActive : null,
               ]}
             >
-              {role}
+              {roleLabel(role)}
             </Text>
           </Pressable>
         ))}
@@ -276,7 +280,7 @@ export default function CreateUserScreen() {
                 onChangeText={setParentSearch}
                 placeholder="Type a parent name"
               />
-              {parentMatches.map((parent) => (
+              {visibleParentMatches.map((parent) => (
                 <Pressable
                   key={parent.id}
                   style={styles.matchRow}
