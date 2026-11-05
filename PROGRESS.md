@@ -527,3 +527,7 @@ Follow-up on the same branch: a chairman keeps the coach screens for every team 
 # App branch merged with master (5/11-2026)
 
 Master now has secure token storage (PR #28), chairman player rules, chairman may create a coach (S1-8 / PR #34), and chairman trainings (PR #35). This branch keeps that storage and the app role checks. The create-user picker for a chairman is now player, parent, and coach, matching `POST /api/users`. A bare 403 still becomes the sentence that the function is not available for the role yet.
+
+# S1-12: a missing phone number stays out of the error (5/11-2026)
+
+Decision: when a phone search finds nobody, the 404 says "User not found". The number the caller typed is not copied into that text. ADR 0004 says personal data does not belong in an error. The same text is used when the only matching row is inactive, so the answer still does not say which case it was. Who may search, which team a coach may see, and whether an inactive user can log in are unchanged. Branch: `cursor/s1-12-generic-phone-404-8752`.
