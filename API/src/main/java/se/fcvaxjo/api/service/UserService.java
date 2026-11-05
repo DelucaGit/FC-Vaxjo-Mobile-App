@@ -310,9 +310,40 @@ public class UserService {
         }
     }
 
+    /**
+     * Staff may read any user. A player or parent may read only their own id.
+     * CHAIRMAN is not a role in the database yet, so this method does not mention it.
+     */
+    public void assertCallerMayReadUser(Long userId) {
+        if (hasRole("ADMIN") || hasRole("COACH")) {
+            return;
+        }
+        if (isLoggedInUser(userId)) {
+            return;
+        }
+        throw new AccessDeniedException("You can only read your own user record");
+    }
+
     public AppUser getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    /**
+     * The JWT filter stores the user id as a Long.
+     * A different principal type is not a club user we can compare.
+     */
+    private boolean isLoggedInUser(Long userId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || userId == null) {
+            return false;
+        }
+        Object principal = auth.getPrincipal();
+        if (!(principal instanceof Long)) {
+            return false;
+        }
+        Long loggedInUserId = (Long) principal;
+        return loggedInUserId.equals(userId);
     }
 
     public String getRoleName(Long roleId) {

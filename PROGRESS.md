@@ -348,3 +348,18 @@ Jira (paste yourself):
 - Story: `As a player I would like to see my team's trainings and my attendance status because I need to know when to show up.`
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
+
+# Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
+
+Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
+
+What shipped:
+
+- `GET /api/users`, all three `/api/users/search` queries, `GET /api/teams/{id}/coaches` and `GET /api/teams/{id}/players` are ADMIN or COACH only. PLAYER and PARENT get 403.
+- `GET /api/users/{id}` stays open for the caller's own id, because the home screen loads the logged-in name from that URL. Anyone else's id is 403, and we answer 403 before 404 so a forbidden id does not reveal that the row exists. The check is `UserService.assertCallerMayReadUser`, same shape as `assertCallerMayCreate`.
+- `GET /api/teams` and `GET /api/teams/{id}` stay open to every logged-in role. They return id and name only, not contact details.
+- COACH is still not limited to their own teams on these reads. That is story S1-3.
+- CHAIRMAN is not added. That role does not exist yet (story S1-2).
+- A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
+
+Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.

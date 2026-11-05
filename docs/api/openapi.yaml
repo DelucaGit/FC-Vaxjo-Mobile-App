@@ -4,10 +4,14 @@ info:
   version: 0.0.1-SNAPSHOT
   summary: Klubbappens backend (Spring Boot 4.1, Java 21, PostgreSQL, JWT).
   description: |
-    Beskriver **nuvarande** endpoints i `API/src/main/java/se/fcvaxjo/api/controller/`
-    på grenen `feature/player-parent-trainings-view` (commit d21b180), läst 2026-11-05.
+    Beskriver **nuvarande** endpoints i `API/src/main/java/se/fcvaxjo/api/controller/`.
+    Grundläget lästes 2026-11-05 på grenen `feature/player-parent-trainings-view` (commit d21b180).
     Implementerade delar är dokumenterade i efterhand ("as-is"). Planerade, ej implementerade delar
     (CHAIRMAN-rollen och publika `/api/public/**`-endpoints) är markerade med `x-status: planned`.
+
+    Läsning av persondata (användarlistan, sök, en annan användare, lagets tränare och spelare)
+    kräver ADMIN eller COACH. PLAYER och PARENT får 403.
+    Undantag: `GET /api/users/{id}` när id är den inloggade själv.
 
     **Konventioner**
     - Tekniska namn på engelska, beskrivningar på svenska.
@@ -135,8 +139,10 @@ paths:
       summary: Lista alla aktiva användare
       description: |
         Returnerar alla användare med `active=true`, inklusive kontaktuppgifter och förälderns kontaktuppgifter.
-        **Ingen rollkontroll** – alla inloggade (även PLAYER och PARENT) får hela listan. Se gap-analys.
-      x-roles: [ANY_AUTHENTICATED]
+        Bara ADMIN och COACH. PLAYER och PARENT får 403, eftersom listan är andras persondata.
+        CHAIRMAN är planerad i ADR 0006 men finns inte som roll i koden ännu.
+      x-roles: [ADMIN, COACH]
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
       x-source: UserController.getAllUsers → UserService.getAllUsers
       responses:
         '200':
@@ -147,6 +153,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/FetchUserResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Users]
       operationId: createUser
@@ -196,8 +203,10 @@ paths:
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
           (felmeddelandet innehåller det sökta numret).
         Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
-        **Ingen rollkontroll** – alla inloggade kan söka fram kontaktuppgifter.
-      x-roles: [ANY_AUTHENTICATED]
+        Bara ADMIN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
+        eftersom träffen innehåller kontaktuppgifter.
+      x-roles: [ADMIN, COACH]
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
       x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
       parameters:
         - name: name
@@ -228,6 +237,7 @@ paths:
                   - $ref: '#/components/schemas/FetchUserResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/users/{id}:
@@ -238,10 +248,19 @@ paths:
       operationId: getUserById
       summary: Hämta en användare
       description: |
-        Returnerar även **inaktiva** (mjukt raderade) användare. **Ingen rollkontroll.**
-        Fel: "User not found" (404).
-      x-roles: [ANY_AUTHENTICATED]
-      x-source: UserController.getUserById → UserService.getUserById
+        ADMIN och COACH får hämta vem som helst, även inaktiva användare.
+        PLAYER och PARENT får bara hämta sitt eget id (samma id som i JWT).
+        Annat id ger 403 med meddelandet "You can only read your own user record",
+        även när användaren inte finns. Vi svarar 403 före 404 så att man inte kan testa om ett id finns.
+        Behörig roll som frågar efter ett okänt id får "User not found" (404).
+
+        En spelare som hämtar sig själv får fortfarande hela `FetchUserResponse`,
+        inklusive den kopplade förälderns kontaktuppgifter. Att plocka bort de fälten
+        är dataminimering (ADR 0004) och ingår inte i den här ändringen.
+      x-roles: [ADMIN, COACH, PLAYER, PARENT]
+      x-scope: PLAYER och PARENT endast eget användar-id. COACH är inte begränsad till egna lag.
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
+      x-source: UserController.getUserById → UserService.assertCallerMayReadUser, UserService.getUserById
       responses:
         '200':
           description: Användaren.
@@ -249,6 +268,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FetchUserResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [Users]
@@ -344,6 +364,8 @@ paths:
       tags: [Teams]
       operationId: listTeams
       summary: Lista alla lag
+      description: |
+        Bara id och namn, ingen persondata. Därför får alla inloggade roller anropa, även PLAYER och PARENT.
       x-roles: [ANY_AUTHENTICATED]
       x-source: TeamController.getAllTeams → TeamService.getAllTeams
       responses:
@@ -385,7 +407,9 @@ paths:
       tags: [Teams]
       operationId: getTeamById
       summary: Hämta ett lag
-      description: 'Fel: "Team not found" (404).'
+      description: |
+        Bara id och namn, ingen persondata. Därför får alla inloggade roller anropa.
+        Fel: "Team not found" (404).
       x-roles: [ANY_AUTHENTICATED]
       x-source: TeamController.getTeamById → TeamService.getTeamById
       responses:
@@ -405,9 +429,12 @@ paths:
       operationId: listTeamCoaches
       summary: Lista lagets (aktiva) tränare
       description: |
-        Returnerar fullständig `FetchUserResponse` (e-post, telefon). **Ingen rollkontroll.**
-        Fel: "Team not found" (404).
-      x-roles: [ANY_AUTHENTICATED]
+        Returnerar fullständig `FetchUserResponse` (e-post, telefon).
+        Bara ADMIN och COACH. PLAYER och PARENT får 403.
+        Behörigheten kontrolleras före existens, så en spelare får 403 även för ett lag som inte finns.
+        Behörig roll: "Team not found" (404). COACH är inte begränsad till egna lag (det är en senare story).
+      x-roles: [ADMIN, COACH]
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
       x-source: TeamController.listCoaches → TeamService.listCoaches
       responses:
         '200':
@@ -418,6 +445,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/FetchUserResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Teams]
@@ -477,8 +505,11 @@ paths:
       summary: Lista lagets aktiva spelare
       description: |
         Returnerar fullständig `FetchUserResponse` inkl. förälderns namn, e-post och telefon.
-        **Ingen rollkontroll** – alla inloggade, även PLAYER/PARENT i andra lag. Fel: "Team not found" (404).
-      x-roles: [ANY_AUTHENTICATED]
+        Bara ADMIN och COACH. PLAYER och PARENT får 403, även för ett lag som inte finns
+        (behörigheten kontrolleras före "Team not found").
+        COACH är inte begränsad till egna lag (det är en senare story).
+      x-roles: [ADMIN, COACH]
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
       x-source: TeamController.listPlayers → TeamService.listPlayers
       responses:
         '200':
@@ -489,6 +520,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/FetchUserResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/trainings:
