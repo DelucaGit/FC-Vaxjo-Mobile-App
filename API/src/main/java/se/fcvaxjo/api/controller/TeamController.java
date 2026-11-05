@@ -36,8 +36,9 @@ public class TeamController {
         this.userService = userService;
     }
 
+    // Same rule as ClubRole.canCreateTeam: the chairman creates teams. A coach does not (ADR 0006).
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ResponseEntity<TeamResponse> createTeam(@RequestBody CreateTeamRequest request) {
         Team team = teamService.createTeam(request.getName());
         return ResponseEntity.status(HttpStatus.CREATED)
