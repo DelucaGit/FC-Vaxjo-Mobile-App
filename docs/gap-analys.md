@@ -24,7 +24,7 @@ Allvarlighet: **K** = kritisk (måste åtgärdas före produktion), **H** = hög
 | # | Allv. | Brist | Fil:rad |
 |---|---|---|---|
 | 6 | M | PII i URL: telefonnummer skickas som query-parameter och kan synas i access-loggar. *Stängd i S1-12:* 404-texten säger "User not found" och upprepar inte numret. | `J/controller/UserController.java:88-90` |
-| 7 | M | `spring.jpa.show-sql=true` skriver all SQL till loggen. `ddl-auto=update` och DB-användaren `postgres` (superuser) är inte lämpliga i prod. | `API/src/main/resources/application.properties:4`, `:8`, `:9` |
+| 7 | M | `spring.jpa.show-sql` skrev all SQL till loggen. *Stängd för SQL-loggen i F9:* standard är `false`, `application-dev.properties` sätter `true`, `application-prod.properties` sätter `false`. Slå på prod med `SPRING_PROFILES_ACTIVE=prod`. `ddl-auto=update` och DB-användaren `postgres` är kvar. | `API/src/main/resources/application.properties`, `application-prod.properties` |
 | 8 | M | CORS tillåter bara `localhost`/`127.0.0.1` med `allowedHeaders("*")` på hela `/api/**`. Det saknas en uppdelning mellan publikt (fcvaxjo.se) och skyddat (ADR 0003). | `J/config/CorsConfig.java:21-26` |
 | 9 | M | Användaruppräkning och brute force. *Meddelandedelen åtgärdad i S1-9:* fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger samma 401. Saknad e-post kör en BCrypt-jämförelse. Rate limiting och kontolåsning är kvar. | `J/service/AuthService.java`, `J/config/SecurityConfig.java` |
 | 10 | M | JWT innehåller e-post i klartext (base64), och appen sparar token och e-post i AsyncStorage (okrypterat) i stället för `expo-secure-store`. | `J/security/JwtService.java:36`, `UI/src/api/authStorage.ts:1`, `:17-19` |

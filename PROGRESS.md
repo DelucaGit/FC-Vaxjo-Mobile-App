@@ -650,3 +650,9 @@ Decision (c): a PLAYER sees none of `parentName`, `parentEmail` or `parentMobile
 Decision: a missing, inactive, or out-of-team shirt number is 404 `User not found`. The number is not in the body. The old test required `No user found with player number 22`. That text repeated the number, so the test now requires `User not found`.
 
 Refresh of an inactive account stays a check inside `AuthService.refresh`, but the answer is 401 `Login required`. The old 400 said "This account is inactive", which tells the caller the account exists. The filter already sends 401 on the HTTP path. The service now sends the same answer if it is called without the filter. The role matrix target column says 401.
+
+# F9: SQL logging is off unless the dev profile is on (5/11-2026)
+
+Decision: `spring.jpa.show-sql` is `false` in `application.properties` and in `application-prod.properties`. Only `application-dev.properties` sets it to `true`.
+
+Why the default is false: the app already starts in the `dev` profile locally, so a developer still sees SQL. If Railway forgets `SPRING_PROFILES_ACTIVE=prod`, the default file still keeps the log off. Putting `true` in the default file and hoping prod overrides it would print queries, including email and phone, whenever the profile is missing. The prod file has no secrets. Passwords stay in environment variables. Gap analysis point 7 is closed for the SQL log. `ddl-auto=update` and the database user are still open.
