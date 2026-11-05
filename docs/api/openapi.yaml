@@ -221,7 +221,7 @@ paths:
         - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
         - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404.
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
-          (felmeddelandet innehåller det sökta numret).
+          med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
         Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
         eftersom träffen innehåller kontaktuppgifter.
@@ -1032,7 +1032,7 @@ components:
       properties:
         message:
           type: string
-          description: Felmeddelande på engelska. Kan innehålla personuppgifter (t.ex. sökt telefonnummer).
+          description: Felmeddelande på engelska. Ska inte upprepa telefonnummer, e-post eller namn (ADR 0004).
 
     LoginRequest:
       type: object
