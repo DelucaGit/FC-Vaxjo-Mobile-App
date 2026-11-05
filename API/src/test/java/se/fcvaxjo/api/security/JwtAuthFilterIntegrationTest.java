@@ -114,8 +114,12 @@ class JwtAuthFilterIntegrationTest {
 
         expectLoginRequired(oldToken);
 
+        // GET /api/users is the staff list. Other stories limit that list to staff.
+        // A player may open their own row, so the new token is checked there.
         String newToken = tokenFor(coach, "PLAYER");
-        expectOk(newToken);
+        mockMvc.perform(get("/api/users/" + coach.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + newToken))
+                .andExpect(status().isOk());
     }
 
     @Test
