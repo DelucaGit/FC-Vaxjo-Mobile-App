@@ -353,10 +353,31 @@ Jira (paste yourself):
 
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
-`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Merged as PR #26.
+
+# Role matrix and access tests (5/11-2026)
+
+Decision: story S1-6a measures access. It does not change production code.
+
+Why this shape: the OpenAPI file already says who may call each URL (`x-roles`, `x-scope`, `x-pii`). ADR 0006 is the target where the contract also has `x-roles-planned`. One short test per behavior is easier to explain than one test that loops every role. Tests the code still fails stay in the suite as a measuring stick, tagged `known-gap`, and Maven skips that tag so `./mvnw test` stays green.
+
+Rebased onto `origin/master` after PR #24, #25 and #26. Creating a team as CHAIRMAN is no longer a known gap, because #26 already allows it. Linking a coach, and chairman writes on users, are still known gaps.
+
+What is on branch `test/s1-6-rollmatris` (not pushed):
+
+- `docs/testing/rollmatris.md` — target vs what the code does today, and how to run the known gaps
+- Test profile uses in-memory H2. Fictional club: Lag Alfa and Lag Beta, own child and other child
+- Passing MockMvc tests for the rules that already hold, including CHAIRMAN `POST /api/teams`
+- Known-gap tests for S1-2 (read PII), S1-3 (coach not limited to own team on user changes), S1-4 (inactive token and GET of an inactive player), the remaining CHAIRMAN writes (ADR 0006), and phone numbers echoed in 404 text (gap point 6)
+
+Story ids follow the numbering in `docs/gap-analys.md` top 5. The gap file itself does not write S1-1..S1-4. S1-1 is point 1 (seed passwords, already fixed). S1-2 is point 2, S1-3 is point 3, S1-4 is point 4.
+
+Next: product owner approves before any push. Do not merge. The known-gap tests should start passing only when those stories change production code.
 
 # Chairman links coaches (5/11-2026)
 
 Decision: ADMIN and CHAIRMAN may link a coach to any team and remove that link. COACH, PLAYER and PARENT get 403, including a coach on their own team. The rule lives in `ClubRole.canLinkCoach` and in `@PreAuthorize` on the two coach endpoints, same style as creating a team. The service still only checks that the user is a COACH. Creating a coach, or turning a player into a coach, stays in story S1-8.
 
 Why a separate method from `canCreateTeam`: the two rights match today, but they are different actions. Changing one later must not silently change the other.
+
+After the role matrix (PR #31) was merged in, `chairman_canAddCoach` and `chairman_canRemoveCoach` no longer have the `known-gap` tag. Creating, editing, or removing a player, and changing a role, still have that tag.
