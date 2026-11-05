@@ -662,3 +662,9 @@ Why the default is false: the app already starts in the `dev` profile locally, s
 Decision: `saveNewUser` calls the same shirt check as an update, before the insert. ADMIN and CHAIRMAN get 400 `Shirt number already in use`. A coach gets `Could not create the user`, the same sentence as a duplicate email, so the text does not say the number is taken on another team. An update by a coach says `Could not update the player` instead of naming the shirt.
 
 A `DataIntegrityViolationException` that still escapes is 400 `Could not save the user`. The database message can contain SQL, so it is not copied into the response.
+
+# F1: search goes in the body (5/11-2026)
+
+Decision: `GET /api/users/search?name=&number=&phone=` is replaced by `POST /api/users/search`. The JSON body must contain exactly one of `name`, `playerNumber` and `phone`. Anything else is 400. The answers and the roles stay the same. GET on that URL is 405, so it is not a search.
+
+Why: ADR 0004 says personal data should not sit in the URL. An access log that stores the path would store the phone. The mobile app must switch to this POST before or at the same time as this change is merged. `UI/` is not changed here.

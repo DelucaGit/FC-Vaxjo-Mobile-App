@@ -23,7 +23,7 @@ Allvarlighet: **K** = kritisk (måste åtgärdas före produktion), **H** = hög
 
 | # | Allv. | Brist | Fil:rad |
 |---|---|---|---|
-| 6 | M | PII i URL: telefonnummer skickas som query-parameter och kan synas i access-loggar. *Stängd i S1-12:* 404-texten säger "User not found" och upprepar inte numret. | `J/controller/UserController.java:88-90` |
+| 6 | M | PII i URL: telefonnummer skickades som query-parameter och kunde synas i access-loggar. *Stängd i S1-12 för feltexten, och i F1 för sökningen:* `POST /api/users/search` tar värdet i JSON-kroppen. GET är 405. | `J/controller/UserController.java` |
 | 7 | M | `spring.jpa.show-sql` skrev all SQL till loggen. *Stängd för SQL-loggen i F9:* standard är `false`, `application-dev.properties` sätter `true`, `application-prod.properties` sätter `false`. Slå på prod med `SPRING_PROFILES_ACTIVE=prod`. `ddl-auto=update` och DB-användaren `postgres` är kvar. | `API/src/main/resources/application.properties`, `application-prod.properties` |
 | 8 | M | CORS tillåter bara `localhost`/`127.0.0.1` med `allowedHeaders("*")` på hela `/api/**`. Det saknas en uppdelning mellan publikt (fcvaxjo.se) och skyddat (ADR 0003). | `J/config/CorsConfig.java:21-26` |
 | 9 | M | Användaruppräkning och brute force. *Meddelandedelen åtgärdad i S1-9:* fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger samma 401. Saknad e-post kör en BCrypt-jämförelse. Rate limiting och kontolåsning är kvar. | `J/service/AuthService.java`, `J/config/SecurityConfig.java` |

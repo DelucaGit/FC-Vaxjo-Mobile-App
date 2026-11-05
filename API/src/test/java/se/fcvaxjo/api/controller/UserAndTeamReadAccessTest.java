@@ -2,6 +2,7 @@ package se.fcvaxjo.api.controller;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,8 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -159,12 +162,12 @@ class UserAndTeamReadAccessTest {
                 .andExpect(jsonPath("$.message").value("Access Denied"));
 
         expectForbidden(parentToken, "/api/users");
-        expectForbidden(playerToken, "/api/users/search?name=Player");
-        expectForbidden(parentToken, "/api/users/search?name=Player");
-        expectForbidden(playerToken, "/api/users/search?number=71");
-        expectForbidden(parentToken, "/api/users/search?number=72");
-        expectForbidden(playerToken, "/api/users/search?phone=" + OTHER_PLAYER_PHONE);
-        expectForbidden(parentToken, "/api/users/search?phone=" + PARENT_PHONE);
+        expectForbiddenSearch(playerToken, "{\"name\":\"Player\"}");
+        expectForbiddenSearch(parentToken, "{\"name\":\"Player\"}");
+        expectForbiddenSearch(playerToken, "{\"playerNumber\":71}");
+        expectForbiddenSearch(parentToken, "{\"playerNumber\":72}");
+        expectForbiddenSearch(playerToken, "{\"phone\":\"" + OTHER_PLAYER_PHONE + "\"}");
+        expectForbiddenSearch(parentToken, "{\"phone\":\"" + PARENT_PHONE + "\"}");
     }
 
     @Test
@@ -203,23 +206,19 @@ class UserAndTeamReadAccessTest {
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/users/search?name=Other")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
+        search(coachToken, "{\"name\":\"Other\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value(OTHER_PLAYER_EMAIL));
 
-        mockMvc.perform(get("/api/users/search?name=P13")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
+        search(coachToken, "{\"name\":\"P13\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
 
-        mockMvc.perform(get("/api/users/search?number=72")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
+        search(adminToken, "{\"playerNumber\":72}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(OTHER_PLAYER_EMAIL));
 
-        mockMvc.perform(get("/api/users/search?phone=" + OTHER_PLAYER_PHONE)
-                        .header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
+        search(coachToken, "{\"phone\":\"" + OTHER_PLAYER_PHONE + "\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parentMobilePhoneNumber").value(PARENT_PHONE));
 
@@ -278,18 +277,15 @@ class UserAndTeamReadAccessTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].email", hasItem(OTHER_TEAM_PLAYER_EMAIL)));
 
-        mockMvc.perform(get("/api/users/search?name=P13")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+        search(chairmanToken, "{\"name\":\"P13\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value(OTHER_TEAM_PLAYER_EMAIL));
 
-        mockMvc.perform(get("/api/users/search?number=73")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+        search(chairmanToken, "{\"playerNumber\":73}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(OTHER_TEAM_PLAYER_EMAIL));
 
-        mockMvc.perform(get("/api/users/search?phone=0700000213")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+        search(chairmanToken, "{\"phone\":\"0700000213\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parentMobilePhoneNumber").value(PARENT_PHONE));
 
@@ -324,6 +320,17 @@ class UserAndTeamReadAccessTest {
     private void expectForbidden(String token, String path) throws Exception {
         mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isForbidden());
+    }
+
+    private void expectForbiddenSearch(String token, String json) throws Exception {
+        search(token, json).andExpect(status().isForbidden());
+    }
+
+    private ResultActions search(String token, String json) throws Exception {
+        return mockMvc.perform(post("/api/users/search")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
     }
 
     private String bearer(String token) {

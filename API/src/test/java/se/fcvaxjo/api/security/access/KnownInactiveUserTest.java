@@ -118,15 +118,15 @@ class KnownInactiveUserTest extends ClubApiTest {
                 ClubFixture.EMAIL_INACTIVE,
                 ClubFixture.PHONE_INACTIVE);
         assertBodyHides(
-                get(Actor.ADMIN, "/api/users/search", "name", "Inaktiv").andExpect(status().isOk()),
+                post(Actor.ADMIN, "/api/users/search", SampleRequests.searchByName("Inaktiv")).andExpect(status().isOk()),
                 ClubFixture.EMAIL_INACTIVE);
-        get(Actor.ADMIN, "/api/users/search", "phone", ClubFixture.PHONE_INACTIVE)
+        post(Actor.ADMIN, "/api/users/search", SampleRequests.searchByPhone(ClubFixture.PHONE_INACTIVE))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("User not found"));
-        get(Actor.ADMIN, "/api/users/search", "number", "44")
+        post(Actor.ADMIN, "/api/users/search", SampleRequests.searchByShirt(44))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("User not found"));
-        var missingShirt = get(Actor.ADMIN, "/api/users/search", "number", "99")
+        var missingShirt = post(Actor.ADMIN, "/api/users/search", SampleRequests.searchByShirt(99))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("User not found"));
         assertBodyHides(missingShirt, "99");
