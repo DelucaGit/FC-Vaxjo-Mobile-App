@@ -254,7 +254,7 @@ paths:
           med texten "User not found". Numret upprepas inte (F2).
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
           med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
-        `GET /api/users/search` är inte en sökning. Det finns ingen GET-metod, så svaret är 405.
+        `GET /api/users/search` finns, men svarar 405 och söker inte. Använd POST.
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403,
         eftersom träffen innehåller kontaktuppgifter.
         ADMIN och CHAIRMAN söker i hela klubben.
@@ -288,7 +288,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '405':
-          description: GET är borttagen. Sökningen är POST.
+          description: GET /api/users/search finns men svarar 405. Sökningen är POST.
 
   /api/users/{id}:
     parameters:
