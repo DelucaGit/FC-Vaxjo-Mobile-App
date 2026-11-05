@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -28,8 +29,10 @@ import se.fcvaxjo.api.repository.UserRepository;
  * Local demo data for every team: 1 coach + up to 10 players (each with one parent)
  * + up to 10 trainings with attendance snapshots.
  * Idempotent per team. Resets bootstrap admin password for local login.
+ * Only runs with the "dev" profile so production never gets demo users or known passwords.
  */
 @Component
+@Profile("dev")
 @Order(3)
 public class DemoClubSeeder implements CommandLineRunner {
 
