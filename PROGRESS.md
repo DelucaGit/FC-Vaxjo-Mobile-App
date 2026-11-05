@@ -540,3 +540,7 @@ What shipped:
 - A second job runs only that tag: `bash mvnw -B verify -DexcludedGroups= -Dgroups=known-gap`. The empty `-DexcludedGroups=` is required, because the pom would otherwise skip the tests this job asks for. Checked locally: 11 tests, 11 failures, and none of the normal suite.
 - `continue-on-error` is on that Maven step. The failures stay in the log, the check stays green, and the merge is not blocked. The known-gap surefire report is uploaded every time. The main job uploads its report only when the build fails.
 - README tells how to run both commands in Git Bash on Windows and on Linux or Mac. `pom.xml` was left alone (PR #36 also edits it).
+
+# S1-12: a missing phone number stays out of the error (5/11-2026)
+
+Decision: when a phone search finds nobody, the 404 says "User not found". The number the caller typed is not copied into that text. ADR 0004 says personal data does not belong in an error. The same text is used when the only matching row is inactive, so the answer still does not say which case it was. Who may search, which team a coach may see, and whether an inactive user can log in are unchanged. Branch: `cursor/s1-12-generic-phone-404-8752`.
