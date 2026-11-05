@@ -514,6 +514,20 @@ The role matrix arrived from master (PR #31) after this branch already limited c
 
 Decision: a chairman creates a training and marks attendance for any team, the same as an admin. They do not need a row in `team_coaches`. The yes/no is `ClubRole.canManageAllTrainings()`, so the service does not copy the rank as a loose string check. A coach is unchanged: only teams they are linked to. PLAYER and PARENT still get 403 on the staff training URLs. There is still no URL to edit a training's title or time. "Change" here is the change an admin can already make: mark who was present. Branch: `cursor/s1-11-chairman-trainings-4539`.
 
+# App knows the chairman (S1-5b)
+
+Decision: the Expo app uses one role helper (`UI/src/auth/roles.ts`) with the same ranks as `ClubRole`. ADMIN 4 > CHAIRMAN 3 > COACH 2 > PLAYER 1 = PARENT 1. The Swedish label for CHAIRMAN is Ordförande.
+
+"Skapa lag" moved to its own screen. The button and the tab route exist only for ADMIN and CHAIRMAN. A coach cannot open that screen by navigating, because the route is not registered. Other staff checks (attendance tab, create user, edit roster) now include CHAIRMAN, because that role is above COACH. A coach still only sees "Spelare" when creating a user. An admin can also pick Ordförande. A chairman gets the same picker as a coach until ADR 0006 answers whether a chairman may create a coach. POST /api/users still rejects CHAIRMAN.
+
+Contract gaps left as they are in `openapi.yaml` (not changed in this story): trainings and create-user are still ADMIN+COACH on the API, linking a coach is still ADMIN only, and GET /api/my/teams does not allow CHAIRMAN. The app therefore sends a chairman to the full team list, not "my teams".
+
+Follow-up on the same branch: a chairman keeps the coach screens for every team (trainings, create player and parent). When the API still answers a bare 403, the screen says the function is not available for the role yet, instead of "Access Denied". Linking a coach and letting a chairman create a coach stay unchanged. PR #28 was still open, so master was not merged in.
+
+# App branch merged with master (5/11-2026)
+
+Master now has secure token storage (PR #28), chairman player rules, chairman may create a coach (S1-8 / PR #34), and chairman trainings (PR #35). This branch keeps that storage and the app role checks. The create-user picker for a chairman is now player, parent, and coach, matching `POST /api/users`. A bare 403 still becomes the sentence that the function is not available for the role yet.
+
 # S1-12: a missing phone number stays out of the error (5/11-2026)
 
 Decision: when a phone search finds nobody, the 404 says "User not found". The number the caller typed is not copied into that text. ADR 0004 says personal data does not belong in an error. The same text is used when the only matching row is inactive, so the answer still does not say which case it was. Who may search, which team a coach may see, and whether an inactive user can log in are unchanged. Branch: `cursor/s1-12-generic-phone-404-8752`.

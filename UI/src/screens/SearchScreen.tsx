@@ -14,6 +14,7 @@ import {
   searchByPhone,
   searchByShirtNumber,
 } from '../api/users';
+import { roleLabel } from '../auth/roles';
 import { colors, radius } from '../theme/colors';
 
 type SearchMode = 'name' | 'number' | 'phone';
@@ -101,7 +102,7 @@ export default function SearchScreen() {
         <View key={user.id} style={styles.card}>
           <Text style={styles.cardTitle}>{user.name}</Text>
           <Text>Email: {user.email}</Text>
-          <Text>Role: {user.roleName}</Text>
+          <Text>Role: {roleLabel(user.roleName)}</Text>
           <Text>Shirt #: {user.playerNumber ?? '—'}</Text>
           <Text>Phone: {user.mobilePhoneNumber ?? '—'}</Text>
           <Text>Parent: {user.parentName ?? '—'}</Text>
