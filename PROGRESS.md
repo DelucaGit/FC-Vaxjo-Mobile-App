@@ -354,3 +354,7 @@ Jira (paste yourself):
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
 `POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+
+# Chairman can manage trainings on every team (5/11-2026)
+
+Decision: a chairman creates a training and marks attendance for any team, the same as an admin. They do not need a row in `team_coaches`. The yes/no is `ClubRole.canManageAllTrainings()`, so the service does not copy the rank as a loose string check. A coach is unchanged: only teams they are linked to. PLAYER and PARENT still get 403 on the staff training URLs. There is still no URL to edit a training's title or time. "Change" here is the change an admin can already make: mark who was present. Branch: `cursor/s1-11-chairman-trainings-4539`.

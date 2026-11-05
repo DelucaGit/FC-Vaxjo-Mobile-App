@@ -508,11 +508,15 @@ paths:
       operationId: listTrainingsByTeam
       summary: Lista ett lags träningar (senaste först)
       description: |
+        ADMIN och CHAIRMAN får lista träningar för vilket lag som helst.
+        COACH bara lag där hen finns i `team_coaches`.
         Fel: "teamId is required" (400; saknad parameter ger Springs standard-400);
-        "Only ADMIN or a coach of this team can manage trainings" (403); "Team not found" (404).
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize` innan servicen körs;
+        "Team not found" (404).
         Obs: behörighet kontrolleras före existens, så en COACH får 403 även för ett lag som inte finns.
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TrainingController.listByTeam → TrainingService.listByTeam
       parameters:
         - name: teamId
@@ -538,10 +542,13 @@ paths:
       description: |
         Skapar träningen och tar en ögonblicksbild av lagets aktiva spelare som närvarorader (status null).
         `title` blir "Training" om den saknas/är tom. `createdByUserId` sätts till den inloggade.
+        ADMIN och CHAIRMAN får skapa träningen på vilket lag som helst, utan rad i `team_coaches`.
         Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
-        403 om COACH inte tränar laget (kontrolleras först); "Team not found" (404).
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH endast lag där hen finns i `team_coaches`.
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service om COACH inte tränar laget, kontrolleras först);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize`;
+        "Team not found" (404).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TrainingController.create → TrainingService.createTraining
       requestBody:
         required: true
@@ -566,9 +573,13 @@ paths:
       tags: [Trainings]
       operationId: getTrainingById
       summary: Hämta en träning
-      description: 'Fel: "Training not found" (404); 403 om COACH inte tränar laget.'
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      description: |
+        ADMIN och CHAIRMAN får hämta en träning i vilket lag som helst.
+        Fel: "Training not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TrainingController.getById → TrainingService.getById
       responses:
         '200':
@@ -587,9 +598,13 @@ paths:
       tags: [Trainings]
       operationId: listAttendance
       summary: Lista närvaro för en träning
-      description: 'Fel: "Training not found", "Player not found" (404); 403 om COACH inte tränar laget.'
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      description: |
+        ADMIN och CHAIRMAN får lista närvaro för en träning i vilket lag som helst.
+        Fel: "Training not found", "Player not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TrainingController.listAttendance → TrainingService.listAttendance
       responses:
         '200':
@@ -618,9 +633,12 @@ paths:
       description: |
         Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste finnas på träningens
         ögonblicksbild. Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
-        "This player is not on the attendance list for this training" (400); "Training not found" (404); 403 om COACH inte tränar laget.
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH endast lag där hen finns i `team_coaches`.
+        "This player is not on the attendance list for this training" (400); "Training not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+        ADMIN och CHAIRMAN får markera närvaro på vilket lag som helst.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TrainingController.updateAttendance → TrainingService.updateAttendance
       requestBody:
         required: true
