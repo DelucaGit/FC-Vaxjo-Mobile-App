@@ -349,6 +349,12 @@ Jira (paste yourself):
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
 
+# CHAIRMAN role (5/11-2026)
+
+Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
+
+`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+
 # S1-4: old JWT stops when the account changes (5/11-2026)
 
 Decision: on every request, look up the user in the database. Do not add a token version column.
@@ -363,3 +369,4 @@ What shipped:
 - Turning the account back on, or changing the role back, makes the same token work again. After a role change the person can also log in again and get a token with the new role. Refresh cannot upgrade an old role.
 - Tests: `AccountAccessServiceTest`, `JwtAuthFilterTest`, `JwtAuthFilterIntegrationTest` (H2, so `mvn test` does not need local Postgres).
 - `docs/api/openapi.yaml` describes the new 401 cases. The open question about role change waiting for expiry is closed.
+- After master gained `CHAIRMAN`, the same check covers that role. A CHAIRMAN token is rejected once the role in the database is no longer CHAIRMAN. `CreateTeamAuthorizationTest` now creates a real user, because a token for a missing user is 401.

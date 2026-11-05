@@ -47,6 +47,22 @@ class AccountAccessServiceTest {
     }
 
     @Test
+    void tokenStillMatchesAccount_trueWhenRoleIsChairman() {
+        when(userRepository.findById(4L)).thenReturn(Optional.of(activeUser(4L, 3L)));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(role(3L, "CHAIRMAN")));
+
+        assertTrue(accountAccessService.tokenStillMatchesAccount(4L, "CHAIRMAN"));
+    }
+
+    @Test
+    void tokenStillMatchesAccount_falseWhenChairmanTokenNoLongerMatches() {
+        when(userRepository.findById(4L)).thenReturn(Optional.of(activeUser(4L, 2L)));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(role(2L, "COACH")));
+
+        assertFalse(accountAccessService.tokenStillMatchesAccount(4L, "CHAIRMAN"));
+    }
+
+    @Test
     void tokenStillMatchesAccount_falseWhenRoleInTokenIsOutOfDate() {
         when(userRepository.findById(7L)).thenReturn(Optional.of(activeUser(7L, 3L)));
         when(roleRepository.findById(3L)).thenReturn(Optional.of(role(3L, "PLAYER")));

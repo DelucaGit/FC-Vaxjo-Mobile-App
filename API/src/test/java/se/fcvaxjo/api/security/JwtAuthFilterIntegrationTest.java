@@ -88,6 +88,21 @@ class JwtAuthFilterIntegrationTest {
     }
 
     @Test
+    void chairmanToken_isRejectedWhenTheRoleIsNoLongerChairman() throws Exception {
+        AppUser chairman = saveUser("CHAIRMAN");
+        String oldToken = tokenFor(chairman, "CHAIRMAN");
+        expectOk(oldToken);
+
+        Role coachRole = roleRepository.findByName("COACH").orElseThrow();
+        chairman.setRoleId(coachRole.getId());
+        userRepository.saveAndFlush(chairman);
+
+        expectLoginRequired(oldToken);
+
+        expectOk(tokenFor(chairman, "COACH"));
+    }
+
+    @Test
     void changedRole_rejectsTheOldTokenUntilAMatchingTokenIsUsed() throws Exception {
         AppUser coach = saveUser("COACH");
         String oldToken = tokenFor(coach, "COACH");

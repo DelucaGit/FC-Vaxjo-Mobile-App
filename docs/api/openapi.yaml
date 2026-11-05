@@ -7,12 +7,14 @@ info:
     Beskriver **nuvarande** endpoints i `API/src/main/java/se/fcvaxjo/api/controller/`
     på grenen `feature/player-parent-trainings-view` (commit d21b180), läst 2026-11-05.
     Implementerade delar är dokumenterade i efterhand ("as-is"). Planerade, ej implementerade delar
-    (CHAIRMAN-rollen och publika `/api/public/**`-endpoints) är markerade med `x-status: planned`.
+    Publika `/api/public/**`-endpoints är markerade med `x-status: planned`.
+    `CHAIRMAN` finns som roll (ADR 0006). Behörigheter som ännu inte matchar ADR:n
+    är markerade med `x-roles-planned`.
 
     **Konventioner**
     - Tekniska namn på engelska, beskrivningar på svenska.
     - `x-roles`: vilka roller som får anropa operationen (från `SecurityConfig` + `@PreAuthorize`).
-      `ANY_AUTHENTICATED` betyder: alla inloggade, oavsett roll (ADMIN, COACH, PLAYER, PARENT).
+      `ANY_AUTHENTICATED` betyder: alla inloggade, oavsett roll (ADMIN, CHAIRMAN, COACH, PLAYER, PARENT).
     - `x-scope`: ytterligare kontroll i service-lagret (t.ex. att en COACH bara får hantera sina egna lag).
     - `x-pii: true`: fältet innehåller personuppgifter (GDPR).
     - `x-secret: true`: fältet innehåller en hemlighet (lösenord/token).
@@ -44,7 +46,7 @@ tags:
   - name: Auth
     description: Inloggning, lösenordsbyte och förnyelse av JWT.
   - name: Users
-    description: Klubbens användare (ADMIN, COACH, PLAYER, PARENT).
+    description: Klubbens användare (ADMIN, CHAIRMAN, COACH, PLAYER, PARENT).
   - name: Teams
     description: Lag och lagets tränare/spelare.
   - name: Trainings
@@ -364,9 +366,12 @@ paths:
       tags: [Teams]
       operationId: createTeam
       summary: Skapa lag
-      x-roles-planned: [ADMIN, CHAIRMAN]
-      description: 'Fel: "Team name is required", "Team already exists" (400). Namnet trimmas.'
-      x-roles: [ADMIN]
+      description: |
+        Bara ADMIN och CHAIRMAN får skapa lag (ADR 0006).
+        COACH, PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+        `@PreAuthorize` nekar anropet innan metoden körs, så meddelandet är Springs standardtext.
+        Fel: "Team name is required", "Team already exists" (400). Namnet trimmas.
+      x-roles: [ADMIN, CHAIRMAN]
       x-source: TeamController.createTeam → TeamService.createTeam
       requestBody:
         required: true
@@ -381,7 +386,13 @@ paths:
               schema: { $ref: '#/components/schemas/TeamResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: |
+            COACH, PLAYER eller PARENT. Body är `{"message":"Access Denied"}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: Access Denied }
 
   /api/teams/{id}:
     parameters:
@@ -824,7 +835,7 @@ components:
       bearerFormat: JWT
       description: |
         HS256-signerad JWT från `/api/auth/login`. Claims: `sub` = användar-id, `email` (personuppgift),
-        `role` (ADMIN|COACH|PLAYER|PARENT), `iat`, `exp` (+120 min). Skickas som `Authorization: Bearer <token>`.
+        `role` (ADMIN|CHAIRMAN|COACH|PLAYER|PARENT), `iat`, `exp` (+120 min). Skickas som `Authorization: Bearer <token>`.
         Varje anrop läser användaren i databasen. Inaktivt konto eller en roll som inte längre stämmer
         ger 401 även om signaturen är giltig och token inte gått ut.
 
@@ -890,10 +901,10 @@ components:
     RoleName:
       type: string
       description: |
-        Rollnamn (seedas av `RoleSeeder`). Hierarki enligt ADR 0006: ADMIN > CHAIRMAN > COACH > PLAYER = PARENT.
-        `CHAIRMAN` (ordförande) är **planerad** och finns inte i koden ännu (se `x-planned-values`).
-      enum: [ADMIN, COACH, PLAYER, PARENT]
-      x-planned-values: [CHAIRMAN]
+        Rollnamn (seedas av `RoleSeeder` från `ClubRole`). Hierarki enligt ADR 0006:
+        ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER och PARENT är likvärdiga.
+        Bara ADMIN och CHAIRMAN får skapa lag (`POST /api/teams`).
+      enum: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
     AttendanceStatus:
       type: [string, 'null']
       description: Närvarostatus; null = inte markerad ännu. Personuppgift om ett barn.
