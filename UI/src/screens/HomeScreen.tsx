@@ -130,8 +130,8 @@ export default function HomeScreen() {
             let teamId = me.teamId;
             let teamName = me.teamName;
             // Coaches are linked via team_coaches, not users.team_id.
-            // GET /api/my/teams allows COACH and ADMIN only, so a chairman
-            // uses the full team list (same as an admin).
+            // A chairman looks after every team, not only teams they coach.
+            // GET /api/my/teams allows COACH and ADMIN, so the chairman uses the full list.
             if (teamId == null) {
               const myTeams =
                 session.roleName === 'COACH'

@@ -16,8 +16,9 @@ export async function listTeams(): Promise<Team[]> {
 }
 
 /**
- * Teams the current COACH is linked to.
- * ADMIN gets every team. CHAIRMAN is not allowed on this URL (openapi x-roles).
+ * Teams the current COACH is linked to. ADMIN gets every team.
+ * A chairman looks after every team, and this URL does not allow CHAIRMAN,
+ * so those screens call listTeams() instead.
  */
 export async function listMyTeams(): Promise<Team[]> {
   const response = await apiFetch(`${API_BASE_URL}/my/teams`);

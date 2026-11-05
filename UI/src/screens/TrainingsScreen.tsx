@@ -85,7 +85,8 @@ export default function TrainingsScreen() {
   const loadTeams = useCallback(async () => {
     try {
       // A coach only sees teams they are linked to.
-      // GET /api/my/teams allows COACH and ADMIN. A chairman uses the full list.
+      // A chairman looks after every team, not only teams they coach.
+      // GET /api/my/teams allows COACH and ADMIN, so the chairman uses the full list.
       const next =
         session?.roleName === 'COACH' ? await listMyTeams() : await listTeams();
       setTeams(next);
