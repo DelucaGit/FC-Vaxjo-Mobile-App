@@ -16,5 +16,9 @@ public class TrainingResponse {
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
     private String title;
+    private String venue;
+    /** SCHEDULED or CANCELLED. A missing value in the database is shown as SCHEDULED. */
+    private String status;
+    private String cancelReason;
     private Long createdByUserId;
 }

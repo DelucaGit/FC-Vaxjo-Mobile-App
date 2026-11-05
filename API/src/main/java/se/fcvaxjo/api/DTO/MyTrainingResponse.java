@@ -16,8 +16,12 @@ public class MyTrainingResponse {
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
     private String title;
+    private String venue;
     private Long playerUserId;
     private String playerName;
     /** PRESENT, ABSENT, EXCUSED, or null if not marked / not on snapshot. */
     private String status;
+    /** SCHEDULED or CANCELLED. Separate from the attendance status above. */
+    private String trainingStatus;
+    private String cancelReason;
 }

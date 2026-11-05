@@ -29,6 +29,7 @@ import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.UserRepository;
+import se.fcvaxjo.api.service.PasswordChange;
 import se.fcvaxjo.api.support.SampleRequests;
 
 /**
@@ -166,6 +167,39 @@ class JwtAuthFilterIntegrationTest {
 
         expectLoginRequired(oldToken);
         expectOk(newToken);
+    }
+
+    @Test
+    void tokenFromBeforeHashRewrite_returns401AndALaterLoginWorks() throws Exception {
+        // Same write as DemoClubSeeder.resetDemoLogin: a new hash after a token exists.
+        // The old token must be 401. The first login after the rewrite must still work.
+        AppUser coach = saveUser("COACH");
+        coach.setPasswordHash(passwordEncoder.encode(CURRENT_LOGIN));
+        coach.setMustChangePassword(false);
+        userRepository.saveAndFlush(coach);
+
+        String oldToken = loginAndReadToken(coach.getEmail(), CURRENT_LOGIN);
+        waitUntilALaterSecondThan(jwtService.getIssuedAt(oldToken));
+
+        PasswordChange.storeHash(coach, passwordEncoder.encode(NEXT_LOGIN));
+        userRepository.saveAndFlush(coach);
+
+        expectLoginRequired(oldToken);
+        String freshToken = loginAndReadToken(coach.getEmail(), NEXT_LOGIN);
+        expectOk(freshToken);
+    }
+
+    @Test
+    void firstLoginAfterTheHashIsStored_worksInThatSameSecond() throws Exception {
+        // passwordChangedAt is set when the hash is written. The first token
+        // is issued after that, so the strict > check must not reject it.
+        AppUser coach = saveUser("COACH");
+        PasswordChange.storeHash(coach, passwordEncoder.encode(CURRENT_LOGIN));
+        coach.setMustChangePassword(false);
+        userRepository.saveAndFlush(coach);
+
+        String token = loginAndReadToken(coach.getEmail(), CURRENT_LOGIN);
+        expectOk(token);
     }
 
     @Test

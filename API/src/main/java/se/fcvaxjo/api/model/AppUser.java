@@ -83,14 +83,25 @@ public class AppUser {
     private boolean mustChangePassword = true;
 
     /**
-     * When this password was last replaced. Null until the first change.
+     * When this password hash was last written. Null on rows saved before
+     * this column was filled in. A new hash always sets it, including the
+     * first save and a demo-password rewrite.
      *
      * The JWT filter compares this with the token's {@code iat}. A token from
-     * before the change is rejected. There is no Flyway or Liquibase (ADR 0002).
-     * Hibernate adds the nullable column on startup ({@code ddl-auto=update}),
-     * the same way the other user columns were added. Existing rows stay null,
-     * so tokens that were already issued keep working until the next change.
+     * an earlier second is rejected. The comparison is a strict {@code >} on
+     * whole seconds, so a login in the same second as this write still works.
+     * There is no Flyway or Liquibase (ADR 0002). Hibernate adds the nullable
+     * column on startup ({@code ddl-auto=update}).
      */
     @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
+
+    /**
+     * When the linked parent allowed this player's name and shirt number
+     * on the public site. Null means no consent. That is the default.
+     * Contact details are never published, even when this is set.
+     * There is no Flyway (ADR 0002). Hibernate adds the nullable column.
+     */
+    @Column(name = "public_consent_at")
+    private Instant publicConsentAt;
 }
