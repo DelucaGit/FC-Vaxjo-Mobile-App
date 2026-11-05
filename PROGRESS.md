@@ -16,14 +16,14 @@ The idea is to use:
 
 - React Native (built on Expo)
 - Java Spring Boot
-- AWS
+- Railway (hosting, replaces AWS; see `docs/adr/0002-hosting-pa-railway.md`)
 - PostgreSQL
 
 React Native will be to make the UI of the app. I have chosen this to make the app crossplatform for Android and iOS since the users of the app are expected to have a variation of devices. Expo is supposed to be easier for junior developers like me to set up.
 
 Java Spring Boot will be used to make the API service. Why Java? Because that's what I am currently studying at the moment and also it's a very stable language. Me coming from a security background - I like to have stable systems.
 
-AWS (Amazon Web Services) will be used to store the database (PostgreSQL) and API. I have chosen AWS because that's what I have studied previously at school and I am most familiar with. For Version 1 I will keep PostgreSQL on my own computer first, and move it to AWS later when the basics work.
+Railway will be used to host the database (PostgreSQL) and API. I first planned AWS because that's what I have studied previously at school, but AWS is too expensive for a small club app, so the plan is now Railway (see `docs/adr/0002-hosting-pa-railway.md`). For Version 1 I will keep PostgreSQL on my own computer first, and move it to Railway later when the basics work.
 
 For the repository structure I will go for a monorepo where I keep everything inside one root folder on Github. Inside that I will have one folder for the API (the Java backend) and another folder for the UI (React Native).
 
@@ -135,7 +135,7 @@ I added Lombok (`@Getter`, `@Setter`) so I do not write get/set methods by hand.
 
 I also set `spring.jpa.hibernate.ddl-auto=update` for local Version 1. When I restarted the API, Hibernate created the two tables in `fcvaxjo_db`. I confirmed them in pgAdmin. They are empty. Next step after the models was the repository layer.
 
-`ddl-auto=update` is fine on my PC. I will not use it on a real AWS database later, because it can change tables in ways that are hard to undo.
+`ddl-auto=update` is fine on my PC. I will not use it on the real Railway database later, because it can change tables in ways that are hard to undo.
 
 # Permissions vs a third table (9/9-2026)
 
@@ -309,7 +309,7 @@ What shipped:
 - `POST /api/auth/login`, `POST /api/auth/change-password`
 - Create user generates a temporary password (returned once); new parent gets one too
 - Spring Security: JWT filter; only login is public; `@PreAuthorize` on create/soft-delete (ADMIN|COACH), role change + team admin ops (ADMIN only); COACH may only create PLAYER
-- Bootstrap admin seeder: `admin@fcvaxjo.se` / `TempAdmin1!` (must change after first login)
+- Bootstrap admin seeder: `admin@fcvaxjo.se` with a hardcoded temporary password (must change after first login)
 - Expo: login screen, change-password gate, Bearer token on all API calls, Create tab only for ADMIN/COACH
 - Java tests: `AuthServiceTest`, create-user password flags in `UserServiceTest`
 - Postman checklist: `API/POSTMAN_AUTH.md`
@@ -332,7 +332,7 @@ Jira (paste yourself): Epic — Coaches can run trainings… Story — As a coac
 
 # Demo club seed (27/10-2026)
 
-`DemoClubSeeder`: ensures teams P13 + P14 + P15; each gets 1 coach, up to 10 players (1 parent each), and up to **10 trainings** with attendance snapshots. Idempotent (fills missing players/trainings only). Temp password for demo users: `TempDemo1!`. Also resets `admin@fcvaxjo.se` to `TempAdmin1!` (must change password) so local login works after password drift.
+`DemoClubSeeder`: ensures teams P13 + P14 + P15; each gets 1 coach, up to 10 players (1 parent each), and up to **10 trainings** with attendance snapshots. Idempotent (fills missing players/trainings only). Demo users get a hardcoded temporary password. Also resets `admin@fcvaxjo.se` to its temporary password (must change password) so local login works after password drift. Runs only with the Spring profile `dev` (default locally), never in production.
 
 # Player + parent read-only schedule (27/10-2026)
 

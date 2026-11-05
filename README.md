@@ -2,12 +2,27 @@
 
 A club app for FC Växjö: players, coaches, parents, and staff.
 
-**Now:** Java Spring Boot API + PostgreSQL on this computer.  
-**Not yet:** phone app, login, hosting.
+**Now:** Java Spring Boot API + PostgreSQL + Expo (React Native) app, running on this computer. Login with email + password (JWT).
+**Later:** hosting on [Railway](https://railway.com) (API + PostgreSQL), not AWS. See `docs/adr/0002-hosting-pa-railway.md`.
 
-When you add or change a URL, update the table below. `UserController` is the source of truth.
+## API contract
+
+The source of truth for every URL is **`docs/api/openapi.yaml`** (OpenAPI 3.1).
+It lists methods, request and response fields, status codes, which roles may call what (`x-roles`), and which fields hold personal data (`x-pii`).
+Parts marked `x-status: planned` are not built yet.
+When you add or change a URL, update `openapi.yaml` in the same PR.
+
+Lint it with:
+
+```powershell
+npx @redocly/cli lint docs/api/openapi.yaml
+```
+
+Architecture decisions are in `docs/adr/`. Known security/GDPR gaps are in `docs/gap-analys.md`.
 
 ## Run the API
+
+Needs local PostgreSQL (database `fcvaxjo_db`) and `API/.env` with `DB_PASSWORD` (not in Git; see `API/.env.example`).
 
 From the `API` folder:
 
@@ -15,42 +30,25 @@ From the `API` folder:
 .\mvnw.cmd spring-boot:run
 ```
 
-Needs local Postgres and `API/.env` (password is not in Git). Base URL: `http://localhost:8080`
+Base URL: `http://localhost:8080/api`
 
-Roles in the database: `ADMIN`, `COACH`, `PLAYER`, `PARENT`.
+Local runs use the Spring profile `dev` by default (`SPRING_PROFILES_ACTIVE` overrides it). In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings. Demo logins are described in `API/POSTMAN_AUTH.md`. Production must set another profile and its own `JWT_SECRET`.
 
-## API endpoints
+Run tests:
 
-| Method | URL | What it does |
-|---|---|---|
-| GET | `/api/users` | List all users |
-| GET | `/api/users/search?name=` | Find users whose name contains the text (ignore case) |
-| GET | `/api/users/search?number=` | Find one user by shirt number |
-| GET | `/api/users/{id}` | Fetch one user by id |
-| POST | `/api/users` | Create a user |
-| PUT | `/api/users/{id}/role` | Change that user's role |
-
-No login yet. Anyone who can reach your PC can call these URLs.
-
-Shirt number (`playerNumber`) is optional. Coaches and parents usually have none. Two users cannot share the same number.
-
-### Create user (`POST /api/users`)
-
-```json
-{
-  "name": "Erik",
-  "email": "erik@fcvaxjo.se",
-  "roleName": "PLAYER",
-  "playerNumber": 7
-}
+```powershell
+.\mvnw.cmd test
 ```
 
-Leave `playerNumber` out if they have no shirt number yet.
+## Run the app
 
-### Change role (`PUT /api/users/{id}/role`)
+From the `UI` folder:
 
-```json
-{
-  "roleName": "COACH"
-}
+```powershell
+npm install
+npm start
 ```
+
+Press `w` for web, or scan the QR code with Expo Go. For a real phone, set your PC's LAN IP in `UI/src/api/config.ts`.
+
+Roles: `ADMIN`, `COACH`, `PLAYER`, `PARENT` (`CHAIRMAN` is planned; see `docs/adr/0006-roller-och-behorighet.md`).

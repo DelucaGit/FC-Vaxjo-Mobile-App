@@ -1,0 +1,1149 @@
+openapi: 3.1.0
+info:
+  title: FC Växjö Club API
+  version: 0.0.1-SNAPSHOT
+  summary: Klubbappens backend (Spring Boot 4.1, Java 21, PostgreSQL, JWT).
+  description: |
+    Beskriver **nuvarande** endpoints i `API/src/main/java/se/fcvaxjo/api/controller/`
+    på grenen `feature/player-parent-trainings-view` (commit d21b180), läst 2026-11-05.
+    Implementerade delar är dokumenterade i efterhand ("as-is"). Planerade, ej implementerade delar
+    (CHAIRMAN-rollen och publika `/api/public/**`-endpoints) är markerade med `x-status: planned`.
+
+    **Konventioner**
+    - Tekniska namn på engelska, beskrivningar på svenska.
+    - `x-roles`: vilka roller som får anropa operationen (från `SecurityConfig` + `@PreAuthorize`).
+      `ANY_AUTHENTICATED` betyder: alla inloggade, oavsett roll (ADMIN, COACH, PLAYER, PARENT).
+    - `x-scope`: ytterligare kontroll i service-lagret (t.ex. att en COACH bara får hantera sina egna lag).
+    - `x-pii: true`: fältet innehåller personuppgifter (GDPR).
+    - `x-secret: true`: fältet innehåller en hemlighet (lösenord/token).
+    - `x-source`: fil och metod i koden som operationen bygger på.
+    - `x-status: planned`: **ej implementerat**. Planerat enligt ADR 0003 och 0006. Allt utan `x-status` är implementerat.
+    - `x-roles-planned` / `x-scope-planned`: planerad behörighet (ADR 0006) som skiljer sig från nuläget.
+
+    **Validering.** DTO-klasserna har **inga** Bean Validation-annoteringar (`@NotNull`, `@NotBlank`, `@Size`,
+    `@Email` m.fl. används inte och `@Valid` saknas på `@RequestBody`), trots att `spring-boot-starter-validation`
+    finns i `pom.xml`. All validering görs manuellt i service-klasserna och kastar `BadRequestException` (400).
+    `required` och andra regler nedan speglar de manuella kontrollerna.
+
+    **Felhantering** (`ApiExceptionHandler`, `SecurityConfig`):
+    - `BadRequestException` → 400 `{ "message": ... }`
+    - `NotFoundException` → 404 `{ "message": ... }`
+    - `AccessDeniedException` (även `@PreAuthorize`-nekanden) → 403 `{ "message": ... }`
+    - Saknad/ogiltig/utgången JWT → 401 `{ "message": "Login required" }`
+    - Övriga fel (felaktig JSON, fel typ på path/query-parameter, DB-constraint-fel) hanteras **inte** av
+      `ApiExceptionHandler` och får Springs standardsvar (400/500); formatet är inte verifierat, se öppna frågor.
+
+    **Tid.** `startsAt`/`endsAt` är Java `LocalDateTime` utan tidszon, serialiserade som ISO-8601
+    (`2026-11-06T18:00:00`). Därför används inte `format: date-time` (RFC 3339 kräver offset).
+servers:
+  - url: http://localhost:8080
+    description: Lokal utveckling (V1). Produktion (Railway) finns ännu inte.
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Inloggning, lösenordsbyte och förnyelse av JWT.
+  - name: Users
+    description: Klubbens användare (ADMIN, COACH, PLAYER, PARENT).
+  - name: Teams
+    description: Lag och lagets tränare/spelare.
+  - name: Trainings
+    description: Träningar och närvaro (personal-vy).
+  - name: MySchedule
+    description: Den inloggades egna vy (`/api/my`).
+  - name: Public
+    description: |
+      **Planerat (x-status: planned).** Publika read-only endpoints för hemsidan fcvaxjo.se (ADR 0003).
+      Ingen inloggning. Svaren innehåller aldrig persondata om spelare eller föräldrar.
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Logga in med e-post och lösenord
+      description: |
+        Publik endpoint. Returnerar en JWT (giltig 120 min, `app.jwt.expiration-ms=7200000`).
+        Fel inloggning ger **400** (inte 401). Felmeddelanden: "Email and password are required",
+        "Invalid email or password", "This account is inactive", "This account has no password yet".
+      security: []
+      x-roles: [PUBLIC]
+      x-source: AuthController.login → AuthService.login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Inloggad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/auth/change-password:
+    post:
+      tags: [Auth]
+      operationId: changePassword
+      summary: Byt eget lösenord
+      description: |
+        Kräver giltig JWT. Sätter `mustChangePassword=false` och returnerar en ny token.
+        Fel: "Current password is required", "New password must be at least 8 characters",
+        "Current password is wrong" (400); "User not found" (404).
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: AuthController.changePassword → AuthService.changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200':
+          description: Lösenordet är bytt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Förnya JWT
+      description: |
+        Kräver en fortfarande giltig JWT. Returnerar en ny token (ytterligare 120 min). Ingen request body.
+        Fel: "This account is inactive" (400), "User not found" (404).
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: AuthController.refresh → AuthService.refresh
+      responses:
+        '200':
+          description: Ny token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: Lista alla aktiva användare
+      description: |
+        Returnerar alla användare med `active=true`, inklusive kontaktuppgifter och förälderns kontaktuppgifter.
+        **Ingen rollkontroll** – alla inloggade (även PLAYER och PARENT) får hela listan. Se gap-analys.
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: UserController.getAllUsers → UserService.getAllUsers
+      responses:
+        '200':
+          description: Lista med användare.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FetchUserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Skapa användare med temporärt lösenord
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
+      x-scope-planned: ADMIN och CHAIRMAN får skapa alla roller utom ADMIN (öppen fråga om CHAIRMAN får skapa COACH). COACH får skapa PLAYER och PARENT, men bara spelare i egna lag (`team_coaches`).
+      description: |
+        ADMIN får skapa alla roller. COACH får bara skapa `PLAYER` (och ny förälder via `newParent`);
+        annars 403 "Only ADMIN or COACH can create users; COACH may only create PLAYER".
+
+        För `roleName=PLAYER` gäller:
+        - exakt en av `parentId` eller `newParent` (annars 400),
+        - `parentId` måste peka på en användare med roll PARENT,
+        - `teamId` krävs och laget måste finnas.
+        För andra roller ignoreras `parentId`, `newParent` och `teamId`.
+
+        Övriga regler: `email` krävs och måste vara unik ("User already exists"); `mobilePhoneNumber` unik om satt.
+        Ett temporärt lösenord (10 tecken) genereras och returneras **en gång** i svaret; `mustChangePassword=true`.
+      x-roles: [ADMIN, COACH]
+      x-scope: COACH får endast skapa PLAYER. Ingen kontroll av att COACH tränar laget i `teamId`.
+      x-source: UserController.createUser → UserService.createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          description: Användaren skapad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateUserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/users/search:
+    get:
+      tags: [Users]
+      operationId: searchUsers
+      summary: Sök användare på namn, tröjnummer eller telefon
+      description: |
+        Tre olika controller-metoder delar samma URL; Spring väljer metod utifrån vilken query-parameter som skickas.
+        Skicka **exakt en** av `name`, `number`, `phone`.
+        - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
+        - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404.
+        - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
+          (felmeddelandet innehåller det sökta numret).
+        Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
+        **Ingen rollkontroll** – alla inloggade kan söka fram kontaktuppgifter.
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: Del av namn (t.ex. `Er` hittar Erik).
+          schema: { type: string, minLength: 1 }
+        - name: number
+          in: query
+          required: false
+          description: Tröjnummer, exakt matchning.
+          schema: { type: integer, format: int32 }
+        - name: phone
+          in: query
+          required: false
+          description: Mobilnummer, exakt matchning. Personuppgift i URL (hamnar i access-loggar).
+          x-pii: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: Array vid `name`, ett objekt vid `number`/`phone`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: { $ref: '#/components/schemas/FetchUserResponse' }
+                  - $ref: '#/components/schemas/FetchUserResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      operationId: getUserById
+      summary: Hämta en användare
+      description: |
+        Returnerar även **inaktiva** (mjukt raderade) användare. **Ingen rollkontroll.**
+        Fel: "User not found" (404).
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: UserController.getUserById → UserService.getUserById
+      responses:
+        '200':
+          description: Användaren.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FetchUserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Users]
+      operationId: softDeletePlayer
+      summary: Mjukradera en spelare (active=false)
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
+      x-scope-planned: COACH får bara ta bort spelare i egna lag.
+      description: |
+        Sätter `active=false` på en PLAYER. Raden och all data ligger kvar i databasen (ingen hård radering).
+        Fel: "Only a PLAYER can be removed this way", "Player is already inactive" (400); "User not found" (404).
+      x-roles: [ADMIN, COACH]
+      x-scope: Ingen kontroll av att COACH tränar spelarens lag.
+      x-source: UserController.softDeletePlayer → UserService.softDeletePlayer
+      responses:
+        '204':
+          description: Spelaren är inaktiverad.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}/role:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    put:
+      tags: [Users]
+      operationId: changeUserRole
+      summary: Byt roll på en användare
+      x-roles-planned: [ADMIN, CHAIRMAN]
+      x-scope-planned: CHAIRMAN får inte ge eller ta bort rollen ADMIN (ADR 0006).
+      description: |
+        Ersätter användarens roll. Fel: "This role does not exist" (400), "User not found" (404).
+        Obs: redan utfärdade JWT behåller den gamla rollen tills de går ut (rollen ligger i token).
+      x-roles: [ADMIN]
+      x-source: UserController.updateUserRole → UserService.changeUserRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeRoleRequest' }
+      responses:
+        '200':
+          description: Rollen är bytt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChangeRoleResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}/player:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    put:
+      tags: [Users]
+      operationId: updatePlayer
+      summary: Uppdatera en spelare (och kopplad förälder)
+      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
+      x-scope-planned: COACH får bara ändra spelare i egna lag (både nuvarande och nytt lag).
+      description: |
+        Bara för aktiv PLAYER. `name`, `email` och `teamId` krävs (laget måste finnas). E-post, telefon och
+        tröjnummer måste vara unika. `parentId` byter förälder (måste vara aktiv PARENT).
+        `parentName`/`parentEmail`/`parentMobilePhoneNumber` uppdaterar den kopplade förälderns rad
+        (null = lämna orört; tom `parentMobilePhoneNumber` rensar telefonnumret; tom `parentEmail` → 400).
+        Tom `mobilePhoneNumber` rensar spelarens nummer.
+        Fel: "Only a PLAYER can be updated with this endpoint", "Cannot edit an inactive player",
+        "Name is required", "Email is required", "teamId is required (change team, do not clear it)",
+        "Team not found", "Email already in use", "Phone number already in use", "Shirt number already in use",
+        "Parent user not found", "parentId must point to a user with role PARENT", "Cannot link an inactive parent",
+        "Parent email is required" (400); "User not found" (404).
+      x-roles: [ADMIN, COACH]
+      x-scope: Ingen kontroll av att COACH tränar spelarens nuvarande eller nya lag.
+      x-source: UserController.updatePlayer → UserService.updatePlayer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePlayerRequest' }
+      responses:
+        '200':
+          description: Uppdaterad spelare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FetchUserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/teams:
+    get:
+      tags: [Teams]
+      operationId: listTeams
+      summary: Lista alla lag
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: TeamController.getAllTeams → TeamService.getAllTeams
+      responses:
+        '200':
+          description: Lista med lag.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TeamResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Teams]
+      operationId: createTeam
+      summary: Skapa lag
+      x-roles-planned: [ADMIN, CHAIRMAN]
+      description: 'Fel: "Team name is required", "Team already exists" (400). Namnet trimmas.'
+      x-roles: [ADMIN]
+      x-source: TeamController.createTeam → TeamService.createTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTeamRequest' }
+      responses:
+        '201':
+          description: Laget skapat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/teams/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Teams]
+      operationId: getTeamById
+      summary: Hämta ett lag
+      description: 'Fel: "Team not found" (404).'
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: TeamController.getTeamById → TeamService.getTeamById
+      responses:
+        '200':
+          description: Laget.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/teams/{id}/coaches:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Teams]
+      operationId: listTeamCoaches
+      summary: Lista lagets (aktiva) tränare
+      description: |
+        Returnerar fullständig `FetchUserResponse` (e-post, telefon). **Ingen rollkontroll.**
+        Fel: "Team not found" (404).
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: TeamController.listCoaches → TeamService.listCoaches
+      responses:
+        '200':
+          description: Tränare.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FetchUserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Teams]
+      operationId: addTeamCoach
+      summary: Koppla en tränare till laget
+      x-roles-planned: [ADMIN, CHAIRMAN]
+      description: |
+        Användaren måste ha roll COACH. Fel: "userId is required", "User not found", "Only a COACH can be added to a team",
+        "This coach is already on the team" (400); "Team not found" (404). Obs: okänd användare ger 400, inte 404.
+      x-roles: [ADMIN]
+      x-source: TeamController.addCoach → TeamService.addCoach
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddCoachRequest' }
+      responses:
+        '201':
+          description: Tränaren kopplad; svaret är tränarens användarobjekt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FetchUserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/teams/{id}/coaches/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+      - name: userId
+        in: path
+        required: true
+        description: Tränarens användar-id.
+        schema: { type: integer, format: int64 }
+    delete:
+      tags: [Teams]
+      operationId: removeTeamCoach
+      summary: Ta bort en tränare från laget
+      x-roles-planned: [ADMIN, CHAIRMAN]
+      description: 'Fel: "Team not found", "Coach is not on this team" (404).'
+      x-roles: [ADMIN]
+      x-source: TeamController.removeCoach → TeamService.removeCoach
+      responses:
+        '204':
+          description: Kopplingen borttagen.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/teams/{id}/players:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Teams]
+      operationId: listTeamPlayers
+      summary: Lista lagets aktiva spelare
+      description: |
+        Returnerar fullständig `FetchUserResponse` inkl. förälderns namn, e-post och telefon.
+        **Ingen rollkontroll** – alla inloggade, även PLAYER/PARENT i andra lag. Fel: "Team not found" (404).
+      x-roles: [ANY_AUTHENTICATED]
+      x-source: TeamController.listPlayers → TeamService.listPlayers
+      responses:
+        '200':
+          description: Spelare.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FetchUserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/trainings:
+    get:
+      tags: [Trainings]
+      operationId: listTrainingsByTeam
+      summary: Lista ett lags träningar (senaste först)
+      description: |
+        Fel: "teamId is required" (400; saknad parameter ger Springs standard-400);
+        "Only ADMIN or a coach of this team can manage trainings" (403); "Team not found" (404).
+        Obs: behörighet kontrolleras före existens, så en COACH får 403 även för ett lag som inte finns.
+      x-roles: [ADMIN, COACH]
+      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.listByTeam → TrainingService.listByTeam
+      parameters:
+        - name: teamId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Träningar.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Trainings]
+      operationId: createTraining
+      summary: Skapa träning
+      description: |
+        Skapar träningen och tar en ögonblicksbild av lagets aktiva spelare som närvarorader (status null).
+        `title` blir "Training" om den saknas/är tom. `createdByUserId` sätts till den inloggade.
+        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        403 om COACH inte tränar laget (kontrolleras först); "Team not found" (404).
+      x-roles: [ADMIN, COACH]
+      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.create → TrainingService.createTraining
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTrainingRequest' }
+      responses:
+        '201':
+          description: Träningen skapad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/trainings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TrainingId'
+    get:
+      tags: [Trainings]
+      operationId: getTrainingById
+      summary: Hämta en träning
+      description: 'Fel: "Training not found" (404); 403 om COACH inte tränar laget.'
+      x-roles: [ADMIN, COACH]
+      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.getById → TrainingService.getById
+      responses:
+        '200':
+          description: Träningen.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/trainings/{id}/attendance:
+    parameters:
+      - $ref: '#/components/parameters/TrainingId'
+    get:
+      tags: [Trainings]
+      operationId: listAttendance
+      summary: Lista närvaro för en träning
+      description: 'Fel: "Training not found", "Player not found" (404); 403 om COACH inte tränar laget.'
+      x-roles: [ADMIN, COACH]
+      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.listAttendance → TrainingService.listAttendance
+      responses:
+        '200':
+          description: Närvarorader.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/trainings/{id}/attendance/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/TrainingId'
+      - name: playerId
+        in: path
+        required: true
+        description: Spelarens användar-id.
+        schema: { type: integer, format: int64 }
+    put:
+      tags: [Trainings]
+      operationId: updateAttendance
+      summary: Markera närvaro för en spelare
+      description: |
+        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste finnas på träningens
+        ögonblicksbild. Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
+        "This player is not on the attendance list for this training" (400); "Training not found" (404); 403 om COACH inte tränar laget.
+      x-roles: [ADMIN, COACH]
+      x-scope: COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.updateAttendance → TrainingService.updateAttendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAttendanceRequest' }
+      responses:
+        '200':
+          description: Uppdaterad närvarorad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/my/teams:
+    get:
+      tags: [MySchedule]
+      operationId: listMyTeams
+      summary: Mina lag
+      description: COACH får lagen i `team_coaches`; ADMIN får alla lag.
+      x-roles: [COACH, ADMIN]
+      x-source: MyScheduleController.listMyTeams
+      responses:
+        '200':
+          description: Lag.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TeamResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/my/children:
+    get:
+      tags: [MySchedule]
+      operationId: listMyChildren
+      summary: Mina barn (för förälder)
+      description: Aktiva PLAYER-användare vars `parentId` är den inloggade föräldern.
+      x-roles: [PARENT]
+      x-source: MyScheduleController.listChildren → MyScheduleService.listMyChildren
+      responses:
+        '200':
+          description: Barn.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MyChildResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/my/trainings:
+    get:
+      tags: [MySchedule]
+      operationId: listMyTrainings
+      summary: Mitt (eller mitt barns) träningsschema med närvarostatus
+      description: |
+        - PLAYER: eget lags träningar + egen status. `childId` får inte skickas (403 "Players can only view their own schedule").
+        - PARENT: `childId` krävs om föräldern har barn (400 "childId is required for parents"); barnet måste vara
+          föräldrens, aktivt och PLAYER (403 "That child is not linked to you"). Förälder utan barn får tom lista.
+        Fel: "User not found", "Player not found" (404).
+      x-roles: [PLAYER, PARENT]
+      x-scope: PARENT endast egna (länkade, aktiva) barn; PLAYER endast sig själv.
+      x-source: MyScheduleController.listTrainings → MyScheduleService.listMyTrainings
+      parameters:
+        - name: childId
+          in: query
+          required: false
+          description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Schemarader (senaste först).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MyTrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/public/teams:
+    get:
+      tags: [Public]
+      operationId: listPublicTeams
+      summary: Aktiva lag (publikt)
+      x-status: planned
+      security: []
+      x-roles: [PUBLIC]
+      description: Planerat. Returnerar klubbens aktiva lag. "Aktiv" finns inte på `Team` i dag (öppen fråga).
+      responses:
+        '200':
+          description: Lag.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicTeamResponse' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /api/public/teams/{id}/trainings:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Public]
+      operationId: listPublicTeamTrainings
+      summary: Lagets träningsschema (publikt)
+      x-status: planned
+      security: []
+      x-roles: [PUBLIC]
+      description: Planerat. Kommande träningar för laget, utan närvaro och utan `createdByUserId`.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Från och med datum (standard idag). Lokal tid.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Träningar.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicTrainingResponse' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/public/teams/{id}/coaches:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Public]
+      operationId: listPublicTeamCoaches
+      summary: Lagets tränare med kontaktuppgifter (publikt, med samtycke)
+      x-status: planned
+      security: []
+      x-roles: [PUBLIC]
+      description: |
+        Planerat. Visar bara tränare som har gett **samtycke** till publik visning, och bara de fält tränaren
+        själv har valt (namn, e-post och/eller telefon). Tränare utan samtycke utelämnas helt. Kräver ny
+        samtyckesmodell i databasen (ADR 0004).
+      responses:
+        '200':
+          description: Tränare.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicCoachResponse' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/public/matches/upcoming:
+    get:
+      tags: [Public]
+      operationId: listUpcomingMatches
+      summary: Kommande matcher (publikt)
+      x-status: planned
+      security: []
+      x-roles: [PUBLIC]
+      description: Planerat. Matcher finns inte i API:t ännu (ingen entitet, inga endpoints för att skapa dem).
+      parameters:
+        - $ref: '#/components/parameters/OptionalTeamIdQuery'
+      responses:
+        '200':
+          description: Matcher, tidigast först.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicMatchResponse' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /api/public/matches/history:
+    get:
+      tags: [Public]
+      operationId: listMatchHistory
+      summary: Matchhistorik och resultat (publikt)
+      x-status: planned
+      security: []
+      x-roles: [PUBLIC]
+      description: Planerat. Spelade matcher med resultat, senaste först.
+      parameters:
+        - $ref: '#/components/parameters/OptionalTeamIdQuery'
+      responses:
+        '200':
+          description: Matcher.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicMatchResponse' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        HS256-signerad JWT från `/api/auth/login`. Claims: `sub` = användar-id, `email` (personuppgift),
+        `role` (ADMIN|COACH|PLAYER|PARENT), `iat`, `exp` (+120 min). Skickas som `Authorization: Bearer <token>`.
+
+  parameters:
+    OptionalTeamIdQuery:
+      name: teamId
+      in: query
+      required: false
+      description: Filtrera på lag.
+      schema: { type: integer, format: int64 }
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: Användar-id.
+      schema: { type: integer, format: int64 }
+    TeamId:
+      name: id
+      in: path
+      required: true
+      description: Lag-id.
+      schema: { type: integer, format: int64 }
+    TrainingId:
+      name: id
+      in: path
+      required: true
+      description: Tränings-id.
+      schema: { type: integer, format: int64 }
+
+  responses:
+    TooManyRequests:
+      description: Planerat (x-status planned). Rate limit för publika endpoints har överskridits.
+      x-status: planned
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    BadRequest:
+      description: Ogiltig förfrågan (`BadRequestException`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Saknad, ogiltig eller utgången JWT. Body är alltid `{"message":"Login required"}`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { message: Login required }
+    Forbidden:
+      description: Rollen eller behörighetsomfånget räcker inte (`AccessDeniedException`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resursen finns inte (`NotFoundException`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    RoleName:
+      type: string
+      description: |
+        Rollnamn (seedas av `RoleSeeder`). Hierarki enligt ADR 0006: ADMIN > CHAIRMAN > COACH > PLAYER = PARENT.
+        `CHAIRMAN` (ordförande) är **planerad** och finns inte i koden ännu (se `x-planned-values`).
+      enum: [ADMIN, COACH, PLAYER, PARENT]
+      x-planned-values: [CHAIRMAN]
+    AttendanceStatus:
+      type: [string, 'null']
+      description: Närvarostatus; null = inte markerad ännu. Personuppgift om ett barn.
+      enum: [PRESENT, ABSENT, EXCUSED, null]
+      x-pii: true
+    LocalDateTime:
+      type: string
+      description: Lokal tid utan tidszon (Java `LocalDateTime`), ISO-8601.
+      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$'
+      examples: ['2026-11-06T18:00:00']
+
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Felmeddelande på engelska. Kan innehålla personuppgifter (t.ex. sökt telefonnummer).
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, minLength: 1, description: 'Inloggnings-e-post (trimmas). Ingen formatkontroll.', x-pii: true }
+        password: { type: string, minLength: 1, format: password, x-secret: true }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1, format: password, x-secret: true }
+        newPassword: { type: string, minLength: 8, format: password, description: Minst 8 tecken (enda lösenordsregeln)., x-secret: true }
+    LoginResponse:
+      type: object
+      required: [token, userId, email, roleName, mustChangePassword]
+      properties:
+        token: { type: string, description: JWT (innehåller e-post i klartext i payload)., x-secret: true }
+        userId: { type: integer, format: int64 }
+        email: { type: string, x-pii: true }
+        roleName: { $ref: '#/components/schemas/RoleName' }
+        mustChangePassword: { type: boolean, description: true tills temporärt lösenord bytts. }
+
+    FetchUserResponse:
+      type: object
+      description: |
+        Fullständig användarvy. Används i alla användar-, tränar- och spelarlistor, oavsett vem som frågar.
+      required: [id, name, email, roleName, active]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: [string, 'null'], x-pii: true, description: Kan vara null eftersom create inte kräver namn. }
+        email: { type: [string, 'null'], x-pii: true }
+        roleName: { $ref: '#/components/schemas/RoleName' }
+        playerNumber: { type: [integer, 'null'], format: int32, description: Tröjnummer (unikt om satt). }
+        mobilePhoneNumber: { type: [string, 'null'], x-pii: true }
+        parentId: { type: [integer, 'null'], format: int64 }
+        parentName: { type: [string, 'null'], x-pii: true }
+        parentEmail: { type: [string, 'null'], x-pii: true }
+        parentMobilePhoneNumber: { type: [string, 'null'], x-pii: true }
+        teamId: { type: [integer, 'null'], format: int64 }
+        teamName: { type: [string, 'null'] }
+        active: { type: boolean, description: false = mjukt raderad. }
+    CreateUserRequest:
+      type: object
+      required: [email, roleName]
+      properties:
+        name: { type: [string, 'null'], x-pii: true, description: 'Valideras inte (kan utelämnas).' }
+        email: { type: string, minLength: 1, x-pii: true, description: Unik. Ingen formatkontroll. }
+        roleName: { $ref: '#/components/schemas/RoleName' }
+        playerNumber: { type: [integer, 'null'], format: int32, description: Valfritt. Unikhet kontrolleras inte i service (DB-constraint). }
+        mobilePhoneNumber: { type: [string, 'null'], x-pii: true, description: Unik om satt. }
+        parentId: { type: [integer, 'null'], format: int64, description: Befintlig PARENT (endast PLAYER). Skicka inte tillsammans med newParent. }
+        newParent:
+          description: Ny PARENT som skapas i samma transaktion (endast PLAYER). Skicka inte tillsammans med parentId.
+          oneOf:
+            - $ref: '#/components/schemas/NewParentRequest'
+            - type: 'null'
+        teamId: { type: [integer, 'null'], format: int64, description: Krävs när roleName=PLAYER; ignoreras annars. }
+    NewParentRequest:
+      type: object
+      required: [name, email, mobilePhoneNumber]
+      properties:
+        name: { type: string, minLength: 1, x-pii: true }
+        email: { type: string, minLength: 1, x-pii: true }
+        mobilePhoneNumber: { type: string, minLength: 1, x-pii: true }
+    CreateUserResponse:
+      allOf:
+        - $ref: '#/components/schemas/FetchUserResponse'
+        - type: object
+          required: [temporaryPassword]
+          properties:
+            temporaryPassword: { type: string, description: Temporärt lösenord i klartext; visas en gång., x-secret: true }
+            parentTemporaryPassword: { type: [string, 'null'], description: Satt när en ny förälder skapades., x-secret: true }
+    ChangeRoleRequest:
+      type: object
+      required: [roleName]
+      properties:
+        roleName: { $ref: '#/components/schemas/RoleName' }
+    ChangeRoleResponse:
+      type: object
+      required: [id, roleName]
+      properties:
+        id: { type: integer, format: int64 }
+        roleName: { $ref: '#/components/schemas/RoleName' }
+    UpdatePlayerRequest:
+      type: object
+      required: [name, email, teamId]
+      properties:
+        name: { type: string, minLength: 1, x-pii: true }
+        email: { type: string, minLength: 1, x-pii: true }
+        mobilePhoneNumber: { type: [string, 'null'], x-pii: true, description: Tom/null rensar numret. }
+        playerNumber: { type: [integer, 'null'], format: int32 }
+        teamId: { type: integer, format: int64 }
+        parentId: { type: [integer, 'null'], format: int64, description: null = behåll nuvarande förälder. }
+        parentName: { type: [string, 'null'], x-pii: true, description: null/tom = oförändrat. }
+        parentEmail: { type: [string, 'null'], x-pii: true, description: null = oförändrat; tom → 400. }
+        parentMobilePhoneNumber: { type: [string, 'null'], x-pii: true, description: null = oförändrat; tom = rensa. }
+
+    TeamResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, examples: [P15] }
+    CreateTeamRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, description: Unikt lagnamn (trimmas). }
+    AddCoachRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: integer, format: int64, description: Användare med roll COACH. }
+
+    CreateTrainingRequest:
+      type: object
+      required: [teamId, startsAt, endsAt]
+      properties:
+        teamId: { type: integer, format: int64 }
+        startsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
+        title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+    TrainingResponse:
+      type: object
+      required: [id, teamId, startsAt, endsAt, title, createdByUserId]
+      properties:
+        id: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: [string, 'null'] }
+        startsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        title: { type: string }
+        createdByUserId: { type: integer, format: int64 }
+    AttendanceResponse:
+      type: object
+      required: [playerUserId, playerName]
+      properties:
+        playerUserId: { type: integer, format: int64 }
+        playerName: { type: [string, 'null'], x-pii: true }
+        playerNumber: { type: [integer, 'null'], format: int32 }
+        status: { $ref: '#/components/schemas/AttendanceStatus' }
+    UpdateAttendanceRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: PRESENT, ABSENT eller EXCUSED (skiftlägesokänsligt).
+          examples: [PRESENT]
+
+    MyChildResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: [string, 'null'], x-pii: true }
+        teamId: { type: [integer, 'null'], format: int64 }
+        teamName: { type: [string, 'null'] }
+    MyTrainingResponse:
+      type: object
+      required: [id, teamId, startsAt, endsAt, title, playerUserId, playerName]
+      properties:
+        id: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: [string, 'null'] }
+        startsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        title: { type: string }
+        playerUserId: { type: integer, format: int64 }
+        playerName: { type: [string, 'null'], x-pii: true }
+        status: { $ref: '#/components/schemas/AttendanceStatus' }
+
+    PublicTeamResponse:
+      type: object
+      x-status: planned
+      description: Publik lagvy. Ingen persondata.
+      required: [id, name]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, examples: [P15] }
+    PublicTrainingResponse:
+      type: object
+      x-status: planned
+      description: Publik träningsvy, utan närvaro, spelare och skapare.
+      required: [id, teamId, startsAt, endsAt, title]
+      properties:
+        id: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        startsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        title: { type: string }
+    PublicCoachResponse:
+      type: object
+      x-status: planned
+      description: |
+        Tränare som har gett samtycke till publik visning. `email` och `mobilePhoneNumber` finns bara med
+        om tränaren har valt att visa dem (annars utelämnas fältet). Persondata, men publiceras med samtycke.
+      required: [name]
+      properties:
+        name: { type: string, x-pii: true, x-public-with-consent: true }
+        email: { type: string, x-pii: true, x-public-with-consent: true }
+        mobilePhoneNumber: { type: string, x-pii: true, x-public-with-consent: true }
+    MatchResult:
+      type: object
+      x-status: planned
+      description: Slutresultat sett från FC Växjö-lagets perspektiv.
+      required: [goalsFor, goalsAgainst]
+      properties:
+        goalsFor: { type: integer, minimum: 0 }
+        goalsAgainst: { type: integer, minimum: 0 }
+    PublicMatchResponse:
+      type: object
+      x-status: planned
+      description: Publik matchvy (enkel modell). Ingen persondata, t.ex. ingen trupp eller målskyttar.
+      required: [id, teamId, opponent, kickoffAt, venue, homeAway]
+      properties:
+        id: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        opponent: { type: string, description: Motståndarlag. }
+        kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        venue: { type: string, description: Plats/arena. }
+        homeAway: { type: string, enum: [HOME, AWAY] }
+        result:
+          description: null för kommande matcher.
+          oneOf:
+            - $ref: '#/components/schemas/MatchResult'
+            - type: 'null'
+
+x-open-questions:
+  - Felformat för fel som inte går via ApiExceptionHandler (felaktig JSON, typfel i path/query, saknad query-parameter, DB-constraint, 500). Spring Boot 4:s standardsvar och om /error-dispatch kräver autentisering i SecurityConfig är inte verifierat.
+  - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
+  - PROGRESS.md (Users and roles) säger att COACH får skapa PLAYER och PARENT; koden tillåter bara PLAYER (+ ny förälder via newParent). Vilket gäller?
+  - Ska COACH vara begränsad till sina egna lag även vid createUser, updatePlayer och softDeletePlayer (som för träningar)? PROGRESS nämner "team-scoped coach limits" som nästa steg.
+  - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
+  - Ska fel inloggning ge 401 i stället för 400? Och ska "This account is inactive" särskiljas från "Invalid email or password" (avslöjar att kontot finns)?
+  - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?
+  - Ska GET /api/users/{id} returnera inaktiva (mjukt raderade) användare?
+  - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"
+  - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?
+  - "CHAIRMAN (ADR 0006): får ordföranden skapa COACH och byta roller, och se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"
+  - Samtycke för tränarens publika kontaktuppgifter: hur lagras det (fält per uppgift + tidsstämpel), och vem kan ändra det (bara tränaren själv)?
+  - Rollbyte (PUT /api/users/{id}/role) slår inte igenom förrän token går ut/förnyas – refresh läser dock rollen från DB. Accepterat?
