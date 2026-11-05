@@ -60,8 +60,10 @@ public class TeamController {
         return new TeamResponse(team.getId(), team.getName());
     }
 
+    // Same rule as ClubRole.canLinkCoach. The chairman links a coach on any team.
+    // There is no team filter: ADMIN and CHAIRMAN are not limited to one team (ADR 0006).
     @PostMapping("/{id}/coaches")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ResponseEntity<FetchUserResponse> addCoach(
             @PathVariable Long id,
             @RequestBody AddCoachRequest request) {
@@ -99,8 +101,9 @@ public class TeamController {
         return responses;
     }
 
+    // Same rule as addCoach: only ADMIN and CHAIRMAN, and they may do it on any team.
     @DeleteMapping("/{id}/coaches/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ResponseEntity<Void> removeCoach(
             @PathVariable Long id,
             @PathVariable Long userId) {

@@ -3,7 +3,6 @@ package se.fcvaxjo.api.security.access;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import se.fcvaxjo.api.support.Actor;
@@ -12,11 +11,9 @@ import se.fcvaxjo.api.support.ClubFixture;
 import se.fcvaxjo.api.support.SampleRequests;
 
 /**
- * Story S1-3, gap analysis point 3: COACH is not limited to their own team when changing users.
- * Trainings already do this check. User create, update, and soft-delete do not.
- * Excluded from {@code mvn test} by the tag {@code known-gap}.
+ * Story S1-3: a coach may change users only on a team they train.
+ * These checks now pass, so they run with the normal suite.
  */
-@Tag("known-gap")
 class KnownCoachScopeTest extends ClubApiTest {
 
     @Test

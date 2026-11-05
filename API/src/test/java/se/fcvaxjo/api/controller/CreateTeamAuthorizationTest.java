@@ -25,9 +25,10 @@ import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
 
 /**
- * The next JWT filter loads the user and rejects a token whose id is not in
- * the database, or whose role no longer matches. A made-up id would then look
- * like "not logged in", so this test saves a real active user first.
+ * The login filter loads the user. The token is accepted only when that
+ * person is active and the role in the token is still their role.
+ * A made-up id would then look like "not logged in", so this test saves a
+ * real active user first.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

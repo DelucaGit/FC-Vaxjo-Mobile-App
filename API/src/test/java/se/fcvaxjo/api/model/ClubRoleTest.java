@@ -31,6 +31,15 @@ class ClubRoleTest {
     }
 
     @Test
+    void onlyAdminAndChairmanCanLinkACoach() {
+        assertTrue(ClubRole.ADMIN.canLinkCoach());
+        assertTrue(ClubRole.CHAIRMAN.canLinkCoach());
+        assertFalse(ClubRole.COACH.canLinkCoach());
+        assertFalse(ClubRole.PLAYER.canLinkCoach());
+        assertFalse(ClubRole.PARENT.canLinkCoach());
+    }
+
+    @Test
     void onlyAdminAndChairmanAreClubLeads() {
         assertTrue(ClubRole.ADMIN.isClubLead());
         assertTrue(ClubRole.CHAIRMAN.isClubLead());

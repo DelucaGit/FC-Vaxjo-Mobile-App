@@ -8,13 +8,13 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 ## Beslut
 - Hierarki: **ADMIN > CHAIRMAN (ordförande) > COACH > PLAYER = PARENT.** En användare har en roll.
 - **ADMIN** har full behörighet, inklusive att tilldela ADMIN.
-- **CHAIRMAN** har klubbens verksamhetsbehörighet: skapa lag och koppla tränare till lag. Bara ADMIN och CHAIRMAN skapar lag.
+- **CHAIRMAN** har klubbens verksamhetsbehörighet: skapa lag, koppla tränare till lag och ta bort den kopplingen. Bara ADMIN och CHAIRMAN skapar lag och hanterar vilka tränare som hör till ett lag. De får göra det i alla lag.
 - **COACH** får, **bara inom egna lag** (`team_coaches`), skapa spelare och föräldrar, ändra spelare, ta bort spelare ur lag och hantera träningar och närvaro.
 - **PLAYER** ser sitt eget schema. **PARENT** ser sina egna barns scheman. Ingen av dem ser andra användares kontaktuppgifter.
 - Allt kontrolleras i backend med `@PreAuthorize` för roll och service-kontroll för lagomfång.
 
 ## Konsekvenser
-- `CHAIRMAN` ska läggas till i `RoleSeeder` och i `@PreAuthorize` på lagendpoints. Den är markerad som planerad i `openapi.yaml` (`x-roles-planned`).
+- `CHAIRMAN` finns i `RoleSeeder`. Skapa lag och koppla eller ta bort tränare använder `@PreAuthorize` för ADMIN och CHAIRMAN. Övriga ordföranderätter som ännu inte matchar ADR:n är markerade med `x-roles-planned` i `openapi.yaml`.
 - COACH behöver lagkontroll i `UserService` (create/update/soft delete), på samma sätt som `TrainingService.assertCanManageTeam`.
 - Läs-endpoints för användare och lag behöver rollkontroll.
 - Öppna frågor: vem registrerar matcher? S1-8 svarar på om CHAIRMAN får skapa COACH.
@@ -22,8 +22,14 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 ## Genomförande (S1-2)
 - `CHAIRMAN` finns i `ClubRole` och seedas av `RoleSeeder`. Rangen är ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. Radens id i tabellen `roles` är inte rangen.
 - `POST /api/teams` tillåter bara ADMIN och CHAIRMAN. Övriga inloggade roller får 403.
-- Att koppla eller ta bort en tränare på ett lag är fortfarande bara ADMIN. Det står kvar som `x-roles-planned` i `openapi.yaml`.
+- Att koppla eller ta bort en tränare på ett lag var fortfarande bara ADMIN efter S1-2. Det gjordes i S1-7.
 - Rollnamnet är en textkolumn, inte en databas-enum. Ingen schema-migrering behövdes. Det finns inget Flyway/Liquibase i projektet ännu (se ADR 0002).
+
+## Genomförande (S1-7)
+- `POST /api/teams/{id}/coaches` och `DELETE /api/teams/{id}/coaches/{userId}` tillåter ADMIN och CHAIRMAN i alla lag. Det finns ingen laggräns för de två rollerna.
+- Regeln sitter i `ClubRole.canLinkCoach` och i `@PreAuthorize` på de två metoderna, samma stil som `POST /api/teams`.
+- COACH, PLAYER och PARENT får 403. En tränare får alltså inte koppla eller ta bort tränare, inte ens i egna lag.
+- `x-roles-planned` är borttagen på de två operationerna.
 
 ## Genomförande (S1-8)
 
@@ -46,6 +52,6 @@ När en spelare blir tränare händer tre enkla saker. Samma sak oavsett om det 
 
 Gamla närvarorader ligger kvar. De är historik och skrivs inte om.
 
-Efter bytet måste personen logga in igen för att få en token med rollen COACH. Den gamla token säger fortfarande PLAYER. När filtret jämför token med databasen och rollen inte längre stämmer blir nästa anrop 401. Det filtret är S1-4 (PR #29) och är inte mergat här än. Testerna sparar redan en riktig aktiv användare och låter token peka på just det id:t och den rollen.
+Efter bytet måste personen logga in igen för att få en token med rollen COACH. Den gamla token säger fortfarande PLAYER. PR #29 är inmergad här, så filtret jämför token med databasen och nästa anrop blir 401. Testerna sparar en riktig aktiv användare och låter token peka på just det id:t och den rollen.
 
 Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).

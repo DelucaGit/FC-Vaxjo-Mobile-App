@@ -349,31 +349,11 @@ Jira (paste yourself):
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
 
-# Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
-
-Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
-
-What shipped:
-
-- `GET /api/users`, all three `/api/users/search` queries, `GET /api/teams/{id}/coaches` and `GET /api/teams/{id}/players` are ADMIN or COACH only. PLAYER and PARENT get 403.
-- `GET /api/users/{id}` stays open for the caller's own id, because the home screen loads the logged-in name from that URL. Anyone else's id is 403, and we answer 403 before 404 so a forbidden id does not reveal that the row exists. The check is `UserService.assertCallerMayReadUser`, same shape as `assertCallerMayCreate`.
-- `GET /api/teams` and `GET /api/teams/{id}` stay open to every logged-in role. They return id and name only, not contact details.
-- COACH is still not limited to their own teams on these reads. That is story S1-3.
-- CHAIRMAN is not added. That role does not exist yet (story S1-2).
-- A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
-
-Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.
-
-
 # CHAIRMAN role (5/11-2026)
 
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
 `POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Merged as PR #26.
-
-# S1-1 follow-up — chairman may read personal data (5/11-2026)
-
-Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.
 
 # Coach only on own teams (5/11-2026)
 
@@ -393,9 +373,20 @@ What shipped:
 
 Tests: `UserServiceTest` (mocked) and `CoachOwnTeamIntegrationTest` (HTTP + H2). The test profile uses an in-memory database so the suite does not need local Postgres or a real password.
 
-# Chairman uses the same player rules as admin (5/11-2026)
+# Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
 
-After master and the read-access branch were merged in, CHAIRMAN is real. For creating, editing and removing players the chairman is club-wide staff, same as ADMIN. A coach is still limited to `team_coaches`. A chairman may create a parent with no child. A chairman may not create a coach or an admin. That question in ADR 0006 stays open. Read rules from S1-1 are unchanged: chairman, admin and coach may read personal data for every team.
+Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
+
+What shipped:
+
+- `GET /api/users`, all three `/api/users/search` queries, `GET /api/teams/{id}/coaches` and `GET /api/teams/{id}/players` are ADMIN or COACH only. PLAYER and PARENT get 403.
+- `GET /api/users/{id}` stays open for the caller's own id, because the home screen loads the logged-in name from that URL. Anyone else's id is 403, and we answer 403 before 404 so a forbidden id does not reveal that the row exists. The check is `UserService.assertCallerMayReadUser`, same shape as `assertCallerMayCreate`.
+- `GET /api/teams` and `GET /api/teams/{id}` stay open to every logged-in role. They return id and name only, not contact details.
+- COACH is still not limited to their own teams on these reads. That is story S1-3.
+- CHAIRMAN is not added. That role does not exist yet (story S1-2).
+- A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
+
+Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.
 
 # Role matrix and access tests (5/11-2026)
 
@@ -416,6 +407,39 @@ Story ids follow the numbering in `docs/gap-analys.md` top 5. The gap file itsel
 
 Next: product owner approves before any push. Do not merge. The known-gap tests should start passing only when those stories change production code.
 
+# S1-4: old JWT stops when the account changes (5/11-2026)
+
+Decision: on every request, look up the user in the database. Do not add a token version column.
+
+Why: a token lasts 120 minutes. After a soft delete (`active=false`) or a role change, the old token must get 401 on the next call. A database read does that for tokens that are already out in the app, and it needs no schema change. A version number would also work, but it needs a new column, a migration, and a rule for tokens that have no version yet. Traffic for one club is small, so one read by primary key per request is enough.
+
+What shipped:
+
+- `AccountAccessService` answers "is this user still active, and is the role in the token still their role?"
+- `JwtAuthFilter` logs the request in only when that answer is yes. It does not write the 401 itself, so login stays public.
+- Same 401 body as before: `{ "message": "Login required" }`. We do not say "inactive" here, because that would tell a caller the account exists.
+- Turning the account back on, or changing the role back, makes the same token work again. After a role change the person can also log in again and get a token with the new role. Refresh cannot upgrade an old role.
+- Tests: `AccountAccessServiceTest`, `JwtAuthFilterTest`, `JwtAuthFilterIntegrationTest` (H2, so `mvn test` does not need local Postgres).
+- `docs/api/openapi.yaml` describes the new 401 cases. The open question about role change waiting for expiry is closed.
+- After master gained `CHAIRMAN`, the same check covers that role. A CHAIRMAN token is rejected once the role in the database is no longer CHAIRMAN. `CreateTeamAuthorizationTest` now creates a real user, because a token for a missing user is 401.
+- After PR #31, the inactive-token tests in `KnownInactiveUserTest` run in the normal suite. GET of an inactive row stays tagged `known-gap`, because this story does not hide that row.
+
+# Chairman links coaches (5/11-2026)
+
+Decision: ADMIN and CHAIRMAN may link a coach to any team and remove that link. COACH, PLAYER and PARENT get 403, including a coach on their own team. The rule lives in `ClubRole.canLinkCoach` and in `@PreAuthorize` on the two coach endpoints, same style as creating a team. The service still only checks that the user is a COACH. Creating a coach, or turning a player into a coach, stays in story S1-8.
+
+Why a separate method from `canCreateTeam`: the two rights match today, but they are different actions. Changing one later must not silently change the other.
+
+After the role matrix (PR #31) was merged in, `chairman_canAddCoach` and `chairman_canRemoveCoach` no longer have the `known-gap` tag. Creating, editing, or removing a player, and changing a role, still have that tag.
+
+# S1-1 follow-up — chairman may read personal data (5/11-2026)
+
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams on reads. That remains outside this story. Creating a coach or an admin is still ADMIN only. Creating a player is not: the chairman may do that on every team.
+
+# Chairman uses the same player rules as admin (5/11-2026)
+
+After master and the read-access branch were merged in, CHAIRMAN is real. For creating, editing and removing players the chairman is club-wide staff, same as ADMIN. A coach is still limited to `team_coaches`. A chairman may create a parent with no child. A chairman may not create a coach or an admin. That question in ADR 0006 stays open. Read rules from S1-1 are unchanged: chairman, admin and coach may read personal data for every team.
+
 # S1-8: chairman can make a coach (5/11-2026)
 
 Decision: build on S1-3. The chairman is already club-wide staff for players and parents. This story adds the coach. The chairman may create PLAYER, PARENT and COACH, and may change another user's PLAYER into a COACH. The chairman may never set ADMIN or CHAIRMAN (403). Anyone who is not ADMIN gets 403 if they try to change their own role. ADMIN keeps the old rights and may still set any role, including their own. Linking a coach to a team stays a separate step (`team_coaches`). This branch is merged after PR #27.
@@ -430,6 +454,20 @@ When a player becomes a coach, three player-only fields are cleared. The same ha
 
 Old attendance rows stay. They are history.
 
-After the change the person must log in again to get a token that says COACH. The old token still says PLAYER. PR #29 makes the JWT filter reject a token whose role no longer matches the database. That filter is not on this branch yet. The tests already save a real active user and point the token at that id and role, so they keep working when the filter lands.
+After the change the person must log in again to get a token that says COACH. The old token still says PLAYER. PR #29 is merged in here, so the JWT filter rejects that token on the next call. The tests save a real active user and point the token at that id and role.
 
 No schema change. The role name is already a text column. Branch: `cursor/s1-8-chairman-skapar-tranare-80dc`.
+
+# S1-1 follow-up — known-gap tags that now pass (5/11-2026)
+
+Decision: after the role matrix (PR #31) landed, the PLAYER and PARENT checks in `KnownPiiLeakTest` pass, so they run in the normal suite. The class no longer has the `known-gap` tag.
+
+These tests still have the tag, because this story does not make them pass:
+
+- A coach can still read every team (S1-3).
+- A player's own row still includes the parent's phone.
+- A missing phone number is still echoed in the 404 text (gap 6, story S1-12).
+
+# Known-gap tags after S1-3 (5/11-2026)
+
+The role matrix arrived from master (PR #31) after this branch already limited coaches to their own teams and let the chairman manage players. `KnownCoachScopeTest` and the three chairman player tests now run with the normal suite. The inactive-token checks, the chairman coach-link checks, and turning a player into a coach run in the normal suite too, because those branches are merged in here. The tag stays on a coach reading another team, the parent's phone on a player's own row, GET of an inactive user, and the phone number in a 404.
