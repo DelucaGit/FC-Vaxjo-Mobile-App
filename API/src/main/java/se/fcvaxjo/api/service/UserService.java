@@ -1,7 +1,9 @@
 package se.fcvaxjo.api.service;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -18,6 +20,7 @@ import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
+import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TeamRepository;
@@ -50,6 +53,20 @@ public class UserService {
             "CHAIRMAN may only change a PLAYER to COACH";
     private static final String CANNOT_CHANGE_OWN_ROLE =
             "You cannot change your own role";
+
+    private static final String READ_OWN_RECORD =
+            "You can only read your own user record";
+
+    /** A coach opened a person who is not on a team they train. */
+    private static final String READ_OWN_TEAMS_ONLY =
+            "You can only read users on a team you train";
+
+    /** Same door as the player-roster and coach-list URLs. */
+    private static final String READ_ROSTER_DENIED =
+            "Only ADMIN, CHAIRMAN, or a coach of this team can read its players and coaches";
+
+    private static final String LIST_CLUB_DENIED =
+            "Only ADMIN or CHAIRMAN can list every user";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -442,31 +459,94 @@ public class UserService {
     }
 
     /**
-     * Admin, chairman and coach may read any user.
-     * The chairman is not limited to one team: this method does not look at team_coaches.
+     * ADMIN and CHAIRMAN may read any user. They look after every team.
+     * A coach may read a person on a team they train, and their own row.
      * A player or parent may read only their own id.
+     * The check runs before the controller returns the row. A forbidden id is 403,
+     * including an id that does not exist, so the caller cannot probe for rows.
+     * A coach who swaps in a player from another team gets that 403, so the phone stays out.
      */
     public void assertCallerMayReadUser(Long userId) {
-        if (callerMayReadOtherPeople()) {
+        if (callerReadsEveryTeam()) {
             return;
         }
         if (isLoggedInUser(userId)) {
             return;
         }
-        throw new AccessDeniedException("You can only read your own user record");
+        if (hasRole("COACH") && coachMayReadUser(userId)) {
+            return;
+        }
+        if (hasRole("COACH")) {
+            throw new AccessDeniedException(READ_OWN_TEAMS_ONLY);
+        }
+        throw new AccessDeniedException(READ_OWN_RECORD);
     }
 
     /**
-     * The rule itself is {@link ClubRole#canReadPersonalData()}.
-     * The token carries one role name, so we ask each club role in turn.
+     * ADMIN and CHAIRMAN may open any team's roster.
+     * A coach may open only a team they train. That is the same team_coaches
+     * row already checked when they create or edit a player.
+     * Called before the team lookup, so a swapped id is 403 and does not
+     * confirm that the team exists. The player list carries the parent phone,
+     * which is why this check cannot wait until after the rows are loaded.
      */
-    private boolean callerMayReadOtherPeople() {
+    public void assertCallerMayReadTeam(Long teamId) {
+        if (callerReadsEveryTeam()) {
+            return;
+        }
+        if (coachTrainsTeam(teamId)) {
+            return;
+        }
+        throw new AccessDeniedException(READ_ROSTER_DENIED);
+    }
+
+    /**
+     * The rule itself is {@link ClubRole#canReadEveryTeam()}.
+     * The token carries one role name, so we ask each club role in turn.
+     * A coach is false here. Their team check is separate, because this
+     * method does not know which rows are in team_coaches.
+     */
+    private boolean callerReadsEveryTeam() {
         for (ClubRole role : ClubRole.values()) {
-            if (hasRole(role.name()) && role.canReadPersonalData()) {
+            if (hasRole(role.name()) && role.canReadEveryTeam()) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * The player's team id uses the same team_coaches lookup as a write.
+     * A coach has no users.team_id, so we also look for their link.
+     * A parent has neither. They belong to the team through an active child.
+     */
+    private boolean coachMayReadUser(Long userId) {
+        AppUser user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        if (user.getTeamId() != null && coachTrainsTeam(user.getTeamId())) {
+            return true;
+        }
+        List<Long> teamIds = teamIdsThisCoachTrains();
+        if (teamIds.isEmpty() || user.getId() == null) {
+            return false;
+        }
+        if (teamCoachRepository.existsByTeamIdInAndUserId(teamIds, user.getId())) {
+            return true;
+        }
+        return userRepository.existsByParentIdAndTeamIdInAndActiveTrue(user.getId(), teamIds);
+    }
+
+    /** Teams linked to the logged-in coach. Empty when they train nobody. */
+    private List<Long> teamIdsThisCoachTrains() {
+        List<Long> teamIds = new ArrayList<>();
+        for (TeamCoach link : teamCoachRepository.findByUserId(currentUserId())) {
+            if (link.getTeamId() != null && !teamIds.contains(link.getTeamId())) {
+                teamIds.add(link.getTeamId());
+            }
+        }
+        return teamIds;
     }
 
     public AppUser getUserById(Long id) {
@@ -593,7 +673,14 @@ public class UserService {
         user.setTeamId(null);
     }
 
+    /**
+     * The whole club. A coach does not get this list. They open one team roster.
+     * The same rule is {@link ClubRole#canReadEveryTeam()}.
+     */
     public List<AppUser> getAllUsers() {
+        if (!callerReadsEveryTeam()) {
+            throw new AccessDeniedException(LIST_CLUB_DENIED);
+        }
         return userRepository.findByActiveTrue();
     }
 
@@ -601,54 +688,205 @@ public class UserService {
      * Partial name search. Returns a list because several people can match
      * the same letters. Blank or null is rejected so we do not search for
      * everything. Inactive users are hidden.
+     * ADMIN and CHAIRMAN search the whole club. A coach searches only people
+     * on teams they train. Another team comes back as an empty list, not an error,
+     * because this URL returns a list.
      */
     public List<AppUser> searchByName(String name) {
         if (name == null || name.isBlank()) {
             throw new BadRequestException("Name cannot be null or blank");
         }
-        return userRepository.findByNameContainingIgnoreCaseAndActiveTrue(name);
+        if (callerReadsEveryTeam()) {
+            return userRepository.findByNameContainingIgnoreCaseAndActiveTrue(name);
+        }
+        assertCallerMaySearchAsCoach();
+        return searchOwnTeamsByName(name);
     }
 
     /**
      * Exact shirt-number search. Returns one user because the number is unique.
      * Null is rejected. Missing number throws, same idea as getUserById.
+     * A coach who does not train that player's team gets the same 404 as a
+     * number that is not in the club. The sentence is unchanged on purpose.
      */
     public AppUser searchByPlayerNumber(Integer playerNumber) {
         if (playerNumber == null) {
             throw new BadRequestException("Player number cannot be null");
         }
-        AppUser user = userRepository.findByPlayerNumber(playerNumber)
-                .orElseThrow(() -> new NotFoundException("No user found with player number " + playerNumber));
-        if (!user.isActive()) {
-            throw new NotFoundException("No user found with player number " + playerNumber);
+        if (callerReadsEveryTeam()) {
+            return findActiveUserByPlayerNumber(playerNumber);
         }
-        return user;
+        assertCallerMaySearchAsCoach();
+        return findShirtOnOwnTeams(playerNumber);
     }
 
     /**
      * Exact phone search. Returns one user because the number is unique when set.
      * Blank or null is rejected. A missing or inactive number throws, same idea as getUserById.
      * The 404 text does not repeat the number. The caller already sent it, and a phone
-     * number is personal data (ADR 0004). An inactive row uses the same text, so the
+     * number is personal data (ADR 0004, S1-12). An inactive row uses the same text, so the
      * answer does not reveal which of the two cases it was.
+     * A coach who does not train that person's team gets that same 404. The text stays
+     * "User not found", so another team looks like a number that is not in the club.
      */
     public AppUser searchByMobilePhoneNumber(String mobilePhoneNumber) {
         if (mobilePhoneNumber == null || mobilePhoneNumber.isBlank()) {
             throw new BadRequestException("Phone number cannot be null or blank");
         }
-        AppUser user = userRepository.findByMobilePhoneNumber(mobilePhoneNumber)
-                .orElseThrow(this::phoneSearchNotFound);
+        if (callerReadsEveryTeam()) {
+            return findActiveUserByPhone(mobilePhoneNumber);
+        }
+        assertCallerMaySearchAsCoach();
+        return findPhoneOnOwnTeams(mobilePhoneNumber);
+    }
+
+    /**
+     * Player and parent are already stopped at the controller.
+     * This keeps a direct service call from searching the whole club.
+     */
+    private void assertCallerMaySearchAsCoach() {
+        if (hasRole("COACH")) {
+            return;
+        }
+        throw new AccessDeniedException("You cannot search other people");
+    }
+
+    private AppUser findActiveUserByPlayerNumber(Integer playerNumber) {
+        AppUser user = userRepository.findByPlayerNumber(playerNumber)
+                .orElseThrow(() -> missingShirt(playerNumber));
         if (!user.isActive()) {
-            throw phoneSearchNotFound();
+            throw missingShirt(playerNumber);
+        }
+        return user;
+    }
+
+    private AppUser findActiveUserByPhone(String mobilePhoneNumber) {
+        AppUser user = userRepository.findByMobilePhoneNumber(mobilePhoneNumber)
+                .orElseThrow(this::missingPhone);
+        if (!user.isActive()) {
+            throw missingPhone();
         }
         return user;
     }
 
     /**
-     * Shared 404 for a phone search that does not return a person.
-     * The message stays generic on purpose: it must not contain the number that was searched.
+     * Players live on users.team_id. A shirt number belongs to a player,
+     * so the other kinds of team member are not asked.
      */
-    private NotFoundException phoneSearchNotFound() {
+    private AppUser findShirtOnOwnTeams(Integer playerNumber) {
+        List<Long> teamIds = teamIdsThisCoachTrains();
+        if (teamIds.isEmpty()) {
+            throw missingShirt(playerNumber);
+        }
+        return userRepository.findByPlayerNumberAndActiveTrueAndTeamIdIn(playerNumber, teamIds)
+                .orElseThrow(() -> missingShirt(playerNumber));
+    }
+
+    /**
+     * Three places a phone can sit on the coach's teams: the player row,
+     * a coach linked in team_coaches, or the parent of an active player.
+     * Each query is limited to those ids. We never load the rest of the club.
+     */
+    private AppUser findPhoneOnOwnTeams(String mobilePhoneNumber) {
+        List<Long> teamIds = teamIdsThisCoachTrains();
+        if (teamIds.isEmpty()) {
+            throw missingPhone();
+        }
+        Optional<AppUser> onTeam = userRepository
+                .findByMobilePhoneNumberAndActiveTrueAndTeamIdIn(mobilePhoneNumber, teamIds);
+        if (onTeam.isPresent()) {
+            return onTeam.get();
+        }
+        List<Long> coachIds = coachIdsOnTeams(teamIds);
+        if (!coachIds.isEmpty()) {
+            Optional<AppUser> coach = userRepository
+                    .findByMobilePhoneNumberAndActiveTrueAndIdIn(mobilePhoneNumber, coachIds);
+            if (coach.isPresent()) {
+                return coach.get();
+            }
+        }
+        List<Long> parentIds = parentIdsOfActivePlayers(teamIds);
+        if (!parentIds.isEmpty()) {
+            Optional<AppUser> parent = userRepository
+                    .findByMobilePhoneNumberAndActiveTrueAndIdIn(mobilePhoneNumber, parentIds);
+            if (parent.isPresent()) {
+                return parent.get();
+            }
+        }
+        throw missingPhone();
+    }
+
+    private List<AppUser> searchOwnTeamsByName(String name) {
+        List<Long> teamIds = teamIdsThisCoachTrains();
+        if (teamIds.isEmpty()) {
+            return List.of();
+        }
+        List<AppUser> matches = new ArrayList<>(
+                userRepository.findByNameContainingIgnoreCaseAndActiveTrueAndTeamIdIn(name, teamIds));
+        addUsersNotAlreadyListed(matches, usersWithTheseIdsWhoseNameMatches(coachIdsOnTeams(teamIds), name));
+        addUsersNotAlreadyListed(matches, usersWithTheseIdsWhoseNameMatches(parentIdsOfActivePlayers(teamIds), name));
+        return matches;
+    }
+
+    private List<AppUser> usersWithTheseIdsWhoseNameMatches(List<Long> userIds, String name) {
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findByIdInAndNameContainingIgnoreCaseAndActiveTrue(userIds, name);
+    }
+
+    /** One person can match as a player and again as a coach if the data is odd. Keep one row. */
+    private void addUsersNotAlreadyListed(List<AppUser> matches, List<AppUser> more) {
+        for (AppUser user : more) {
+            if (user.getId() != null && !alreadyListed(matches, user.getId())) {
+                matches.add(user);
+            }
+        }
+    }
+
+    private boolean alreadyListed(List<AppUser> matches, Long userId) {
+        for (AppUser listed : matches) {
+            if (userId.equals(listed.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<Long> coachIdsOnTeams(List<Long> teamIds) {
+        List<Long> coachIds = new ArrayList<>();
+        for (TeamCoach link : teamCoachRepository.findByTeamIdIn(teamIds)) {
+            if (link.getUserId() != null && !coachIds.contains(link.getUserId())) {
+                coachIds.add(link.getUserId());
+            }
+        }
+        return coachIds;
+    }
+
+    private List<Long> parentIdsOfActivePlayers(List<Long> teamIds) {
+        List<Long> parentIds = new ArrayList<>();
+        for (AppUser player : userRepository.findByTeamIdInAndActiveTrue(teamIds)) {
+            if (player.getParentId() != null && !parentIds.contains(player.getParentId())) {
+                parentIds.add(player.getParentId());
+            }
+        }
+        return parentIds;
+    }
+
+    /**
+     * Same sentence the club-wide search already used.
+     * Story S1-12 owns changing this text. This story only chooses when it is thrown.
+     */
+    private NotFoundException missingShirt(Integer playerNumber) {
+        return new NotFoundException("No user found with player number " + playerNumber);
+    }
+
+    /**
+     * Same words as GET of a missing user (S1-12).
+     * The number is not included. A phone number is personal data (ADR 0004).
+     * Inactive, missing, and "another team" all use this one sentence.
+     */
+    private NotFoundException missingPhone() {
         return new NotFoundException("User not found");
     }
 
