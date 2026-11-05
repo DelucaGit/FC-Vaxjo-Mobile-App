@@ -38,6 +38,16 @@ public enum ClubRole {
     }
 
     /**
+     * Linking a coach is club work, separate from creating the team (ADR 0006).
+     * A coach does not assign coaches, not even on a team they already belong to.
+     * The check is written out again so a later change to team creation does not
+     * silently change who may link a coach.
+     */
+    public boolean canLinkCoach() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
      * Email and phone of other people.
      * The chairman looks after the whole club, so this is not limited to one team.
      * A coach is allowed here too. Limiting a coach to their own teams is a later change.

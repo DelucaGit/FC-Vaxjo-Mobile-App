@@ -12,10 +12,11 @@ import se.fcvaxjo.api.support.ClubFixture;
 import se.fcvaxjo.api.support.SampleRequests;
 
 /**
- * ADR 0006 pieces for the chairman.
- * Creating, editing, and removing a player now pass and run with the normal suite.
- * Changing a role, and linking or unlinking a coach, are still not allowed here.
- * Those three stay tagged {@code known-gap} so the normal build does not fail on them.
+ * ADR 0006 writes for the chairman.
+ * Creating a team is already allowed and is tested in {@link TeamAccessTest}.
+ * Creating, editing, and removing a player pass here, and so do linking and
+ * unlinking a coach. Those tests run in the normal suite.
+ * Changing a role still gets 403, so that one test keeps the {@code known-gap} tag.
  */
 class KnownChairmanAccessTest extends ClubApiTest {
 
@@ -58,7 +59,6 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna koppla en tränare till ett lag")
     void chairman_canAddCoach() throws Exception {
         post(Actor.CHAIRMAN, "/api/teams/" + world.teamAlfaId() + "/coaches",
@@ -67,7 +67,6 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ta bort en tränare från ett lag")
     void chairman_canRemoveCoach() throws Exception {
         delete(Actor.CHAIRMAN, "/api/teams/" + world.teamBetaId() + "/coaches/" + world.coachBetaId())

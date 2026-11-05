@@ -14,7 +14,8 @@ import se.fcvaxjo.api.support.SampleRequests;
 
 /**
  * Team names have no x-pii fields, so every signed-in role may read them.
- * POST /api/teams is ADMIN and CHAIRMAN (x-roles, ADR 0006). Linking a coach is still ADMIN only.
+ * POST /api/teams is ADMIN and CHAIRMAN (x-roles, ADR 0006).
+ * Linking a coach is ADMIN and CHAIRMAN too. The chairman cases are in KnownChairmanAccessTest.
  */
 class TeamAccessTest extends ClubApiTest {
 

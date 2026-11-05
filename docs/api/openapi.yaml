@@ -36,7 +36,7 @@ info:
     - `BadRequestException` → 400 `{ "message": ... }`
     - `NotFoundException` → 404 `{ "message": ... }`
     - `AccessDeniedException` (även `@PreAuthorize`-nekanden) → 403 `{ "message": ... }`
-    - Saknad/ogiltig/utgången JWT → 401 `{ "message": "Login required" }`
+    - Saknad, ogiltig eller utgången JWT, eller en JWT för ett inaktivt konto eller en roll som inte längre stämmer med databasen → 401 `{ "message": "Login required" }`
     - Övriga fel (felaktig JSON, fel typ på path/query-parameter, DB-constraint-fel) hanteras **inte** av
       `ApiExceptionHandler` och får Springs standardsvar (400/500); formatet är inte verifierat, se öppna frågor.
 
@@ -121,8 +121,11 @@ paths:
       operationId: refreshToken
       summary: Förnya JWT
       description: |
-        Kräver en fortfarande giltig JWT. Returnerar en ny token (ytterligare 120 min). Ingen request body.
-        Fel: "This account is inactive" (400), "User not found" (404).
+        Kräver en JWT som fortfarande är signerad, inte gått ut, tillhör ett aktivt konto
+        och har samma roll som i databasen. Returnerar en ny token (ytterligare 120 min).
+        Ingen request body.
+        Inaktivt konto, borttagen användare eller en roll som inte längre stämmer ger 401.
+        Efter ett rollbyte måste personen logga in igen. Förnyelse kan inte byta in den nya rollen.
       x-roles: [ANY_AUTHENTICATED]
       x-source: AuthController.refresh → AuthService.refresh
       responses:
@@ -131,7 +134,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoginResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
@@ -295,6 +297,7 @@ paths:
         Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players" (även om `team_id` saknas).
         Okänd användare är 404. Den kontrollen sker före 403. Övriga fel är 400:
         "Only a PLAYER can be removed this way", "Player is already inactive".
+        Spelarens redan utfärdade JWT nekas med 401 från och med nästa anrop, så länge kontot är inaktivt.
       x-roles: [ADMIN, CHAIRMAN, COACH]
       x-scope: COACH endast spelare i lag där hen finns i `team_coaches`. ADMIN och CHAIRMAN alla lag.
       x-source: UserController.softDeletePlayer → UserService.softDeletePlayer
@@ -317,7 +320,9 @@ paths:
       x-scope-planned: CHAIRMAN får inte ge eller ta bort rollen ADMIN (ADR 0006).
       description: |
         Ersätter användarens roll. Fel: "This role does not exist" (400), "User not found" (404).
-        Obs: redan utfärdade JWT behåller den gamla rollen tills de går ut (rollen ligger i token).
+        Redan utfärdade JWT för den här användaren slutar fungera direkt.
+        Nästa anrop med den gamla rollen i token får 401 tills personen loggar in igen,
+        eller tills rollen ändras tillbaka så att den stämmer med token.
       x-roles: [ADMIN]
       x-source: UserController.updateUserRole → UserService.changeUserRole
       requestBody:
@@ -480,11 +485,14 @@ paths:
       tags: [Teams]
       operationId: addTeamCoach
       summary: Koppla en tränare till laget
-      x-roles-planned: [ADMIN, CHAIRMAN]
       description: |
+        Bara ADMIN och CHAIRMAN får koppla en tränare, och de får göra det i alla lag (ADR 0006).
+        COACH, PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+        `@PreAuthorize` nekar anropet innan metoden körs, så meddelandet är Springs standardtext.
+
         Användaren måste ha roll COACH. Fel: "userId is required", "User not found", "Only a COACH can be added to a team",
         "This coach is already on the team" (400); "Team not found" (404). Obs: okänd användare ger 400, inte 404.
-      x-roles: [ADMIN]
+      x-roles: [ADMIN, CHAIRMAN]
       x-source: TeamController.addCoach → TeamService.addCoach
       requestBody:
         required: true
@@ -499,7 +507,13 @@ paths:
               schema: { $ref: '#/components/schemas/FetchUserResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: |
+            COACH, PLAYER eller PARENT. Body är `{"message":"Access Denied"}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: Access Denied }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/teams/{id}/coaches/{userId}:
@@ -514,15 +528,24 @@ paths:
       tags: [Teams]
       operationId: removeTeamCoach
       summary: Ta bort en tränare från laget
-      x-roles-planned: [ADMIN, CHAIRMAN]
-      description: 'Fel: "Team not found", "Coach is not on this team" (404).'
-      x-roles: [ADMIN]
+      description: |
+        Bara ADMIN och CHAIRMAN får ta bort en tränare, och de får göra det i alla lag (ADR 0006).
+        COACH, PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+        `@PreAuthorize` nekar anropet innan metoden körs, så meddelandet är Springs standardtext.
+        Fel: "Team not found", "Coach is not on this team" (404).
+      x-roles: [ADMIN, CHAIRMAN]
       x-source: TeamController.removeCoach → TeamService.removeCoach
       responses:
         '204':
           description: Kopplingen borttagen.
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: |
+            COACH, PLAYER eller PARENT. Body är `{"message":"Access Denied"}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: Access Denied }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/teams/{id}/players:
@@ -881,6 +904,8 @@ components:
       description: |
         HS256-signerad JWT från `/api/auth/login`. Claims: `sub` = användar-id, `email` (personuppgift),
         `role` (ADMIN|CHAIRMAN|COACH|PLAYER|PARENT), `iat`, `exp` (+120 min). Skickas som `Authorization: Bearer <token>`.
+        Varje anrop läser användaren i databasen. Inaktivt konto eller en roll som inte längre stämmer
+        ger 401 även om signaturen är giltig och token inte gått ut.
 
   parameters:
     OptionalTeamIdQuery:
@@ -921,7 +946,10 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     Unauthorized:
-      description: Saknad, ogiltig eller utgången JWT. Body är alltid `{"message":"Login required"}`.
+      description: |
+        Saknad, ogiltig eller utgången JWT, eller en JWT för ett inaktivt konto
+        eller en roll som inte längre stämmer med databasen.
+        Body är alltid `{"message":"Login required"}`.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -943,7 +971,8 @@ components:
       description: |
         Rollnamn (seedas av `RoleSeeder` från `ClubRole`). Hierarki enligt ADR 0006:
         ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER och PARENT är likvärdiga.
-        Bara ADMIN och CHAIRMAN får skapa lag (`POST /api/teams`).
+        Bara ADMIN och CHAIRMAN får skapa lag (`POST /api/teams`) och koppla eller ta bort en tränare
+        (`POST` och `DELETE` på `/api/teams/{id}/coaches`). De får göra det i alla lag.
       enum: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
     AttendanceStatus:
       type: [string, 'null']
@@ -1205,4 +1234,3 @@ x-open-questions:
   - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?
   - "CHAIRMAN (ADR 0006): får ordföranden skapa COACH och byta roller, och se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"
   - Samtycke för tränarens publika kontaktuppgifter: hur lagras det (fält per uppgift + tidsstämpel), och vem kan ändra det (bara tränaren själv)?
-  - Rollbyte (PUT /api/users/{id}/role) slår inte igenom förrän token går ut/förnyas – refresh läser dock rollen från DB. Accepterat?
