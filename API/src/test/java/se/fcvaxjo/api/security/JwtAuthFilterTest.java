@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +41,8 @@ class JwtAuthFilterTest {
     @InjectMocks
     private JwtAuthFilter jwtAuthFilter;
 
+    private static final Instant ISSUED_AT = Instant.parse("2026-11-05T12:00:00Z");
+
     @AfterEach
     void clearLogin() {
         SecurityContextHolder.clearContext();
@@ -49,7 +52,8 @@ class JwtAuthFilterTest {
     void doFilter_logsInWhenAccountStillMatchesToken() throws Exception {
         when(jwtService.getUserId("good-token")).thenReturn(7L);
         when(jwtService.getRoleName("good-token")).thenReturn("COACH");
-        when(accountAccessService.tokenStillMatchesAccount(7L, "COACH")).thenReturn(true);
+        when(jwtService.getIssuedAt("good-token")).thenReturn(ISSUED_AT);
+        when(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT)).thenReturn(true);
 
         MockHttpServletRequest request = requestWithBearer("good-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -68,7 +72,8 @@ class JwtAuthFilterTest {
     void doFilter_doesNotLogInWhenAccountNoLongerMatches() throws Exception {
         when(jwtService.getUserId("old-token")).thenReturn(7L);
         when(jwtService.getRoleName("old-token")).thenReturn("COACH");
-        when(accountAccessService.tokenStillMatchesAccount(7L, "COACH")).thenReturn(false);
+        when(jwtService.getIssuedAt("old-token")).thenReturn(ISSUED_AT);
+        when(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT)).thenReturn(false);
 
         MockHttpServletRequest request = requestWithBearer("old-token");
         MockHttpServletResponse response = new MockHttpServletResponse();

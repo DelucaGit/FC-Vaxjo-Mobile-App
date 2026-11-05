@@ -1,8 +1,11 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Instant;
+
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,12 +13,27 @@ import org.springframework.transaction.annotation.Transactional;
 import se.fcvaxjo.api.DTO.LoginResponse;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
+import se.fcvaxjo.api.exception.UnauthorizedException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
 
 @Service
 public class AuthService {
+
+    /**
+     * Same text for a wrong password, an unknown email, an inactive account,
+     * and an account that has no password yet. A different text would tell
+     * the caller that the email exists.
+     */
+    public static final String INVALID_LOGIN_MESSAGE = "Invalid email or password";
+
+    /**
+     * Real BCrypt hash used only when there is no stored hash to check.
+     * Built once, at the same cost as a normal password check.
+     * The plaintext is not a password for any account. The match result is ignored.
+     */
+    static final String TIMING_BCRYPT_HASH = new BCryptPasswordEncoder().encode("timing-placeholder");
 
     private final UserRepository userRepository;
     private final UserService userService;
@@ -38,17 +56,9 @@ public class AuthService {
             throw new BadRequestException("Email and password are required");
         }
 
-        AppUser user = userRepository.findByEmail(email.trim())
-                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
-
-        if (!user.isActive()) {
-            throw new BadRequestException("This account is inactive");
-        }
-        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-            throw new BadRequestException("This account has no password yet");
-        }
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new BadRequestException("Invalid email or password");
+        AppUser user = userRepository.findByEmail(email.trim()).orElse(null);
+        if (!passwordMatchesActiveAccount(user, password)) {
+            throw new UnauthorizedException(INVALID_LOGIN_MESSAGE);
         }
 
         String roleName = userService.getRoleName(user.getRoleId());
@@ -81,6 +91,8 @@ public class AuthService {
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
+        // The filter rejects tokens whose iat second is before this time.
+        user.setPasswordChangedAt(Instant.now());
         userRepository.save(user);
 
         String roleName = userService.getRoleName(user.getRoleId());
@@ -116,6 +128,38 @@ public class AuthService {
                 user.getEmail(),
                 roleName,
                 user.isMustChangePassword());
+    }
+
+    /**
+     * False for a wrong password, a missing account, an inactive account,
+     * and a row with no hash. The caller always sends {@link #INVALID_LOGIN_MESSAGE}.
+     *
+     * BCrypt is slow on purpose. Skipping it when the email is missing would
+     * return faster and show that the account does not exist. We still run
+     * one compare in that case, against {@link #TIMING_BCRYPT_HASH}, and we
+     * ignore the result. An inactive account uses its real hash for the same
+     * reason, then we reject it even if the password was right.
+     */
+    private boolean passwordMatchesActiveAccount(AppUser user, String password) {
+        String hash = hashToCheck(user);
+        boolean passwordMatches = passwordEncoder.matches(password, hash);
+        if (user == null || !user.isActive() || !hasStoredHash(user)) {
+            return false;
+        }
+        return passwordMatches;
+    }
+
+    private String hashToCheck(AppUser user) {
+        if (!hasStoredHash(user)) {
+            return TIMING_BCRYPT_HASH;
+        }
+        return user.getPasswordHash();
+    }
+
+    private boolean hasStoredHash(AppUser user) {
+        return user != null
+                && user.getPasswordHash() != null
+                && !user.getPasswordHash().isBlank();
     }
 
     private Long currentUserId() {

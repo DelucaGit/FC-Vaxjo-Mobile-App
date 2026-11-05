@@ -48,7 +48,7 @@ describe('auth token flow', () => {
   });
 
   test('login does not store a session when the server rejects the call', async () => {
-    (globalThis.fetch as jest.Mock).mockResolvedValue(jsonResponse(400, { message: 'Invalid email or password' }));
+    (globalThis.fetch as jest.Mock).mockResolvedValue(jsonResponse(401, { message: 'Invalid email or password' }));
 
     await expect(login('player@fcvaxjo.se', 'wrong-horse')).rejects.toThrow('Invalid email or password');
     expect(await getAccessToken()).toBeNull();

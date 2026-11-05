@@ -77,7 +77,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 
 | Anrop | Mål | Kod idag |
 |---|---|---|
-| `POST /api/auth/login` | Publik. 200 för aktiv användare, 400 för fel lösenord eller inaktiv | Stämmer. Inaktiv stoppas redan här |
+| `POST /api/auth/login` | Publik. 200 för aktiv användare. Fel lösenord, okänd e-post och inaktiv ger samma 401 | Stämmer (S1-9). Saknad e-post eller lösenord är fortfarande 400 |
 | `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
 | `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 400 | Inaktiv token får 401 i filtret, inte 400 |
 
@@ -140,4 +140,4 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 
 **PARENT, annat barn.** `/api/my/trainings?childId=` för det andra barnet är 403. `GET /api/users/{id}` och laglistan för det andra barnet är 200 med telefon och e-post (S1-2).
 
-**Inaktiv spelare.** Login är 400. Refresh är 400. En token som redan är utfärdad kan fortfarande anropa till exempel `GET /api/teams` och byta lösenord (S1-4). `GET /api/users/{id}` på den inaktiva raden svarar 200 (S1-4).
+**Inaktiv spelare.** Login är 401 med samma text som fel lösenord (S1-9). En redan utfärdad token stoppas av filtret (S1-4). `GET /api/users/{id}` på den inaktiva raden svarar 200 (S1-4).

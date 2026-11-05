@@ -527,3 +527,23 @@ Follow-up on the same branch: a chairman keeps the coach screens for every team 
 # App branch merged with master (5/11-2026)
 
 Master now has secure token storage (PR #28), chairman player rules, chairman may create a coach (S1-8 / PR #34), and chairman trainings (PR #35). This branch keeps that storage and the app role checks. The create-user picker for a chairman is now player, parent, and coach, matching `POST /api/users`. A bare 403 still becomes the sentence that the function is not available for the role yet.
+
+# S1-9: harden login (5/11-2026)
+
+Decision: a failed login is one 401, and a password change kills tokens issued before that change.
+
+Why one message: "This account is inactive" and "This account has no password yet" told the caller that the email exists (gap analysis point 9). Wrong password, unknown email, inactive account, and an account with no hash now all return `Invalid email or password`. A blank email or password stays 400, because that is a missing field, not a lookup. When the email is missing, or the row has no hash, we still run one BCrypt compare against a throwaway hash and ignore the result. Skipping that compare would return faster and show that the account is not there. An inactive account uses its real hash, then we reject it even if the password was right. Rate limiting is still not built.
+
+Why `passwordChangedAt`: the filter already reads the user on every request (S1-4 / PR #29). A new column is enough. There is no Flyway and no Liquibase (ADR 0002), so the column is the new field on `AppUser`. Hibernate adds it with `ddl-auto=update`, the same way the other user columns were added. Existing rows stay null, so tokens that are already out keep working until the next change. `AuthService.changePassword` sets the time. `UserService` is not touched. Creating a user, and the dev seeders rewriting a demo password, do not set the field.
+
+Why whole seconds: JWT `iat` has no milliseconds. Comparing the raw times would make a change in the same second look "later" than the new token, and that token would die immediately. We reject only when `passwordChangedAt` is in a later second than `iat`. The window is under one second. A token with no `iat` after a real change is rejected, because we cannot show it is new enough.
+
+What shipped:
+
+- `AccountAccessService.tokenStillMatchesAccount` takes `issuedAt` and applies the second check.
+- Login failures are `UnauthorizedException` (401). Protected routes still say `Login required`.
+- Tests: unit tests for the three 401 cases and the second boundary. `LoginAccessTest` calls the API for the same three cases. `JwtAuthFilterIntegrationTest` logs in a real active coach, changes the password, and checks that the old token is 401 and the new one still works.
+- `docs/api/openapi.yaml` describes both 401 texts. The open question about login status is closed.
+- No `known-gap` tag covered this. Nothing was untagged.
+
+Branch: `cursor/s1-9-harda-inloggning-761e`.

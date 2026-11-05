@@ -34,9 +34,11 @@ info:
 
     **Felhantering** (`ApiExceptionHandler`, `SecurityConfig`):
     - `BadRequestException` → 400 `{ "message": ... }`
+    - `UnauthorizedException` på `POST /api/auth/login` → 401 `{ "message": "Invalid email or password" }`
+      (fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger samma text)
     - `NotFoundException` → 404 `{ "message": ... }`
     - `AccessDeniedException` (även `@PreAuthorize`-nekanden) → 403 `{ "message": ... }`
-    - Saknad, ogiltig eller utgången JWT, eller en JWT för ett inaktivt konto eller en roll som inte längre stämmer med databasen → 401 `{ "message": "Login required" }`
+    - Saknad, ogiltig eller utgången JWT, eller en JWT för ett inaktivt konto, en roll som inte längre stämmer, eller en token utfärdad före senaste lösenordsbytet → 401 `{ "message": "Login required" }`
     - Övriga fel (felaktig JSON, fel typ på path/query-parameter, DB-constraint-fel) hanteras **inte** av
       `ApiExceptionHandler` och får Springs standardsvar (400/500); formatet är inte verifierat, se öppna frågor.
 
@@ -71,8 +73,10 @@ paths:
       summary: Logga in med e-post och lösenord
       description: |
         Publik endpoint. Returnerar en JWT (giltig 120 min, `app.jwt.expiration-ms=7200000`).
-        Fel inloggning ger **400** (inte 401). Felmeddelanden: "Email and password are required",
-        "Invalid email or password", "This account is inactive", "This account has no password yet".
+        Saknad e-post eller saknat lösenord ger **400** "Email and password are required".
+        Fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger alla
+        samma **401** "Invalid email or password". Svaret säger inte om kontot finns.
+        När e-posten saknas körs ändå en BCrypt-jämförelse, så svaret inte blir tydligt snabbare än en vanlig kontroll.
       security: []
       x-roles: [PUBLIC]
       x-source: AuthController.login → AuthService.login
@@ -88,6 +92,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LoginResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: |
+            Fel lösenord, okänd e-post, inaktivt konto eller konto utan lösenord.
+            Body är alltid `{"message":"Invalid email or password"}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: "Invalid email or password" }
 
   /api/auth/change-password:
     post:
@@ -95,7 +107,10 @@ paths:
       operationId: changePassword
       summary: Byt eget lösenord
       description: |
-        Kräver giltig JWT. Sätter `mustChangePassword=false` och returnerar en ny token.
+        Kräver giltig JWT. Sätter `mustChangePassword=false`, sparar `passwordChangedAt`
+        och returnerar en ny token. En token som utfärdades före det bytet får 401
+        på nästa anrop (`{"message":"Login required"}`). `iat` har bara sekundprecision,
+        så ett byte i samma sekund som token släpper den token igenom.
         Fel: "Current password is required", "New password must be at least 8 characters",
         "Current password is wrong" (400); "User not found" (404).
       x-roles: [ANY_AUTHENTICATED]
@@ -124,8 +139,10 @@ paths:
         Kräver en JWT som fortfarande är signerad, inte gått ut, tillhör ett aktivt konto
         och har samma roll som i databasen. Returnerar en ny token (ytterligare 120 min).
         Ingen request body.
-        Inaktivt konto, borttagen användare eller en roll som inte längre stämmer ger 401.
+        Inaktivt konto, borttagen användare, en roll som inte längre stämmer, eller en token
+        utfärdad före senaste lösenordsbytet ger 401.
         Efter ett rollbyte måste personen logga in igen. Förnyelse kan inte byta in den nya rollen.
+        Efter ett lösenordsbyte gäller token som bytet returnerade. En äldre token får 401.
       x-roles: [ANY_AUTHENTICATED]
       x-source: AuthController.refresh → AuthService.refresh
       responses:
@@ -945,8 +962,9 @@ components:
       description: |
         HS256-signerad JWT från `/api/auth/login`. Claims: `sub` = användar-id, `email` (personuppgift),
         `role` (ADMIN|CHAIRMAN|COACH|PLAYER|PARENT), `iat`, `exp` (+120 min). Skickas som `Authorization: Bearer <token>`.
-        Varje anrop läser användaren i databasen. Inaktivt konto eller en roll som inte längre stämmer
-        ger 401 även om signaturen är giltig och token inte gått ut.
+        Varje anrop läser användaren i databasen. Inaktivt konto, en roll som inte längre stämmer,
+        eller `passwordChangedAt` i en senare sekund än `iat` ger 401 även om signaturen är giltig
+        och token inte gått ut.
 
   parameters:
     OptionalTeamIdQuery:
@@ -988,9 +1006,12 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     Unauthorized:
       description: |
-        Saknad, ogiltig eller utgången JWT, eller en JWT för ett inaktivt konto
-        eller en roll som inte längre stämmer med databasen.
+        Saknad, ogiltig eller utgången JWT, eller en JWT för ett inaktivt konto,
+        en roll som inte längre stämmer med databasen, eller en token utfärdad
+        före senaste lösenordsbytet.
         Body är alltid `{"message":"Login required"}`.
+        Misslyckad inloggning är en annan 401, med texten "Invalid email or password"
+        (se `POST /api/auth/login`).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -1268,7 +1289,6 @@ x-open-questions:
   - Felformat för fel som inte går via ApiExceptionHandler (felaktig JSON, typfel i path/query, saknad query-parameter, DB-constraint, 500). Spring Boot 4:s standardsvar och om /error-dispatch kräver autentisering i SecurityConfig är inte verifierat.
   - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
-  - Ska fel inloggning ge 401 i stället för 400? Och ska "This account is inactive" särskiljas från "Invalid email or password" (avslöjar att kontot finns)?
   - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?
   - Ska GET /api/users/{id} returnera inaktiva (mjukt raderade) användare?
   - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"

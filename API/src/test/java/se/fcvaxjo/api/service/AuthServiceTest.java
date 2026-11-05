@@ -2,6 +2,7 @@ package se.fcvaxjo.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +26,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import se.fcvaxjo.api.DTO.LoginResponse;
-import se.fcvaxjo.api.exception.BadRequestException;
+import se.fcvaxjo.api.exception.UnauthorizedException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
@@ -78,17 +79,52 @@ class AuthServiceTest {
 
     @Test
     void login_failsWhenPasswordWrong() {
-        AppUser user = new AppUser();
-        user.setId(5L);
-        user.setEmail("admin@fcvaxjo.se");
-        user.setActive(true);
-        user.setPasswordHash("hashed");
-
+        AppUser user = activeUser("admin@fcvaxjo.se", "hashed");
         when(userRepository.findByEmail("admin@fcvaxjo.se")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("bad", "hashed")).thenReturn(false);
 
-        assertThrows(BadRequestException.class,
+        UnauthorizedException error = assertThrows(UnauthorizedException.class,
                 () -> authService.login("admin@fcvaxjo.se", "bad"));
+
+        assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
+    }
+
+    @Test
+    void login_unknownEmail_usesTheSameMessageAndStillRunsBcrypt() {
+        when(userRepository.findByEmail("missing@example.test")).thenReturn(Optional.empty());
+
+        UnauthorizedException error = assertThrows(UnauthorizedException.class,
+                () -> authService.login("missing@example.test", "bad"));
+
+        assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
+        // No stored hash exists. The dummy compare keeps this path from returning faster.
+        verify(passwordEncoder).matches("bad", AuthService.TIMING_BCRYPT_HASH);
+    }
+
+    @Test
+    void login_inactiveAccount_usesTheSameMessageEvenWhenPasswordMatches() {
+        AppUser user = activeUser("off@example.test", "hashed");
+        user.setActive(false);
+        when(userRepository.findByEmail("off@example.test")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("right", "hashed")).thenReturn(true);
+
+        UnauthorizedException error = assertThrows(UnauthorizedException.class,
+                () -> authService.login("off@example.test", "right"));
+
+        assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
+        verify(passwordEncoder).matches("right", "hashed");
+    }
+
+    @Test
+    void login_accountWithNoPassword_usesTheSameMessage() {
+        AppUser user = activeUser("new@example.test", null);
+        when(userRepository.findByEmail("new@example.test")).thenReturn(Optional.of(user));
+
+        UnauthorizedException error = assertThrows(UnauthorizedException.class,
+                () -> authService.login("new@example.test", "anything"));
+
+        assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
+        verify(passwordEncoder).matches("anything", AuthService.TIMING_BCRYPT_HASH);
     }
 
     @Test
@@ -118,6 +154,7 @@ class AuthServiceTest {
         assertFalse(response.isMustChangePassword());
         assertFalse(user.isMustChangePassword());
         assertEquals("new-hash", user.getPasswordHash());
+        assertNotNull(user.getPasswordChangedAt());
         assertEquals("new-jwt", response.getToken());
         verify(userRepository).save(user);
     }
@@ -147,5 +184,14 @@ class AuthServiceTest {
         assertEquals(5L, response.getUserId());
         assertEquals("ADMIN", response.getRoleName());
         assertFalse(response.isMustChangePassword());
+    }
+
+    private AppUser activeUser(String email, String passwordHash) {
+        AppUser user = new AppUser();
+        user.setId(5L);
+        user.setEmail(email);
+        user.setActive(true);
+        user.setPasswordHash(passwordHash);
+        return user;
     }
 }

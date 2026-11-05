@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -29,12 +30,15 @@ class AccountAccessServiceTest {
     @InjectMocks
     private AccountAccessService accountAccessService;
 
+    /** Whole-second iat. Password checks below move around this instant. */
+    private static final Instant ISSUED_AT = Instant.parse("2026-11-05T12:00:00Z");
+
     @Test
     void tokenStillMatchesAccount_trueWhenUserIsActiveAndRoleMatches() {
         when(userRepository.findById(7L)).thenReturn(Optional.of(activeUser(7L, 2L)));
         when(roleRepository.findById(2L)).thenReturn(Optional.of(role(2L, "COACH")));
 
-        assertTrue(accountAccessService.tokenStillMatchesAccount(7L, "COACH"));
+        assertTrue(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
     }
 
     @Test
@@ -43,7 +47,7 @@ class AccountAccessServiceTest {
         user.setActive(false);
         when(userRepository.findById(7L)).thenReturn(Optional.of(user));
 
-        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH"));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
     }
 
     @Test
@@ -51,7 +55,7 @@ class AccountAccessServiceTest {
         when(userRepository.findById(4L)).thenReturn(Optional.of(activeUser(4L, 3L)));
         when(roleRepository.findById(3L)).thenReturn(Optional.of(role(3L, "CHAIRMAN")));
 
-        assertTrue(accountAccessService.tokenStillMatchesAccount(4L, "CHAIRMAN"));
+        assertTrue(accountAccessService.tokenStillMatchesAccount(4L, "CHAIRMAN", ISSUED_AT));
     }
 
     @Test
@@ -59,7 +63,7 @@ class AccountAccessServiceTest {
         when(userRepository.findById(4L)).thenReturn(Optional.of(activeUser(4L, 2L)));
         when(roleRepository.findById(2L)).thenReturn(Optional.of(role(2L, "COACH")));
 
-        assertFalse(accountAccessService.tokenStillMatchesAccount(4L, "CHAIRMAN"));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(4L, "CHAIRMAN", ISSUED_AT));
     }
 
     @Test
@@ -67,14 +71,14 @@ class AccountAccessServiceTest {
         when(userRepository.findById(7L)).thenReturn(Optional.of(activeUser(7L, 3L)));
         when(roleRepository.findById(3L)).thenReturn(Optional.of(role(3L, "PLAYER")));
 
-        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH"));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
     }
 
     @Test
     void tokenStillMatchesAccount_falseWhenUserIsGone() {
         when(userRepository.findById(7L)).thenReturn(Optional.empty());
 
-        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH"));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
     }
 
     @Test
@@ -82,13 +86,53 @@ class AccountAccessServiceTest {
         when(userRepository.findById(7L)).thenReturn(Optional.of(activeUser(7L, 2L)));
         when(roleRepository.findById(2L)).thenReturn(Optional.empty());
 
-        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH"));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
     }
 
     @Test
     void tokenStillMatchesAccount_falseWhenTokenHasNoRole() {
-        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, " "));
-        assertFalse(accountAccessService.tokenStillMatchesAccount(null, "COACH"));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, " ", ISSUED_AT));
+        assertFalse(accountAccessService.tokenStillMatchesAccount(null, "COACH", ISSUED_AT));
+    }
+
+    @Test
+    void tokenStillMatchesAccount_falseWhenPasswordChangedInALaterSecond() {
+        AppUser user = activeUser(7L, 2L);
+        user.setPasswordChangedAt(ISSUED_AT.plusSeconds(1));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
+    }
+
+    @Test
+    void tokenStillMatchesAccount_trueWhenPasswordChangedInTheSameSecond() {
+        // iat cannot see milliseconds. A change inside the token's own second
+        // must not reject the token the user just received.
+        AppUser user = activeUser(7L, 2L);
+        user.setPasswordChangedAt(ISSUED_AT.plusMillis(800));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(role(2L, "COACH")));
+
+        assertTrue(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
+    }
+
+    @Test
+    void tokenStillMatchesAccount_trueWhenPasswordChangedBeforeTheToken() {
+        AppUser user = activeUser(7L, 2L);
+        user.setPasswordChangedAt(ISSUED_AT.minusSeconds(5));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(role(2L, "COACH")));
+
+        assertTrue(accountAccessService.tokenStillMatchesAccount(7L, "COACH", ISSUED_AT));
+    }
+
+    @Test
+    void tokenStillMatchesAccount_falseWhenIssuedAtIsMissingAfterPasswordChange() {
+        AppUser user = activeUser(7L, 2L);
+        user.setPasswordChangedAt(ISSUED_AT);
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+
+        assertFalse(accountAccessService.tokenStillMatchesAccount(7L, "COACH", null));
     }
 
     private AppUser activeUser(Long userId, Long roleId) {

@@ -1,11 +1,11 @@
 package se.fcvaxjo.api.security.access;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
 
+import se.fcvaxjo.api.service.AuthService;
 import se.fcvaxjo.api.support.Actor;
 import se.fcvaxjo.api.support.ClubApiTest;
 import se.fcvaxjo.api.support.ClubFixture;
@@ -42,19 +42,19 @@ class LoginAccessTest extends ClubApiTest {
 
     @Test
     void wrongPassword_isRejected() throws Exception {
-        // A failed login is 400, not 401. The contract documents that choice.
-        post(Actor.ANON, "/api/auth/login",
-                SampleRequests.login(ClubFixture.EMAIL_ADMIN, "not-the-shared-login"))
-                .andExpect(status().isBadRequest());
+        assertSameLoginFailure(ClubFixture.EMAIL_ADMIN, "not-the-shared-login");
+    }
+
+    @Test
+    void unknownEmail_isRejectedWithTheSameMessage() throws Exception {
+        assertSameLoginFailure("nobody@example.test", sharedLogin);
     }
 
     @Test
     void inactiveUser_cannotLogIn() throws Exception {
-        // AuthService already blocks an inactive account at login (gap analysis point 4, this part).
-        post(Actor.ANON, "/api/auth/login",
-                SampleRequests.login(ClubFixture.EMAIL_INACTIVE, sharedLogin))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("inactive")));
+        // Same 401 and the same text as a wrong password, so the response
+        // does not show that this email belongs to an account.
+        assertSameLoginFailure(ClubFixture.EMAIL_INACTIVE, sharedLogin);
     }
 
     @Test
@@ -81,6 +81,12 @@ class LoginAccessTest extends ClubApiTest {
         post(Actor.INACTIVE_PLAYER, "/api/auth/refresh", null)
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Login required"));
+    }
+
+    private void assertSameLoginFailure(String email, String password) throws Exception {
+        post(Actor.ANON, "/api/auth/login", SampleRequests.login(email, password))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(AuthService.INVALID_LOGIN_MESSAGE));
     }
 
     private void assertOwnLogin(String email, String roleName) throws Exception {

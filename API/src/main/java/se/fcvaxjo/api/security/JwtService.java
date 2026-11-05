@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.security;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -63,6 +64,19 @@ public class JwtService {
 
     public String getRoleName(String token) {
         return parseClaims(token).get("role", String.class);
+    }
+
+    /**
+     * {@code iat} from the token, or null when the claim is missing.
+     * The value is whole seconds. {@link se.fcvaxjo.api.service.AccountAccessService}
+     * compares those seconds with {@code passwordChangedAt}.
+     */
+    public Instant getIssuedAt(String token) {
+        Date issuedAt = parseClaims(token).getIssuedAt();
+        if (issuedAt == null) {
+            return null;
+        }
+        return issuedAt.toInstant();
     }
 
     public String getEmail(String token) {
