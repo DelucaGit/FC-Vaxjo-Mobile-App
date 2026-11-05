@@ -48,6 +48,14 @@ public enum ClubRole {
     }
 
     /**
+     * Club-lead roles. A chairman must not hand these out.
+     * Only an admin may create or assign ADMIN and CHAIRMAN.
+     */
+    public boolean isClubLead() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
      * Email and phone of other people.
      * The chairman looks after the whole club, so this is not limited to one team.
      * A coach is allowed here too. Limiting a coach to their own teams is a later change.

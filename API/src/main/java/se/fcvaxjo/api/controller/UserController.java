@@ -116,8 +116,8 @@ public class UserController {
     }
 
     /**
-     * Chairman is included because they look after every team, not because they may create any role.
-     * The service still refuses a chairman who tries to create a coach or an admin.
+     * Chairman may create a player, a parent, or a coach.
+     * The service still refuses ADMIN and CHAIRMAN as the new role.
      */
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
@@ -135,8 +135,9 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toCreateResponse(created));
     }
 
+    // CHAIRMAN may turn a player into a coach. The service still blocks ADMIN and CHAIRMAN as the new role.
     @PutMapping("/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public ChangeRoleResponse updateUserRole(
             @PathVariable Long id,
             @RequestBody ChangeRoleRequest request) {

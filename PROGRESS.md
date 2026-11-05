@@ -478,6 +478,24 @@ Decision: after `CHAIRMAN` landed on master, the same read rules include the cha
 
 After master and the read-access branch were merged in, CHAIRMAN is real. For creating, editing and removing players the chairman is club-wide staff, same as ADMIN. A coach is still limited to `team_coaches`. A chairman may create a parent with no child. A chairman may not create a coach or an admin. That question in ADR 0006 stays open. Read rules from S1-1 are unchanged: chairman, admin and coach may read personal data for every team.
 
+# S1-8: chairman can make a coach (5/11-2026)
+
+Decision: build on S1-3. The chairman is already club-wide staff for players and parents. This story adds the coach. The chairman may create PLAYER, PARENT and COACH, and may change another user's PLAYER into a COACH. The chairman may never set ADMIN or CHAIRMAN (403). Anyone who is not ADMIN gets 403 if they try to change their own role. ADMIN keeps the old rights and may still set any role, including their own. Linking a coach to a team stays a separate step (`team_coaches`). This branch is merged after PR #27.
+
+When a coach is created, `playerNumber` is cleared even if the request sends one. A coach has no shirt number, and the column is unique.
+
+When a player becomes a coach, three player-only fields are cleared. The same happens whether ADMIN or CHAIRMAN does the change:
+
+- `parentId` becomes empty. The parent account stays. A coach is not a child on that parent's list.
+- `playerNumber` becomes empty, so the shirt number is free.
+- `teamId` becomes empty. Players belong to a team through that column. Coaches belong through `team_coaches`, and this story does not write that table.
+
+Old attendance rows stay. They are history.
+
+After the change the person must log in again to get a token that says COACH. The old token still says PLAYER. PR #29 is merged in here, so the JWT filter rejects that token on the next call. The tests save a real active user and point the token at that id and role.
+
+No schema change. The role name is already a text column. Branch: `cursor/s1-8-chairman-skapar-tranare-80dc`.
+
 # S1-1 follow-up — known-gap tags that now pass (5/11-2026)
 
 Decision: after the role matrix (PR #31) landed, the PLAYER and PARENT checks in `KnownPiiLeakTest` pass, so they run in the normal suite. The class no longer has the `known-gap` tag.
@@ -490,4 +508,4 @@ These tests still have the tag, because this story does not make them pass:
 
 # Known-gap tags after S1-3 (5/11-2026)
 
-The role matrix arrived from master (PR #31) after this branch already limited coaches to their own teams and let the chairman manage players. `KnownCoachScopeTest` and the three chairman player tests now run with the normal suite. The inactive-token checks and the chairman coach-link checks run in the normal suite too, because those branches are merged in here. The tag stays on chairman role change, a coach reading another team, the parent's phone on a player's own row, GET of an inactive user, and the phone number in a 404.
+The role matrix arrived from master (PR #31) after this branch already limited coaches to their own teams and let the chairman manage players. `KnownCoachScopeTest` and the three chairman player tests now run with the normal suite. The inactive-token checks, the chairman coach-link checks, and turning a player into a coach run in the normal suite too, because those branches are merged in here. The tag stays on a coach reading another team, the parent's phone on a player's own row, GET of an inactive user, and the phone number in a 404.

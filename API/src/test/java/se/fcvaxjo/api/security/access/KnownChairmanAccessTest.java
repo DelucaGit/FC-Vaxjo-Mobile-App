@@ -3,7 +3,6 @@ package se.fcvaxjo.api.security.access;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import se.fcvaxjo.api.support.Actor;
@@ -15,8 +14,8 @@ import se.fcvaxjo.api.support.SampleRequests;
  * ADR 0006 writes for the chairman.
  * Creating a team is already allowed and is tested in {@link TeamAccessTest}.
  * Creating, editing, and removing a player pass here, and so do linking and
- * unlinking a coach. Those tests run in the normal suite.
- * Changing a role still gets 403, so that one test keeps the {@code known-gap} tag.
+ * unlinking a coach. Turning a player into a coach passes too (S1-8).
+ * Those tests run in the normal suite.
  */
 class KnownChairmanAccessTest extends ClubApiTest {
 
@@ -50,10 +49,9 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna byta roll, men inte till ADMIN")
     void chairman_canChangeNonAdminRole() throws Exception {
-        // x-scope-planned: CHAIRMAN must not grant or remove ADMIN. COACH is allowed by that text.
+        // S1-8 lets the chairman turn a player into a coach. ADMIN and CHAIRMAN stay admin-only.
         put(Actor.CHAIRMAN, "/api/users/" + world.extraPlayerId() + "/role", SampleRequests.role("COACH"))
                 .andExpect(status().isOk());
     }

@@ -17,7 +17,7 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 - `CHAIRMAN` finns i `RoleSeeder`. Skapa lag och koppla eller ta bort tränare använder `@PreAuthorize` för ADMIN och CHAIRMAN. Övriga ordföranderätter som ännu inte matchar ADR:n är markerade med `x-roles-planned` i `openapi.yaml`.
 - COACH behöver lagkontroll i `UserService` (create/update/soft delete), på samma sätt som `TrainingService.assertCanManageTeam`.
 - Läs-endpoints för användare och lag behöver rollkontroll.
-- Öppna frågor: får CHAIRMAN skapa COACH och byta roller, och vem registrerar matcher?
+- Öppna frågor: vem registrerar matcher? S1-8 svarar på om CHAIRMAN får skapa COACH.
 
 ## Genomförande (S1-2)
 - `CHAIRMAN` finns i `ClubRole` och seedas av `RoleSeeder`. Rangen är ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. Radens id i tabellen `roles` är inte rangen.
@@ -29,5 +29,29 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 - `POST /api/teams/{id}/coaches` och `DELETE /api/teams/{id}/coaches/{userId}` tillåter ADMIN och CHAIRMAN i alla lag. Det finns ingen laggräns för de två rollerna.
 - Regeln sitter i `ClubRole.canLinkCoach` och i `@PreAuthorize` på de två metoderna, samma stil som `POST /api/teams`.
 - COACH, PLAYER och PARENT får 403. En tränare får alltså inte koppla eller ta bort tränare, inte ens i egna lag.
-- `x-roles-planned` är borttagen på de två operationerna. Övriga planerade ordföranderätter (skapa användare, byta roll) är kvar.
-- Att ordföranden skapar en tränare, eller gör en spelare till tränare, är en egen story (S1-8) och ingår inte här.
+- `x-roles-planned` är borttagen på de två operationerna.
+
+## Genomförande (S1-8)
+
+Öppen fråga från beslutet: får ordföranden skapa tränare och byta roller? Ja. Syftet är att en ungdom ska kunna bli tränare. Reglerna bygger på S1-3 (PR #27), där ordföranden redan är personal för spelare och föräldrar i alla lag. Den här storyn mergas efter den.
+
+- ADMIN och CHAIRMAN får skapa en användare med rollen COACH (`POST /api/users`).
+- CHAIRMAN får också skapa PLAYER och PARENT, i vilket lag som helst. Det är samma personalregel som i S1-3.
+- ADMIN och CHAIRMAN får byta en annan användares PLAYER till COACH (`PUT /api/users/{id}/role`).
+- CHAIRMAN får inte sätta ADMIN eller CHAIRMAN, varken när en användare skapas eller när rollen byts. Svaret är 403 med texten "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN".
+- Den som inte är ADMIN får inte byta sin egen roll. Svaret är 403 med texten "You cannot change your own role". ADMIN får fortfarande byta sin egen roll.
+- ADMIN behåller sina tidigare rättigheter och får fortfarande sätta vilken roll som helst.
+
+En tränare har inget tröjnummer. `playerNumber` nollställs både när en COACH skapas och när en PLAYER blir COACH. Kolumnen är unik, så numret ska inte ligga kvar och blockera en spelare.
+
+När en spelare blir tränare händer tre enkla saker. Samma sak oavsett om det är ADMIN eller CHAIRMAN som byter rollen:
+
+- **Föräldrakopplingen tas bort.** `parentId` blir tom. Förälderns eget konto ligger kvar. En tränare ska inte ligga kvar som barn i förälderns lista.
+- **Tröjnumret tas bort.** `playerNumber` blir tomt.
+- **Laget på spelaren tas bort.** `teamId` blir tomt. En spelare tillhör ett lag via den kolumnen. En tränare tillhör lag via `team_coaches`. Den kopplingen görs inte här. Personen är tränare utan lag tills någon kopplar hen till ett lag.
+
+Gamla närvarorader ligger kvar. De är historik och skrivs inte om.
+
+Efter bytet måste personen logga in igen för att få en token med rollen COACH. Den gamla token säger fortfarande PLAYER. PR #29 är inmergad här, så filtret jämför token med databasen och nästa anrop blir 401. Testerna sparar en riktig aktiv användare och låter token peka på just det id:t och den rollen.
+
+Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).

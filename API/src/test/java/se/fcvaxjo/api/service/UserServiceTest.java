@@ -192,7 +192,7 @@ class UserServiceTest {
                         "Other Coach", "coach2@fcvaxjo.se", "COACH", null, null, null, null, null));
 
         assertEquals(
-                "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER",
+                "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER, PARENT and COACH. A COACH may only create PLAYER",
                 error.getMessage());
     }
 
@@ -334,16 +334,49 @@ class UserServiceTest {
     }
 
     @Test
-    void createCoach_asChairman_isForbidden() {
+    void createCoach_asChairman_clearsShirtNumber() {
+        login(4L, "CHAIRMAN");
+        Role coachRole = new Role();
+        coachRole.setId(2L);
+        coachRole.setName("COACH");
+        when(roleRepository.findByName("COACH")).thenReturn(Optional.of(coachRole));
+        when(userRepository.findByEmail("new-coach@fcvaxjo.se")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed-temp");
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> {
+            AppUser saved = invocation.getArgument(0);
+            saved.setId(40L);
+            return saved;
+        });
+
+        CreatedUserResult result = userService.createUser(
+                "New Coach", "new-coach@fcvaxjo.se", "COACH", 7, null, 20L, null, 1L);
+
+        assertEquals(2L, result.getUser().getRoleId());
+        assertNull(result.getUser().getParentId());
+        assertNull(result.getUser().getTeamId());
+        assertNull(result.getUser().getPlayerNumber());
+    }
+
+    @Test
+    void createAdmin_asChairman_isForbidden() {
         login(4L, "CHAIRMAN");
 
         AccessDeniedException error = assertThrows(AccessDeniedException.class,
                 () -> userService.createUser(
-                        "New Coach", "new-coach@fcvaxjo.se", "COACH", null, null, null, null, null));
+                        "Boss", "boss@fcvaxjo.se", "ADMIN", null, null, null, null, null));
 
-        assertEquals(
-                "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER",
-                error.getMessage());
+        assertEquals("CHAIRMAN cannot assign the role ADMIN or CHAIRMAN", error.getMessage());
+    }
+
+    @Test
+    void createChairman_asChairman_isForbidden() {
+        login(4L, "CHAIRMAN");
+
+        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+                () -> userService.createUser(
+                        "Other Chair", "chair2@fcvaxjo.se", "CHAIRMAN", null, null, null, null, null));
+
+        assertEquals("CHAIRMAN cannot assign the role ADMIN or CHAIRMAN", error.getMessage());
     }
 
     @Test
@@ -538,6 +571,121 @@ class UserServiceTest {
 
         assertThrows(AccessDeniedException.class,
                 () -> userService.assertCallerMayReadUser(20L));
+    }
+
+    @Test
+    void changeRole_playerToCoach_asChairman_clearsParentShirtAndTeam() {
+        login(4L, "CHAIRMAN");
+        AppUser player = playerWithRosterFields();
+        when(userRepository.findById(30L)).thenReturn(Optional.of(player));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(playerRole()));
+        when(roleRepository.findByName("COACH")).thenReturn(Optional.of(role(2L, "COACH")));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser result = userService.changeUserRole(30L, "COACH");
+
+        assertEquals(2L, result.getRoleId());
+        assertNull(result.getParentId());
+        assertNull(result.getPlayerNumber());
+        assertNull(result.getTeamId());
+        verify(userRepository, never()).delete(any());
+    }
+
+    @Test
+    void changeRole_playerToParent_asAdmin_keepsPlayerFields() {
+        AppUser player = playerWithRosterFields();
+        when(userRepository.findById(30L)).thenReturn(Optional.of(player));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(playerRole()));
+        when(roleRepository.findByName("PARENT")).thenReturn(Optional.of(role(4L, "PARENT")));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser result = userService.changeUserRole(30L, "PARENT");
+
+        assertEquals(4L, result.getRoleId());
+        assertEquals(20L, result.getParentId());
+        assertEquals(7, result.getPlayerNumber());
+        assertEquals(1L, result.getTeamId());
+    }
+
+    @Test
+    void changeRole_toAdmin_asChairman_isForbidden() {
+        login(4L, "CHAIRMAN");
+        AppUser player = playerWithRosterFields();
+        when(userRepository.findById(30L)).thenReturn(Optional.of(player));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(playerRole()));
+        when(roleRepository.findByName("ADMIN")).thenReturn(Optional.of(role(1L, "ADMIN")));
+
+        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+                () -> userService.changeUserRole(30L, "ADMIN"));
+
+        assertEquals("CHAIRMAN cannot assign the role ADMIN or CHAIRMAN", error.getMessage());
+        assertEquals(7, player.getPlayerNumber());
+    }
+
+    @Test
+    void changeRole_asChairman_cannotChangeOwnRole() {
+        login(4L, "CHAIRMAN");
+        AppUser chairman = new AppUser();
+        chairman.setId(4L);
+        chairman.setRoleId(5L);
+        when(userRepository.findById(4L)).thenReturn(Optional.of(chairman));
+        when(roleRepository.findById(5L)).thenReturn(Optional.of(role(5L, "CHAIRMAN")));
+        when(roleRepository.findByName("COACH")).thenReturn(Optional.of(role(2L, "COACH")));
+
+        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+                () -> userService.changeUserRole(4L, "COACH"));
+
+        assertEquals("You cannot change your own role", error.getMessage());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changeRole_asCoach_cannotChangeOwnRole() {
+        login(2L, "COACH");
+        AppUser coach = new AppUser();
+        coach.setId(2L);
+        coach.setRoleId(2L);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(coach));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(role(2L, "COACH")));
+        when(roleRepository.findByName("PLAYER")).thenReturn(Optional.of(playerRole()));
+
+        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+                () -> userService.changeUserRole(2L, "PLAYER"));
+
+        assertEquals("You cannot change your own role", error.getMessage());
+    }
+
+    @Test
+    void changeRole_asAdmin_canChangeOwnRole() {
+        AppUser admin = new AppUser();
+        admin.setId(1L);
+        admin.setRoleId(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(roleRepository.findById(1L)).thenReturn(Optional.of(role(1L, "ADMIN")));
+        when(roleRepository.findByName("COACH")).thenReturn(Optional.of(role(2L, "COACH")));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser result = userService.changeUserRole(1L, "COACH");
+
+        assertEquals(2L, result.getRoleId());
+    }
+
+    private Role role(Long id, String name) {
+        Role named = new Role();
+        named.setId(id);
+        named.setName(name);
+        return named;
+    }
+
+    private AppUser playerWithRosterFields() {
+        AppUser player = new AppUser();
+        player.setId(30L);
+        player.setRoleId(3L);
+        player.setParentId(20L);
+        player.setPlayerNumber(7);
+        player.setTeamId(1L);
+        player.setActive(true);
+        return player;
     }
 
 }

@@ -31,9 +31,9 @@ Det kör bara mätstickan.
 |---|---|---|---|
 | S1-1 | Topp 5, punkt 1 | Inga seed-lösenord och ingen demoklubb i testprofilen | Gröna (`TestProfileSafetyTest`) |
 | S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | `KnownPiiLeakTest`, exkluderas |
-| S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest`, exkluderas |
+| S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest` är grön och körs i vanliga bygget |
 | S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är kvar | Token-testerna i `KnownInactiveUserTest` är gröna. GET-testerna är kvar som `known-gap` |
-| ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (PR #26) och koppla eller ta bort en tränare (S1-7). Att skapa, ändra eller ta bort en spelare och att byta roll är kvar | Koppla och ta bort tränare är gröna i `KnownChairmanAccessTest`. De andra metoderna där har taggen `known-gap` och exkluderas. Skapa lag är grönt i `TeamAccessTest` |
+| ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (PR #26), koppla eller ta bort en tränare (S1-7), skapa/ändra/ta bort spelare (S1-3) och byta en spelare till tränare (S1-8) | De testerna är gröna i `KnownChairmanAccessTest` och `TeamAccessTest` |
 | GAP-6 | Övriga, punkt 6 | 404-texten ekar det sökta telefonnumret | Ett test i `KnownPiiLeakTest`, exkluderas |
 
 Punkt 5 (JWT-hemlighet utan standardvärde) är redan åtgärdad. `TestProfileSafetyTest` kontrollerar att testprofilen har en tillräckligt lång testnyckel och att appen startar mot H2.
@@ -128,7 +128,7 @@ Kod idag: stämmer. Närvarosvaret har spelarens namn, inte e-post och inte för
 
 **ADMIN.** Får se det ADMIN ska se. Två hål: `GET /api/users/{id}` lämnar ut en inaktiv spelare, med e-post och telefon (S1-4). Sök på ett nummer som inte finns skriver numret i 404-texten (GAP-6).
 
-**CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Läsningar som saknar rollkontroll svarar 200 med all PII. Det är tillåtet för en ordförande, men samma svar får spelare och förälder (S1-2). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att skapa, ändra eller ta bort en spelare, eller byta roll, svarar 403 (ADR 0006, fortfarande `x-roles-planned`). Träningar är 403, och det är rätt, för de är inte planerade för CHAIRMAN.
+**CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Personlistorna svarar 200 för ordföranden och 403 för spelare och förälder (S1-1). Att skapa, ändra och ta bort en spelare fungerar i alla lag (S1-3). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att byta en spelare till tränare svarar 200 (S1-8). Träningar är 403, och det är rätt, för de är inte planerade för CHAIRMAN än.
 
 **COACH, eget lag.** Får förälderns telefon på den egna laglistan, och det ska de. Samma tränare får också hela klubbkatalogen via `GET /api/users` och sök, inklusive andra lags föräldratelefon (S1-2).
 
