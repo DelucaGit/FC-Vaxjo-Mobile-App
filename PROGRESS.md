@@ -602,3 +602,9 @@ What shipped:
 - No `known-gap` tag covered this. Nothing was untagged.
 
 Branch: `cursor/s1-9-harda-inloggning-761e`. The branch also contains S1-13, so this note stays last. Login of an inactive account is 401 `Invalid email or password`. `GET /api/users/{id}` of that account is 404 `User not found`.
+
+# S1-9 follow-up: same-second window and closed gaps (5/11-2026)
+
+Decision: the password check stays a strict `>` on whole seconds. `>=` would reject the token from a login in the same second as the password change, because that token and `passwordChangedAt` share a second.
+
+Gap analysis: S1-10, S1-12 and S1-13 are marked closed. The phone number is no longer repeated in the 404 text (S1-12). The phone number is still a query parameter, so it can still show up in access logs. That part stays open.

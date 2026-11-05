@@ -62,9 +62,14 @@ public class AccountAccessService {
      * second as "later" than a token issued in that second, so the new token
      * from change-password would be rejected at once.
      *
-     * We compare whole seconds. The token is rejected only when the password
-     * was changed in a later second. A change in the same second stays valid.
-     * That window is under one second, which is as close as {@code iat} allows.
+     * We compare whole seconds with a strict {@code >}. The token is rejected
+     * only when the password was changed in a later second. A change in the
+     * same second stays valid. That window is under one second, which is as
+     * close as {@code iat} allows.
+     * {@code >=} would reject the token from a login in that same second.
+     * The new token and {@code passwordChangedAt} share a second, so the
+     * login that follows the change would fail at once.
+     *
      * Null means the password has not been changed since this column existed,
      * so older tokens keep working.
      * A missing {@code iat} after a real change cannot be shown to be new
