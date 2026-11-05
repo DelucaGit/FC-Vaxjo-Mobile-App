@@ -676,3 +676,14 @@ Decision: a match belongs to one team and stores opponent, kickoff, venue, home 
 Why the same 403 for a missing match and for another team: a 404 would tell a coach that the id is free, and a different text would tell them the match exists on a team they do not coach. ADMIN and CHAIRMAN still get 404 "Match not found", because they are allowed to see every team. The score is left empty at create and set later with `PUT /api/matches/{id}/result`. The row is not deleted. The table is `club_matches` because MATCH is a reserved SQL word. Hibernate adds it (`ddl-auto=update`, ADR 0002). No Flyway.
 
 The answer has no email and no phone. `UI/` is not changed here. Public match URLs stay closed until the consent work.
+
+# Public reads need the parent's consent (5/11-2026)
+
+Decision: `GET /api/public/**` is open. No other method on that path is open. The public pages are teams, upcoming matches, match history, and a squad. The squad is name and shirt number only. Email, phone, and parent contact are never in those answers.
+
+Why the parent, and not the child: creating a player already requires a linked parent, so every player in this app is treated as a child. Only that parent may set or revoke `publicConsentAt`. The player, the coach, the chairman, and the admin cannot. The default is null, which means no consent. A second yes keeps the first timestamp. A no clears it, and the name disappears from the public squad at once.
+
+An inactive player is never shown. If the parent is inactive, the child is hidden too, because that parent can no longer revoke. A missing id and someone else's child share one 403, so the answer does not say the row exists.
+
+Coach contact on the website, public trainings, rate limiting, and CORS for fcvaxjo.se are not in this change. ADR 0007 records the exception to the older "never publish a player" line. `UI/` is not changed.
+

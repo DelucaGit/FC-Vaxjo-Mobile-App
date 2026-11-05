@@ -11,6 +11,7 @@ import se.fcvaxjo.api.DTO.CreateTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateUserRequest;
 import se.fcvaxjo.api.DTO.SetMatchResultRequest;
 import se.fcvaxjo.api.DTO.LoginRequest;
+import se.fcvaxjo.api.DTO.PublicConsentRequest;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
@@ -109,6 +110,12 @@ public final class SampleRequests {
         SetMatchResultRequest request = new SetMatchResultRequest();
         request.setGoalsFor(goalsFor);
         request.setGoalsAgainst(goalsAgainst);
+        return request;
+    }
+
+    public static PublicConsentRequest consent(boolean granted) {
+        PublicConsentRequest request = new PublicConsentRequest();
+        request.setPublicConsent(granted);
         return request;
     }
 

@@ -21,9 +21,10 @@ import se.fcvaxjo.api.support.SampleRequests;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
- * No token means 401, except login.
- * The list is read from docs/api/openapi.yaml. Planned public URLs are included:
- * they are not built yet, so they must not answer 200 to a stranger.
+ * No token means 401, except login and GET /api/public/**.
+ * The list is read from docs/api/openapi.yaml.
+ * Public GETs are checked in PublicAccessTest. They must not be expected to be 401.
+ * A write under /api/public is not in the contract. PublicAccessTest locks those to 401 or 405.
  */
 class AnonymousAccessTest extends ClubApiTest {
 
@@ -52,8 +53,16 @@ class AnonymousAccessTest extends ClubApiTest {
 
     static Stream<Arguments> protectedOperations() throws Exception {
         return ContractOperations.read().stream()
-                .filter(operation -> !ContractOperations.isLogin(operation))
+                .filter(operation -> !isOpenWithoutLogin(operation))
                 .map(operation -> Arguments.of(operation.method(), operation.path()));
+    }
+
+    /** Login, and GET under /api/public. Every other operation in the contract stays locked. */
+    private static boolean isOpenWithoutLogin(Operation operation) {
+        if (ContractOperations.isLogin(operation)) {
+            return true;
+        }
+        return "GET".equals(operation.method()) && operation.path().startsWith("/api/public/");
     }
 
     @Test
@@ -63,6 +72,8 @@ class AnonymousAccessTest extends ClubApiTest {
         assertTrue(operations.stream().anyMatch(ContractOperations::isLogin));
         assertTrue(operations.stream().anyMatch(operation -> operation.path().equals("/api/users")));
         assertTrue(operations.stream().anyMatch(operation -> operation.path().equals("/api/trainings/{id}/attendance/{playerId}")));
+        assertTrue(operations.stream().anyMatch(operation ->
+                "GET".equals(operation.method()) && operation.path().equals("/api/public/teams")));
         assertTrue(operations.size() >= 25);
     }
 
