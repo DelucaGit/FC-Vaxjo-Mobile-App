@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05.
+Senast uppdaterad: 2026-11-05, S1-6 del 2 (anonym, trasig token, IDOR, inaktiv rad).
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -85,13 +85,13 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT eget barn | PARENT annat barn | Kod idag |
 |---|---|---|---|---|---|---|---|---|
-| `GET /api/users` | 200, all PII | 200, all PII | 403 | 403 | 403 | 403 | 403 | 200 med all PII för alla inloggade. **S1-2** |
-| `GET /api/users/{id}` | 200 | 200 | 200 i eget lag, 403 annars | 403 | 200 bara sig själv, utan förälderns kontaktfält. 403 för andra | 403 (använd `/api/my`) | 403 | 200 med all PII, även inaktiva. **S1-2** och **S1-4** |
-| `GET /api/users/search` | 200 | 200 | 200 bara träffar i eget lag | tomt / inga andra lag | 403 | 403 | 403 | 200 med all PII för alla. Telefon i 404-texten. **S1-2**, **GAP-6** |
-| `POST /api/users` | 201 | 201 (planerat) | 201 för PLAYER i eget lag | 403 | 403 | 403 | 403 | ADMIN och COACH 201 utan lagkoll. CHAIRMAN 403. **S1-3**, **ADR 0006** |
-| `PUT /api/users/{id}/player` | 200 | 200 (planerat) | 200 | 403 | 403 | 403 | 403 | ADMIN och COACH 200 utan lagkoll. **S1-3**, **ADR 0006** |
-| `DELETE /api/users/{id}` | 204 | 204 (planerat) | 204 | 403 | 403 | 403 | 403 | ADMIN och COACH 204 utan lagkoll. **S1-3**, **ADR 0006** |
-| `PUT /api/users/{id}/role` | 200 | 200 utom rollen ADMIN (planerat, öppen fråga om COACH) | 403 | 403 | 403 | 403 | 403 | Bara ADMIN. CHAIRMAN 403. **ADR 0006** |
+| `GET /api/users` | 200, all PII | 200, all PII | 403 (hela klubben) | 403 | 403 | 403 | 403 | PLAYER och PARENT 403. ADMIN, CHAIRMAN och COACH 200 med all PII, även andra lag. **S1-3** (läsningen) |
+| `GET /api/users/{id}` | 200, inte inaktiv | 200, inte inaktiv | 200 i eget lag | 403 | 200 bara sig själv, utan förälderns telefon. 403 för andra | 403 | 403 | Spelare/förälder 403 för andras id, även om id saknas. Tränare får 200 för andra lag. Inaktiv rad är 200 för personal. **S1-3**, **S1-4** |
+| `GET /api/users/search` | 200 | 200 | 200 bara eget lag | tomt | 403 | 403 | 403 | PLAYER/PARENT 403. COACH söker över alla lag. Saknat telefonnummer ekas i 404. **S1-3**, gap 6 (S1-12) |
+| `POST /api/users` | 201 | 201 spelare, förälder eller tränare. Inte ADMIN | 201 PLAYER i eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 och S1-8 |
+| `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
+| `DELETE /api/users/{id}` | 204 | 204 | 204 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
+| `PUT /api/users/{id}/role` | 200 vilken roll som helst | 200 bara PLAYER till COACH, inte egen roll, inte ADMIN/CHAIRMAN | 403 | 403 | 403 | 403 | 403 | Stämmer efter S1-8 |
 
 COACH får i koden inte skapa en fristående PARENT (bara PLAYER, plus ny förälder via `newParent`). ADR 0006 säger att tränaren ska kunna skapa förälder. Det är en öppen fråga i kontraktet, inte en S1-test.
 
@@ -100,8 +100,8 @@ COACH får i koden inte skapa en fristående PARENT (bara PLAYER, plus ny förä
 | Anrop | ADMIN | CHAIRMAN | COACH eget | COACH annat | PLAYER | PARENT | Kod idag |
 |---|---|---|---|---|---|---|---|
 | `GET /api/teams` och `GET /api/teams/{id}` | 200, inga personfält | 200 | 200 | 200 | 200 | 200 | Stämmer |
-| `GET /api/teams/{id}/coaches` | 200 med telefon/e-post | 200 | 200 | 403 | 403 | 403 | 200 med telefon/e-post för alla inloggade. **S1-2** |
-| `GET /api/teams/{id}/players` | 200 med föräldratelefon | 200 | 200 med föräldratelefon | 403 | 403 | 403 | 200 med föräldratelefon för alla inloggade. **S1-2** |
+| `GET /api/teams/{id}/coaches` | 200 med telefon/e-post | 200 | 200 | 403 | 403 | 403 | PLAYER/PARENT 403. COACH får 200 även för ett annat lag. **S1-3** |
+| `GET /api/teams/{id}/players` | 200 med föräldratelefon | 200 | 200 med föräldratelefon | 403 | 403 | 403 | PLAYER/PARENT 403. COACH får föräldratelefon för ett annat lag-id. **S1-3** |
 | `POST /api/teams` | 201 | 201 | 403 | 403 | 403 | 403 | Stämmer efter PR #26. `x-roles` är ADMIN och CHAIRMAN |
 | `POST` / `DELETE .../coaches` | 201 / 204 | 201 / 204 | 403 | 403 | 403 | 403 | ADMIN och CHAIRMAN. Stämmer efter S1-7. `x-roles` är ADMIN och CHAIRMAN |
 
@@ -120,24 +120,64 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
 | `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post | Stämmer |
 
+### Anonymt anrop
+
+Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` ska ge 401 utan token, inklusive de planerade `/api/public/**` (de är inte byggda och får inte vara öppna). Login med fel lösenord är 400. `AnonymousAccessTest` läser filen, så en ny path kommer med av sig själv. Koden gör detta idag.
+
+### Trasig token
+
+Mot en skyddad URL. Förväntan: 401 och body exakt `{"message":"Login required"}`. Ingen stacktrace, ingen telefon, ingen e-post.
+
+| Fall | Kod idag |
+|---|---|
+| Utgången token | 401 |
+| Ändrad payload, samma signatur (höjd roll eller annat userId) | 401 |
+| Annan signeringsnyckel | 401 |
+| `alg: none` | 401 |
+| Token för ett userId som inte finns | 401 |
+| Skräpformat | 401 |
+| Prefix som inte är `Bearer` | 401 |
+
+Nyckeln i testerna är testprofilens `app.jwt.secret`, plus en uppenbart påhittad andra nyckel. Inga riktiga hemligheter.
+
+### IDOR (byte av id)
+
+| Byte | Mål | Kod idag |
+|---|---|---|
+| Spelare byter `users/{id}` till en annan person eller ett okänt id | 403, så svaret inte säger om id:t finns | Stämmer |
+| Förälder byter `childId` till ett annat barn | 403 | Stämmer |
+| Förälder byter `childId` till ett id som inte finns | 404, kontraktet säger "Player not found" | Stämmer |
+| Tränare byter `teamId` på träningar till ett annat lag eller ett okänt lag | 403, även när laget inte finns | Stämmer |
+| Tränare byter tränings-id till ett annat lag | 403 | Stämmer |
+| Tränare byter tränings-id till ett id som inte finns | 404 för alla, kontraktet skiljer på saknad rad | Stämmer |
+| Tränare byter lag-id på spelarlistan | 403, ingen föräldratelefon | 200 med telefon. **S1-3** |
+| Tränare byter user-id till en spelare i ett annat lag | 403 | 200 med telefon. **S1-3** |
+| Ordförande öppnar en träning i vilket lag som helst | 200 | Stämmer (S1-11) |
+
+### Inaktiv rad
+
+Beslut: `GET /api/users/{id}` på en inaktiv användare är **404 för ADMIN, CHAIRMAN, COACH, PLAYER och PARENT**. En redan utfärdad token för det inaktiva kontot är 401 (det stämmer, S1-4). Själva GET:en lämnar fortfarande ut raden för personal (200) och ger 403 för spelare och förälder, inte 404. De testerna är `known-gap` och pekar på S1-4.
+
 ### Planerade publika anrop
 
 `/api/public/**` är `x-status: planned` och finns inte i koden. Anonymt anrop får 401, inte en öppen lista. Ingen mätsticka för "ska vara 200", för de är inte byggda än.
 
 ## Vad som läcker idag, per roll
 
-**ADMIN.** Får se det ADMIN ska se. Två hål: `GET /api/users/{id}` lämnar ut en inaktiv spelare, med e-post och telefon (S1-4). Sök på ett nummer som inte finns skriver numret i 404-texten (GAP-6).
+**ADMIN.** Ser klubbens persondata, och det ska en admin. `GET /api/users/{id}` lämnar ut en inaktiv spelare (S1-4, ska vara 404). Sök på ett nummer som inte finns skriver numret i 404-texten (gap 6, story S1-12).
 
-**CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Personlistorna svarar 200 för ordföranden och 403 för spelare och förälder (S1-1). Att skapa, ändra och ta bort en spelare fungerar i alla lag (S1-3). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att byta en spelare till tränare svarar 200 (S1-8). Träningar får ordföranden skapa och markera på alla lag (S1-11).
+**CHAIRMAN.** Får skapa lag, koppla tränare, sköta spelare och markera träning i alla lag. Samma hål som admin på den inaktiva raden: 200 i stället för 404 (S1-4).
 
-**COACH, eget lag.** Får förälderns telefon på den egna laglistan, och det ska de. Samma tränare får också hela klubbkatalogen via `GET /api/users` och sök, inklusive andra lags föräldratelefon (S1-2).
+**COACH, eget lag.** Ser förälderns telefon på den egna laglistan. Samma tränare får också hela katalogen och sök, inklusive andra lag (S1-3, läsningen som S1-3 inte stängde).
 
-**COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 200 med e-post, telefon och förälderns telefon (S1-2). `POST /api/users`, `PUT /api/users/{id}/player` och `DELETE /api/users/{id}` går igenom mot det andra laget, så tränaren kan skriva om förälderns e-post och telefon där (S1-3). Träningar och `/api/my/teams` är redan spärrade.
+**COACH, annat lag.** Spelarlista, tränarlista och `GET /api/users/{id}` svarar 200 med telefon och e-post (S1-3). Skapa, ändra och mjukradera i det andra laget är 403. Träningar med ett annat lag-id är 403, även om laget inte finns.
 
-**PLAYER.** `/api/my/trainings` visar bara det egna schemat och inte förälderns telefon. Katalogen, sök, `GET /api/users/{id}` (även den egna raden, som innehåller förälderns telefon), lagets spelare och lagets tränare svarar 200 med andras kontaktfält (S1-2). Skrivningar är 403, och det är rätt.
+**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden gör det fortfarande (S1-2). En inaktiv annans id ger 403, inte 404 (S1-4).
 
-**PARENT, eget barn.** `/api/my/children` och `/api/my/trainings?childId=` visar bara det egna barnet, utan e-post och telefon. Samma förälder kan ändå lista hela klubben och andra lags föräldratelefon (S1-2).
+**PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Katalogen är 403.
 
-**PARENT, annat barn.** `/api/my/trainings?childId=` för det andra barnet är 403. `GET /api/users/{id}` och laglistan för det andra barnet är 200 med telefon och e-post (S1-2).
+**PARENT, annat barn.** `childId` för det andra barnet är 403. Ett id som inte finns är 404, som kontraktet säger. Laglistan är 403.
 
-**Inaktiv spelare.** Login är 400. Refresh är 400. En token som redan är utfärdad kan fortfarande anropa till exempel `GET /api/teams` och byta lösenord (S1-4). `GET /api/users/{id}` på den inaktiva raden svarar 200 (S1-4).
+**Inaktivt konto.** Login är 400. En gammal token får 401 på skyddade anrop. `GET /api/users/{id}` är inte 404 än (S1-4).
+
+**Anonym och trasig token.** 401 utan persondata i svaret. Inget hål där i den här körningen.

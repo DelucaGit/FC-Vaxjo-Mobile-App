@@ -527,3 +527,9 @@ Follow-up on the same branch: a chairman keeps the coach screens for every team 
 # App branch merged with master (5/11-2026)
 
 Master now has secure token storage (PR #28), chairman player rules, chairman may create a coach (S1-8 / PR #34), and chairman trainings (PR #35). This branch keeps that storage and the app role checks. The create-user picker for a chairman is now player, parent, and coach, matching `POST /api/users`. A bare 403 still becomes the sentence that the function is not available for the role yet.
+
+# Role matrix part 2 (5/11-2026)
+
+Decision: story S1-6 part 2 only adds tests. No production code.
+
+Why: the first matrix named the roles, but it did not walk every operation in the contract, and it did not try a broken token or a swapped id. Anonymous calls are read from `openapi.yaml` so a new path is picked up. An inactive user is 404 for every role, including CHAIRMAN. That GET still returns the row for staff, so those tests stay `known-gap` under S1-4. A coach can still read another team's phone by swapping the id. That stays `known-gap` under S1-3, because the write side of that story is done and the read side is not. Gap 6 (phone echoed in a 404, story S1-12) is unchanged.
