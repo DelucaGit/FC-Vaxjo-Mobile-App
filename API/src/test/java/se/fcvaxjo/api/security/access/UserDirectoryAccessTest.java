@@ -40,7 +40,7 @@ class UserDirectoryAccessTest extends ClubApiTest {
 
     @Test
     void coach_ownTeamRosterDoesNotIncludeTheOtherTeam() throws Exception {
-        // This list is already filtered by team id. The leak is asking for the other team's URL (S1-2).
+        // This URL is already one team. Asking for the other team's URL is refused (S1-10).
         get(Actor.COACH_ALFA, "/api/teams/" + world.teamAlfaId() + "/players")
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString(ClubFixture.PHONE_PARENT_BETA))));

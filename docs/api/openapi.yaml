@@ -11,9 +11,10 @@ info:
     `CHAIRMAN` finns som roll (ADR 0006). Behörigheter som ännu inte matchar ADR:n
     är markerade med `x-roles-planned`.
 
-    Läsning av persondata (användarlistan, sök, en annan användare, lagets tränare och spelare)
+    Läsning av persondata (sök, en annan användare, lagets tränare och spelare)
     kräver ADMIN, CHAIRMAN eller COACH. PLAYER och PARENT får 403.
-    Ordföranden är inte begränsad till ett lag.
+    ADMIN och CHAIRMAN ser hela klubben. COACH ser bara lag där hen finns i `team_coaches`.
+    Hela användarlistan `GET /api/users` är bara ADMIN och CHAIRMAN.
     Undantag: `GET /api/users/{id}` när id är den inloggade själv.
 
     **Konventioner**
@@ -144,9 +145,10 @@ paths:
       summary: Lista alla aktiva användare
       description: |
         Returnerar alla användare med `active=true`, inklusive kontaktuppgifter och förälderns kontaktuppgifter.
-        Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403, eftersom listan är andras persondata.
-        Ordföranden får hela listan, inte bara ett lag.
-      x-roles: [ADMIN, CHAIRMAN, COACH]
+        Bara ADMIN och CHAIRMAN. Listan är hela klubben, inte ett lag.
+        COACH, PLAYER och PARENT får 403. En tränare listar personer via lagets spelare och tränare.
+      x-roles: [ADMIN, CHAIRMAN]
+      x-scope: Hela klubben. COACH använder lagets spelare och tränare, bara för lag i team_coaches.
       x-source: UserController.getAllUsers → UserService.getAllUsers
       responses:
         '200':
@@ -225,8 +227,14 @@ paths:
         Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
         eftersom träffen innehåller kontaktuppgifter.
-        Ordföranden får söka i hela klubben.
+        ADMIN och CHAIRMAN söker i hela klubben.
+        COACH får bara träffar på lag där hen finns i `team_coaches`:
+        spelare med det `teamId`, tränare kopplade till de lagen, och föräldrar till aktiva spelare där.
+        Namnsök mot ett annat lag ger 200 och en tom lista.
+        Tröjnummer eller telefon som inte ligger på de lagen ger samma 404 som om personen saknas.
+        404-texten är oförändrad.
       x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN hela klubben. COACH endast egna lag (`team_coaches`).
       x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
       parameters:
         - name: name
@@ -268,18 +276,23 @@ paths:
       operationId: getUserById
       summary: Hämta en användare
       description: |
-        ADMIN, CHAIRMAN och COACH får hämta vem som helst, även inaktiva användare.
-        Ordföranden är inte begränsad till ett lag.
+        ADMIN och CHAIRMAN får hämta vem som helst, även inaktiva användare.
+        De är inte begränsade till ett lag.
+        COACH får hämta en person på ett lag hen tränar (spelarens `teamId`, en tränare i `team_coaches`,
+        eller en förälder till en aktiv spelare där), och sitt eget id.
+        Annat id ger 403 "You can only read users on a team you train", även när användaren inte finns.
         PLAYER och PARENT får bara hämta sitt eget id (samma id som i JWT).
         Annat id ger 403 med meddelandet "You can only read your own user record",
         även när användaren inte finns. Vi svarar 403 före 404 så att man inte kan testa om ett id finns.
-        Behörig roll som frågar efter ett okänt id får "User not found" (404).
+        ADMIN eller CHAIRMAN som frågar efter ett okänt id får "User not found" (404).
 
         En spelare som hämtar sig själv får fortfarande hela `FetchUserResponse`,
         inklusive den kopplade förälderns kontaktuppgifter. Att plocka bort de fälten
         är dataminimering (ADR 0004) och ingår inte i den här ändringen.
       x-roles: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
-      x-scope: PLAYER och PARENT endast eget användar-id. CHAIRMAN ser alla lag. COACH är inte begränsad till egna lag ännu.
+      x-scope: |
+        ADMIN och CHAIRMAN alla lag. COACH endast personer på lag i `team_coaches`, plus eget id.
+        PLAYER och PARENT endast eget användar-id.
       x-source: UserController.getUserById → UserService.assertCallerMayReadUser, UserService.getUserById
       responses:
         '200':
@@ -488,10 +501,12 @@ paths:
         Returnerar fullständig `FetchUserResponse` (e-post, telefon).
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403.
         Behörigheten kontrolleras före existens, så en spelare får 403 även för ett lag som inte finns.
-        Behörig roll: "Team not found" (404).
+        ADMIN och CHAIRMAN: "Team not found" (404).
         Ordföranden får läsa tränare i alla lag, även lag hen inte är kopplad till.
-        COACH är inte begränsad till egna lag ännu (det är en senare story).
+        COACH bara lag där hen finns i `team_coaches`. Annars 403, även för ett lag som inte finns,
+        så svaret inte visar vilka id som finns.
       x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TeamController.listCoaches → TeamService.listCoaches
       responses:
         '200':
@@ -583,8 +598,10 @@ paths:
         Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403, även för ett lag som inte finns
         (behörigheten kontrolleras före "Team not found").
         Ordföranden får läsa spelare i alla lag, även lag hen inte är kopplad till.
-        COACH är inte begränsad till egna lag ännu (det är en senare story).
+        COACH bara lag där hen finns i `team_coaches`. Annars 403, även för ett lag som inte finns.
+        ADMIN och CHAIRMAN får "Team not found" (404) för ett okänt lag.
       x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
       x-source: TeamController.listPlayers → TeamService.listPlayers
       responses:
         '200':

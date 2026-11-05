@@ -513,3 +513,13 @@ The role matrix arrived from master (PR #31) after this branch already limited c
 # Chairman can manage trainings on every team (5/11-2026)
 
 Decision: a chairman creates a training and marks attendance for any team, the same as an admin. They do not need a row in `team_coaches`. The yes/no is `ClubRole.canManageAllTrainings()`, so the service does not copy the rank as a loose string check. A coach is unchanged: only teams they are linked to. PLAYER and PARENT still get 403 on the staff training URLs. There is still no URL to edit a training's title or time. "Change" here is the change an admin can already make: mark who was present. Branch: `cursor/s1-11-chairman-trainings-4539`.
+
+# S1-10: coach reads only their own teams (5/11-2026)
+
+Decision: a coach may list, read and search people only on teams they are linked to in `team_coaches`. ADMIN and CHAIRMAN still see the whole club. PLAYER and PARENT are unchanged.
+
+The whole club list (`GET /api/users`) is refused for a coach. They use the team roster instead. A name search returns only people on their teams: players on `users.team_id`, coaches in `team_coaches`, and parents of active players on those teams. A shirt number or phone that is not on those teams gets the same 404 as a missing person. The 404 text is unchanged. Reading one user on another team is 403. Opening another team's player list or coach list is 403, and that check runs before "team not found".
+
+The yes/no for the whole club is `ClubRole.canReadEveryTeam()`. The team check reuses the `team_coaches` lookup already used when a coach creates or edits a player (S1-3) and when they manage trainings (S1-11). The role does not know those rows, so the lookup stays in `UserService`.
+
+The five coach checks in `KnownPiiLeakTest` now run in the normal suite. The parent's phone on a player's own row, the phone number in a 404, and GET of an inactive user stay tagged `known-gap`. Branch: `cursor/s1-10-coach-own-team-reads-aa46`.

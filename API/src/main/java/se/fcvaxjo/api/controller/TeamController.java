@@ -74,7 +74,8 @@ public class TeamController {
 
     /**
      * Coach email and phone. A player must not collect the staff contact list here.
-     * The chairman may read every team. We do not check team_coaches for this call.
+     * ADMIN and CHAIRMAN may read every team. A coach may read only a team they train.
+     * The team check lives in the service, on the same team_coaches row as player writes.
      */
     @GetMapping("/{id}/coaches")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
@@ -89,7 +90,8 @@ public class TeamController {
     /**
      * Each player, plus the parent's name, email and phone.
      * That parent phone is why a child must not call this for any team.
-     * The chairman may, including teams they are not linked to.
+     * ADMIN and CHAIRMAN may, including teams they are not linked to.
+     * A coach may read only a team they train.
      */
     @GetMapping("/{id}/players")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
