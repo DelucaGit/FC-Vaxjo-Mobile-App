@@ -15,6 +15,9 @@ Appen hanterar persondata om barn (namn, närvaro och senare beteende) och för�
 7. **Säkerhet.** HTTPS, hemligheter bara i Railways miljövariabler och en JWT-hemlighet utan standardvärde.
 8. **Det juridiska.** DPA med Railway (EU-region), en integritetspolicy i appen och på hemsidan, och ett registerutdrag. Policy och samtycken stäms av med någon som kan GDPR före lansering.
 
+## Genomförande (S1-13)
+En mjukt borttagen användare (`active=false`) lämnas inte ut på den vanliga läsningen. `GET /api/users/{id}` svarar 404 med texten "User not found" för alla roller, även ADMIN. Samma text som när id saknas, så svaret inte säger att kontot finns. Listor och sök visade redan bara `active=true`. Att slå på kontot igen blir en egen endpoint senare och byggs inte här.
+
 ## Konsekvenser
 - Flera befintliga endpoints bryter mot punkt 2, 4 och 5 (se `docs/gap-analys.md`).
 - Det behövs en samtyckesmodell för tränare innan `/api/public/teams/{id}/coaches` byggs.

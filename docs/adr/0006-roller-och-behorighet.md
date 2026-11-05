@@ -69,3 +69,9 @@ Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 - `GET /api/users/{id}`: COACH får läsa en spelare vars `teamId` är ett lag hen tränar, en tränare som är kopplad till ett sådant lag, en förälder till en aktiv spelare där, och sin egen rad. Annars 403. ADMIN och CHAIRMAN ser alla. PLAYER och PARENT är oförändrade: bara sin egen rad.
 - Sök på namn ger bara träffar i tränarens lag. Ett annat lag ger en tom lista. Sök på tröjnummer eller telefon som inte ligger där ger samma 404-text som när personen saknas. Texten ändras inte här.
 - `GET /api/teams/{id}/players` och `.../coaches`: COACH bara egna lag. Kontrollen sker före "Team not found", så ett okänt lag-id ger 403 för en tränare. ADMIN och CHAIRMAN ser alla lag, även lag de inte är kopplade till.
+
+## Genomförande (S1-13)
+- Läsningen i S1-10 gäller aktiva användare. En rad med `active=false` är dold för alla roller, även ADMIN, CHAIRMAN och tränaren i spelarens eget lag.
+- `GET /api/users/{id}` svarar 404 "User not found". Samma text som när id saknas (S1-12), så svaret inte säger att kontot finns. Det är dataminimering (ADR 0004).
+- Listor och sök (`GET /api/users`, namn, tröjnummer, telefon, lagets spelare och tränare) visade redan bara `active=true`. Det är oförändrat.
+- Att slå på kontot igen blir en egen endpoint senare. Den byggs inte här. Ändra, mjukradera och byt roll använder fortfarande den inaktiva raden, så de kan säga till exempel "Player is already inactive".

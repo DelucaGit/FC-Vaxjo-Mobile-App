@@ -541,3 +541,13 @@ The whole club list (`GET /api/users`) is refused for a coach. They use the team
 The yes/no for the whole club is `ClubRole.canReadEveryTeam()`. The team check reuses the `team_coaches` lookup already used when a coach creates or edits a player (S1-3) and when they manage trainings (S1-11). The role does not know those rows, so the lookup stays in `UserService`.
 
 The five coach checks in `KnownPiiLeakTest` now run in the normal suite. The parent's phone on a player's own row, the phone number in a 404, and GET of an inactive user stay tagged `known-gap`. Branch: `cursor/s1-10-coach-own-team-reads-aa46`.
+
+# S1-13: an inactive user is hidden on the normal read (5/11-2026)
+
+Decision: `GET /api/users/{id}` returns 404 "User not found" when `active=false`, for every role, including ADMIN. The same sentence as a missing id (S1-12), so the answer does not say the account exists. That is data minimisation (ADR 0004). Turning the account back on is a later endpoint. It is not this GET.
+
+The inactive check runs before the role check. A player, a parent, or a coach on another team still gets 403 for a missing id (S1-10). They get 404 for an inactive id, because this story asks for 404 for every role. ADMIN and CHAIRMAN get 404 in both cases.
+
+Lists and searches already hid inactive rows (`active=true` on the club list, name search, shirt search, phone search, team players and team coaches). No new query was needed there. The queries stay parameterized. Writes still load the inactive row, so "Cannot edit an inactive player" and "Player is already inactive" stay as they are.
+
+The four GET tests in `KnownInactiveUserTest` run in the normal suite. `player_ownRowHidesParentPhoneNumber` stays tagged `known-gap` (sprint 2). Branch: `cursor/s1-13-inactive-user-404-02ad`. The branch merges S1-12 and S1-10 first, so it is meant to land after PRs #36, #37 and #38.

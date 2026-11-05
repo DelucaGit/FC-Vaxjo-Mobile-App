@@ -30,11 +30,11 @@ Det kör bara mätstickan.
 | Story | Gap-analys | Vad testerna mäter | I `./mvnw test` |
 |---|---|---|---|
 | S1-1 | Topp 5, punkt 1 | Inga seed-lösenord och ingen demoklubb i testprofilen | Gröna (`TestProfileSafetyTest`) |
-| S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | Tränarens laggräns är grön (S1-10). Kvar som `known-gap`: spelarens egen rad visar förälderns telefon, och telefon i 404-texten |
+| S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | Tränarens laggräns är grön (S1-10). Telefon i 404-texten är grön (S1-12). Kvar som `known-gap`: spelarens egen rad visar förälderns telefon |
 | S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest` är grön och körs i vanliga bygget |
-| S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är kvar | Token-testerna i `KnownInactiveUserTest` är gröna. GET-testerna är kvar som `known-gap` |
+| S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden ska vara 404 | Token-testerna och GET-testerna i `KnownInactiveUserTest` är gröna (S1-13). Taggen `known-gap` är borta från de fyra GET-testerna |
 | ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (PR #26), koppla eller ta bort en tränare (S1-7), skapa/ändra/ta bort spelare (S1-3) och byta en spelare till tränare (S1-8) | De testerna är gröna i `KnownChairmanAccessTest` och `TeamAccessTest` |
-| GAP-6 | Övriga, punkt 6 | 404-texten ekar det sökta telefonnumret | Ett test i `KnownPiiLeakTest`, exkluderas |
+| GAP-6 | Övriga, punkt 6 | 404-texten ekar det sökta telefonnumret | Grön (S1-12). Testet i `KnownPiiLeakTest` körs i vanliga bygget |
 
 Punkt 5 (JWT-hemlighet utan standardvärde) är redan åtgärdad. `TestProfileSafetyTest` kontrollerar att testprofilen har en tillräckligt lång testnyckel och att appen startar mot H2.
 
@@ -86,8 +86,8 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT eget barn | PARENT annat barn | Kod idag |
 |---|---|---|---|---|---|---|---|---|
 | `GET /api/users` | 200, all PII | 200, all PII | 403 | 403 | 403 | 403 | 403 | 200 för ADMIN och CHAIRMAN. 403 för COACH. **S1-10** |
-| `GET /api/users/{id}` | 200 | 200 | 200 i eget lag, 403 annars | 403 | 200 bara sig själv, utan förälderns kontaktfält. 403 för andra | 403 (använd `/api/my`) | 403 | COACH är begränsad till egna lag. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiva rader lämnas ut. **S1-10**, **S1-4** |
-| `GET /api/users/search` | 200 | 200 | 200 bara träffar i eget lag | tomt / inga andra lag | 403 | 403 | 403 | COACH ser bara egna lag. Telefon i 404-texten är kvar. **S1-10**, **GAP-6** |
+| `GET /api/users/{id}` | 200 för aktiv. 404 för inaktiv | 200 för aktiv. 404 för inaktiv | 200 i eget lag, 403 annars. 404 för inaktiv | 403 för aktiv. 404 för inaktiv | 200 bara sig själv, utan förälderns kontaktfält. 403 för andra. 404 för inaktiv | 403 (använd `/api/my`). 404 för inaktiv | 403 för aktiv. 404 för inaktiv | COACH är begränsad till egna lag. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiv rad är 404 "User not found" för alla roller. **S1-10**, **S1-13** |
+| `GET /api/users/search` | 200 | 200 | 200 bara träffar i eget lag | tomt / inga andra lag | 403 | 403 | 403 | COACH ser bara egna lag. Telefon i 404-texten är "User not found". **S1-10**, **S1-12** |
 | `POST /api/users` | 201 | 201 (planerat) | 201 för PLAYER i eget lag | 403 | 403 | 403 | 403 | ADMIN och COACH 201 utan lagkoll. CHAIRMAN 403. **S1-3**, **ADR 0006** |
 | `PUT /api/users/{id}/player` | 200 | 200 (planerat) | 200 | 403 | 403 | 403 | 403 | ADMIN och COACH 200 utan lagkoll. **S1-3**, **ADR 0006** |
 | `DELETE /api/users/{id}` | 204 | 204 (planerat) | 204 | 403 | 403 | 403 | 403 | ADMIN och COACH 204 utan lagkoll. **S1-3**, **ADR 0006** |
@@ -126,7 +126,7 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 
 ## Vad som läcker idag, per roll
 
-**ADMIN.** Får se det ADMIN ska se. Två hål: `GET /api/users/{id}` lämnar ut en inaktiv spelare, med e-post och telefon (S1-4). Sök på ett nummer som inte finns skriver numret i 404-texten (GAP-6).
+**ADMIN.** Får se det ADMIN ska se. `GET /api/users/{id}` på en inaktiv spelare är 404 "User not found" (S1-13). Sök på ett nummer som inte finns säger "User not found" och upprepar inte numret (S1-12).
 
 **CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Personlistorna svarar 200 för ordföranden och 403 för spelare och förälder (S1-1). Att skapa, ändra och ta bort en spelare fungerar i alla lag (S1-3). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att byta en spelare till tränare svarar 200 (S1-8). Träningar får ordföranden skapa och markera på alla lag (S1-11).
 
@@ -140,4 +140,4 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 
 **PARENT, annat barn.** `/api/my/trainings?childId=` för det andra barnet är 403. `GET /api/users/{id}` och laglistan för det andra barnet är 200 med telefon och e-post (S1-2).
 
-**Inaktiv spelare.** Login är 400. Refresh är 400. En token som redan är utfärdad kan fortfarande anropa till exempel `GET /api/teams` och byta lösenord (S1-4). `GET /api/users/{id}` på den inaktiva raden svarar 200 (S1-4).
+**Inaktiv spelare.** Login är 400. En gammal token får 401 (S1-4). `GET /api/users/{id}` på den inaktiva raden är 404 "User not found" för alla roller (S1-13). Listor och sök tar inte med raden.
