@@ -122,7 +122,8 @@ public class TeamService {
      * Active players on this team: users with team_id set, role PLAYER only.
      */
     public List<AppUser> listPlayers(Long teamId) {
-        // Same check as listCoaches. The parent phone on this list is why the team matters.
+        // A coach who swaps the team id in the URL must not see the other parent's phone.
+        // The check stays in the service, on the same team_coaches row as a write.
         userService.assertCallerMayReadTeam(teamId);
         getTeamById(teamId);
         List<AppUser> onTeam = userRepository.findByTeamIdAndActiveTrue(teamId);

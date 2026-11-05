@@ -551,3 +551,21 @@ The inactive check runs before the role check. A player, a parent, or a coach on
 Lists and searches already hid inactive rows (`active=true` on the club list, name search, shirt search, phone search, team players and team coaches). No new query was needed there. The queries stay parameterized. Writes still load the inactive row, so "Cannot edit an inactive player" and "Player is already inactive" stay as they are.
 
 The four GET tests in `KnownInactiveUserTest` run in the normal suite. `player_ownRowHidesParentPhoneNumber` stays tagged `known-gap` (sprint 2). Branch: `cursor/s1-13-inactive-user-404-02ad`. The branch merges S1-12 and S1-10 first, so it is meant to land after PRs #36, #37 and #38.
+
+# Role matrix part 2 (5/11-2026)
+
+Decision: story S1-6 part 2 only adds tests. No production code.
+
+Why: the first matrix named the roles, but it did not walk every operation in the contract, and it did not try a broken token or a swapped id. Anonymous calls are read from `openapi.yaml` so a new path is picked up. An inactive user is 404 for every role, including CHAIRMAN. That GET still returns the row for staff, so those tests stay `known-gap` under S1-4. A coach can still read another team's phone by swapping the id. That stays `known-gap` under S1-3, because the write side of that story is done and the read side is not. Gap 6 (phone echoed in a 404, story S1-12) is unchanged.
+
+# S1-10 answers the new IDOR tests (5/11-2026)
+
+The extended role matrix (PR #41) was merged into this branch. Two of its `known-gap` tests already match the code, so the tag came off only those two. No new permission rule was added.
+
+A coach who swaps the team id on `GET /api/teams/{id}/players` gets 403. The check runs in `UserService` before the team lookup, on the same `team_coaches` row as a write, so the other parent's phone is not in the body. A coach who swaps the user id on `GET /api/users/{id}` to a player on another team gets 403 for the same reason. `openapi.yaml` already lists 403 on both reads.
+
+GET of an inactive user stays `known-gap`, including the chairman case the matrix added. That belongs to S1-13. The phone search already answers "User not found" (S1-12). The matrix paragraph above still describes the gaps as they were when the tests were written. This branch follows S1-10 and S1-12.
+
+# S1-13 takes the inactive GET tests off the gap list (5/11-2026)
+
+S1-10, including the merged role matrix, is now on this branch. The inactive GET tests pass, so the `known-gap` tag is off for admin, chairman, coach, player and parent. The message is "User not found". The two IDOR tests stay in the normal suite. A player's own row still shows the parent's phone, and that test stays `known-gap`.

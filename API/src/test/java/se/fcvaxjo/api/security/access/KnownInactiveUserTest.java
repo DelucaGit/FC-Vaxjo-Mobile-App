@@ -14,8 +14,10 @@ import se.fcvaxjo.api.support.SampleRequests;
 /**
  * Story S1-4, gap analysis point 4, and story S1-13.
  * The JWT filter reads the database, so an old token for an inactive account
- * is rejected. GET /api/users/{id} hides that row with the same 404 as a missing id.
- * The callers in the GET tests are real active users from {@link ClubFixture}.
+ * is rejected. GET of that row is 404 "User not found" for every role.
+ * Those GET tests pass, so the known-gap tag is off, including the chairman
+ * case from the extended role matrix. The callers are real active users
+ * from {@link ClubFixture}.
  */
 class KnownInactiveUserTest extends ClubApiTest {
 
@@ -42,10 +44,17 @@ class KnownInactiveUserTest extends ClubApiTest {
     }
 
     @Test
-    @DisplayName("S1-4: admin ska inte hämta en inaktiv spelare på den vanliga läsningen")
+    @DisplayName("S1-4: admin ska få 404 för en inaktiv spelare")
     void admin_cannotReadInactivePlayer() throws Exception {
         // The row stays in the database. This GET must not hand it out.
         expectInactiveHidden(Actor.ADMIN);
+    }
+
+    @Test
+    @DisplayName("S1-4: ordförande ska få 404 för en inaktiv spelare")
+    void chairman_cannotReadInactivePlayer() throws Exception {
+        // Same rule as admin. There is no reactivate endpoint on this GET.
+        expectInactiveHidden(Actor.CHAIRMAN);
     }
 
     @Test
@@ -56,8 +65,9 @@ class KnownInactiveUserTest extends ClubApiTest {
     }
 
     @Test
-    @DisplayName("S1-4: spelare ska inte hämta en inaktiv spelare")
+    @DisplayName("S1-4: spelare ska få 404 för en inaktiv spelare")
     void player_cannotReadInactivePlayer() throws Exception {
+        // A player normally gets 403 for someone else's id. An inactive row is 404 first.
         expectInactiveHidden(Actor.PLAYER_ALFA);
     }
 
@@ -65,13 +75,6 @@ class KnownInactiveUserTest extends ClubApiTest {
     @DisplayName("S1-4: förälder ska inte hämta en inaktiv spelare")
     void parent_cannotReadInactivePlayer() throws Exception {
         expectInactiveHidden(Actor.PARENT_ALFA);
-    }
-
-    @Test
-    @DisplayName("S1-13: ordförande ska inte hämta en inaktiv spelare")
-    void chairman_cannotReadInactivePlayer() throws Exception {
-        // Same rule as admin. There is no reactivate endpoint on this GET.
-        expectInactiveHidden(Actor.CHAIRMAN);
     }
 
     @Test
