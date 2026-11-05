@@ -18,6 +18,7 @@ import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.model.TrainingStatus;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
@@ -45,12 +46,17 @@ public class TrainingService {
         this.userRepository = userRepository;
     }
 
+    public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title) {
+        return createTraining(teamId, startsAt, endsAt, title, null);
+    }
+
     /**
      * Creates a training and snapshots current active players on the team
      * into attendance rows (status null until marked).
      */
     @Transactional
-    public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title) {
+    public Training createTraining(
+            Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title, String venue) {
         assertCanManageTeam(teamId);
 
         if (teamId == null) {
@@ -65,13 +71,15 @@ public class TrainingService {
 
         teamService.getTeamById(teamId);
 
-        String resolvedTitle = (title == null || title.isBlank()) ? "Training" : title.trim();
+        String resolvedTitle = resolvedTitle(title);
 
         Training training = new Training();
         training.setTeamId(teamId);
         training.setStartsAt(startsAt);
         training.setEndsAt(endsAt);
         training.setTitle(resolvedTitle);
+        training.setVenue(blankToNull(venue));
+        training.setStatus(TrainingStatus.SCHEDULED);
         training.setCreatedByUserId(currentUserId());
         Training saved = trainingRepository.save(training);
 
@@ -103,6 +111,39 @@ public class TrainingService {
         return training;
     }
 
+    /**
+     * Changes time, place, and title. The team stays, so the attendance rows stay.
+     * A cancelled training can still be corrected. Marking attendance stays blocked.
+     */
+    @Transactional
+    public Training updateTraining(
+            Long id, LocalDateTime startsAt, LocalDateTime endsAt, String title, String venue) {
+        Training training = getById(id);
+        if (startsAt == null || endsAt == null) {
+            throw new BadRequestException("startsAt and endsAt are required");
+        }
+        if (!endsAt.isAfter(startsAt)) {
+            throw new BadRequestException("endsAt must be after startsAt");
+        }
+        training.setStartsAt(startsAt);
+        training.setEndsAt(endsAt);
+        training.setTitle(resolvedTitle(title));
+        training.setVenue(blankToNull(venue));
+        return trainingRepository.save(training);
+    }
+
+    /**
+     * Calls the training off. The row and the attendance snapshot stay.
+     * reason may be empty.
+     */
+    @Transactional
+    public Training cancelTraining(Long id, String reason) {
+        Training training = getById(id);
+        training.setStatus(TrainingStatus.CANCELLED);
+        training.setCancelReason(blankToNull(reason));
+        return trainingRepository.save(training);
+    }
+
     public List<TrainingAttendance> listAttendance(Long trainingId) {
         Training training = getById(trainingId);
         return attendanceRepository.findByTrainingId(training.getId());
@@ -111,6 +152,9 @@ public class TrainingService {
     @Transactional
     public TrainingAttendance updateAttendance(Long trainingId, Long playerUserId, String statusName) {
         Training training = getById(trainingId);
+        if (training.statusOrScheduled() == TrainingStatus.CANCELLED) {
+            throw new BadRequestException("This training is cancelled");
+        }
 
         if (statusName == null || statusName.isBlank()) {
             throw new BadRequestException("status is required (PRESENT, ABSENT, or EXCUSED)");
@@ -202,5 +246,16 @@ public class TrainingService {
             throw new AccessDeniedException("Not logged in");
         }
         return id;
+    }
+
+    private String resolvedTitle(String title) {
+        return (title == null || title.isBlank()) ? "Training" : title.trim();
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

@@ -114,6 +114,12 @@ Det gäller lista, hämta, skapa, lista närvaro och markera närvaro.
 
 Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post och inte förälderns telefon.
 
+`PUT /api/trainings/{id}` ändrar tid, plats och titel. Laget ändras inte.
+`PUT /api/trainings/{id}/cancellation` sätter CANCELLED och en valfri orsak. Raden raderas inte. Närvaron ligger kvar, men ny närvaro är 400 "This training is cancelled".
+PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Personal ser `status` i lagets lista.
+
+Kod idag: stämmer. Anonymt anrop är 401.
+
 ### Matcher
 
 `x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.
@@ -131,7 +137,7 @@ Kod idag: stämmer. Anonymt anrop är 401.
 |---|---|---|
 | `GET /api/my/teams` | ADMIN alla lag. COACH bara sina. Övriga 403 | Stämmer |
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
-| `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post | Stämmer |
+| `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post. `trainingStatus` visar CANCELLED när träningen är inställd | Stämmer |
 | `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
 
 ### Planerade publika anrop

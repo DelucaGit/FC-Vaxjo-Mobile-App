@@ -24,6 +24,7 @@ import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.model.TrainingStatus;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
@@ -188,7 +189,28 @@ public class DemoClubSeeder implements CommandLineRunner {
         }
 
         seedTrainings(team, coach.getId());
+        cancelOneTrainingIfNoneIsCancelled(team);
         seedMatches(team, coach.getId());
+    }
+
+    /**
+     * One called-off training per team, so the demo list shows CANCELLED
+     * without deleting the attendance rows. Skipped when one already exists.
+     */
+    private void cancelOneTrainingIfNoneIsCancelled(Team team) {
+        List<Training> existing = trainingRepository.findByTeamIdOrderByStartsAtDesc(team.getId());
+        for (Training training : existing) {
+            if (training.getStatus() == TrainingStatus.CANCELLED) {
+                return;
+            }
+        }
+        if (existing.isEmpty()) {
+            return;
+        }
+        Training earliest = existing.get(existing.size() - 1);
+        earliest.setStatus(TrainingStatus.CANCELLED);
+        earliest.setCancelReason("Pitch closed");
+        trainingRepository.save(earliest);
     }
 
     /**
@@ -276,6 +298,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             training.setEndsAt(endsAt);
             training.setTitle("Training " + i);
             training.setCreatedByUserId(coachUserId);
+            training.setStatus(TrainingStatus.SCHEDULED);
             Training saved = trainingRepository.save(training);
 
             for (AppUser player : players) {

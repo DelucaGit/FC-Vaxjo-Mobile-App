@@ -781,6 +781,71 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Trainings]
+      operationId: updateTraining
+      summary: Ändra tid, plats och titel
+      description: |
+        Byter `startsAt`, `endsAt`, `title` och `venue`. Laget ändras inte, så närvaroraderna ligger kvar.
+        Samma skrivare som när träningen skapas. En inställd träning kan fortfarande rättas.
+        Tom `title` blir "Training". Tom `venue` rensar platsen.
+        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        "Training not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 från `@PreAuthorize`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.update → TrainingService.updateTraining
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTrainingRequest' }
+      responses:
+        '200':
+          description: Träningen uppdaterad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/trainings/{id}/cancellation:
+    parameters:
+      - $ref: '#/components/parameters/TrainingId'
+    put:
+      tags: [Trainings]
+      operationId: cancelTraining
+      summary: Ställ in en träning
+      description: |
+        Sätter status CANCELLED. Träningen raderas inte. Närvaroraderna ligger kvar.
+        `reason` är valfri. Tom text sparas som null.
+        Det går inte att markera närvaro på en inställd träning (400 "This training is cancelled").
+        Samma skrivare som när träningen skapas.
+        Spelare och föräldrar ser statusen i `GET /api/my/trainings`. Personal ser den i lagets lista.
+        Fel: "Training not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 från `@PreAuthorize`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.cancel → TrainingService.cancelTraining
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelTrainingRequest' }
+      responses:
+        '200':
+          description: Träningen är inställd.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/trainings/{id}/attendance:
     parameters:
@@ -791,6 +856,7 @@ paths:
       summary: Lista närvaro för en träning
       description: |
         ADMIN och CHAIRMAN får lista närvaro för en träning i vilket lag som helst.
+        Listan finns kvar när träningen är inställd.
         Fel: "Training not found", "Player not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
@@ -824,7 +890,8 @@ paths:
       description: |
         Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste finnas på träningens
         ögonblicksbild. Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
-        "This player is not on the attendance list for this training" (400); "Training not found" (404);
+        "This player is not on the attendance list for this training",
+        "This training is cancelled" (400); "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
         ADMIN och CHAIRMAN får markera närvaro på vilket lag som helst.
@@ -1467,6 +1534,23 @@ components:
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
         title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+        venue: { type: [string, 'null'], description: Plats. Tom eller null sparas som null. }
+    UpdateTrainingRequest:
+      type: object
+      required: [startsAt, endsAt]
+      properties:
+        startsAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
+        title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+        venue: { type: [string, 'null'], description: Tom eller null rensar platsen. }
+    CancelTrainingRequest:
+      type: object
+      properties:
+        reason: { type: [string, 'null'], description: Valfri orsak. Tom text sparas som null. }
+    TrainingStatus:
+      type: string
+      description: SCHEDULED är en vanlig träning. CANCELLED är inställd. Raden raderas inte.
+      enum: [SCHEDULED, CANCELLED]
     TrainingResponse:
       type: object
       required: [id, teamId, startsAt, endsAt, title, createdByUserId]
@@ -1477,6 +1561,9 @@ components:
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
         title: { type: string }
+        venue: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/TrainingStatus' }
+        cancelReason: { type: [string, 'null'] }
         createdByUserId: { type: integer, format: int64 }
     AttendanceResponse:
       type: object
@@ -1578,9 +1665,12 @@ components:
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
         title: { type: string }
+        venue: { type: [string, 'null'] }
         playerUserId: { type: integer, format: int64 }
         playerName: { type: [string, 'null'], x-pii: true }
         status: { $ref: '#/components/schemas/AttendanceStatus' }
+        trainingStatus: { $ref: '#/components/schemas/TrainingStatus' }
+        cancelReason: { type: [string, 'null'] }
 
     PublicTeamResponse:
       type: object

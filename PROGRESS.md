@@ -687,3 +687,12 @@ An inactive player is never shown. If the parent is inactive, the child is hidde
 
 Coach contact on the website, public trainings, rate limiting, and CORS for fcvaxjo.se are not in this change. ADR 0007 records the exception to the older "never publish a player" line. `UI/` is not changed.
 
+# Edit a training, or call it off (5/11-2026)
+
+Decision: `PUT /api/trainings/{id}` changes the time, the place, and the title. The team does not change, so the attendance rows stay on that training. `PUT /api/trainings/{id}/cancellation` sets CANCELLED and an optional reason. The row is not deleted.
+
+Why not delete: the attendance history is still the club's record. Players and parents see `trainingStatus` CANCELLED on `/api/my/trainings`. Staff see `status` on the team list. Marking attendance on a cancelled training is 400 "This training is cancelled". Reading the old attendance still works.
+
+The same people who create a training may edit or cancel it. A place is a new optional column, because the old training row had no venue. A null status on an older row is shown as SCHEDULED. Hibernate adds the columns (`ddl-auto=update`, ADR 0002). No Flyway. `UI/` is not changed.
+
+
