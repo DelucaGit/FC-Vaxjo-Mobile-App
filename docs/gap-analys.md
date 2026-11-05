@@ -35,6 +35,10 @@ Allvarlighet: **K** = kritisk (måste åtgärdas före produktion), **H** = hög
 | 15 | L | Rollbyte saknar skydd mot att den sista ADMIN nedgraderas, och det loggas inte vem som ändrade vad (ingen audit-logg för ändringar av persondata). | `J/service/UserService.java:364-370` |
 | 16 | L | Dokumentationen var inaktuell: README sa "No login yet" och PROGRESS sa AWS (*åtgärdat på `docs/api-contract`*). Koden låter inte COACH skapa PARENT fristående, vilket ADR 0006 kräver. | `README.md:6`, `:33`; `PROGRESS.md:19`, `:108` |
 
+## Sprint 2, matcher
+
+Personalens matcher följer samma laggräns som träningar. ADMIN och CHAIRMAN skriver alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT läser via `GET /api/my/matches`. En tränare får samma 403 för ett annat lag och för ett id som inte finns. Svaret har ingen e-post och ingen telefon. Publika match-URL:er under `/api/public/**` är fortfarande planerade och stängda.
+
 ## Det som redan fungerar bra
 - Lösenord hashas med BCrypt, och entiteter exponeras aldrig direkt (bara via DTO).
 - Träningar och närvaro är lagbegränsade för COACH (`TrainingService.assertCanManageTeam`).

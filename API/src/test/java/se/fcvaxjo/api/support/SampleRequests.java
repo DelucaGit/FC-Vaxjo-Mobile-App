@@ -5,9 +5,11 @@ import java.time.LocalDateTime;
 import se.fcvaxjo.api.DTO.AddCoachRequest;
 import se.fcvaxjo.api.DTO.ChangePasswordRequest;
 import se.fcvaxjo.api.DTO.ChangeRoleRequest;
+import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.CreateTeamRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateUserRequest;
+import se.fcvaxjo.api.DTO.SetMatchResultRequest;
 import se.fcvaxjo.api.DTO.LoginRequest;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
@@ -90,6 +92,23 @@ public final class SampleRequests {
         request.setStartsAt(LocalDateTime.of(2026, 12, 1, 18, 0));
         request.setEndsAt(LocalDateTime.of(2026, 12, 1, 19, 0));
         request.setTitle("Extra testtraning");
+        return request;
+    }
+
+    public static CreateMatchRequest match(long teamId) {
+        CreateMatchRequest request = new CreateMatchRequest();
+        request.setTeamId(teamId);
+        request.setOpponent("Extra motstandare");
+        request.setKickoffAt(LocalDateTime.of(2026, 12, 20, 13, 0));
+        request.setVenue("Extra plan");
+        request.setHomeAway("HOME");
+        return request;
+    }
+
+    public static SetMatchResultRequest result(int goalsFor, int goalsAgainst) {
+        SetMatchResultRequest request = new SetMatchResultRequest();
+        request.setGoalsFor(goalsFor);
+        request.setGoalsAgainst(goalsAgainst);
         return request;
     }
 
