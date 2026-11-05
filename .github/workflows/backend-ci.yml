@@ -1,0 +1,90 @@
+# Runs the backend test suite on GitHub, the same way we run it on a laptop.
+# Story S1-CI. No database service and no secrets: the tests bring their own H2.
+
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - master
+    # A UI-only change should not wait for the Java build.
+    paths:
+      - "API/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "API/**"
+      - ".github/workflows/backend-ci.yml"
+
+# Checkout is the only thing this workflow does with the repo.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Keep this in step with <java.version> in API/pom.xml.
+          java-version: "21"
+          cache: maven
+          # The pom is not in the repo root, so the cache has to be told where it is.
+          cache-dependency-path: API/pom.xml
+
+      - name: Run the normal build
+        # verify = compile, test, and package.
+        # API/pom.xml sets excludedGroups to known-gap, so those tests are not part of this run.
+        # The test profile is not an env var. Each Spring test has @ActiveProfiles("test"),
+        # which loads API/src/test/resources/application-test.properties (in-memory H2).
+        working-directory: API
+        run: bash mvnw -B verify
+
+      - name: Upload test reports when the build fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: API/target/surefire-reports
+
+  known-gap:
+    name: Known-gap tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: API/pom.xml
+
+      - name: Run only the known-gap tests
+        # These tests are a measuring stick. They fail until the story that fixes them is done.
+        # continue-on-error is on this step, not the whole job: the log still shows the failures,
+        # the check stays green, and the upload below still runs. A red check would look like
+        # the pull request is broken, and we do not want that to block the merge.
+        # -DexcludedGroups= clears the pom default. Without it, Surefire would skip the same
+        # tests this job asks to run. -Dgroups=known-gap keeps every other test out.
+        working-directory: API
+        run: bash mvnw -B verify -DexcludedGroups= -Dgroups=known-gap
+        continue-on-error: true
+
+      - name: Upload known-gap reports
+        # always: we want the report when the tests fail, and also when they start passing.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-known-gap
+          path: API/target/surefire-reports
