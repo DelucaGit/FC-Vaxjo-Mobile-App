@@ -84,6 +84,14 @@ export async function softDeletePlayer(id: number): Promise<void> {
   }
 }
 
+export async function getUserById(id: number): Promise<ClubUser> {
+  const response = await apiFetch(`${API_BASE_URL}/users/${id}`);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.json();
+}
+
 export async function searchByName(name: string): Promise<ClubUser[]> {
   const response = await apiFetch(
     `${API_BASE_URL}/users/search?name=${encodeURIComponent(name)}`,

@@ -41,3 +41,26 @@ ADMIN works for any team. COACH must be linked to the team.
 
 7. **Wrong coach → 403**  
    COACH not linked to the team calling create/list → 403
+
+## Player / parent read-only schedule
+
+Log in as a demo PLAYER (`player1.p13@demo.fcvaxjo.se` / `TempDemo1!`) or PARENT (`parent1.p13@demo.fcvaxjo.se`).
+
+8. **Parent: list children**  
+   `GET /my/children` (PARENT token)  
+   → array of `{ id, name, teamId, teamName }`  
+   PLAYER token → 403
+
+9. **Player: my trainings**  
+   `GET /my/trainings` (PLAYER token, no query)  
+   → trainings for that player’s team with `playerUserId`, `playerName`, `status` (null until marked)  
+   `GET /my/trainings?childId=99` as PLAYER → 403
+
+10. **Parent: child’s trainings**  
+    `GET /my/trainings?childId=<childId>` (PARENT token)  
+    → same shape for that child  
+    Omit `childId` when parent has children → 400  
+    Wrong `childId` (not linked) → 403
+
+11. **Members cannot mark**  
+    PLAYER/PARENT calling `PUT /trainings/{id}/attendance/{playerId}` → 403

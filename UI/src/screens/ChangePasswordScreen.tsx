@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { colors, radius } from '../theme/colors';
 
 export default function ChangePasswordScreen() {
   const { changePassword, logout, session } = useAuth();
@@ -90,43 +91,44 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1b4332',
+    color: colors.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.onSurfaceVariant,
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.onSurface,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 8,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 14,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surfaceContainerLowest,
+    color: colors.onSurface,
   },
   button: {
-    backgroundColor: '#1b4332',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.onPrimary,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -135,11 +137,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   linkText: {
-    color: '#1b4332',
+    color: colors.primary,
     fontWeight: '600',
   },
   error: {
-    color: '#c1121f',
+    color: colors.error,
     marginBottom: 8,
   },
 });

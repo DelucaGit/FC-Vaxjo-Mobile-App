@@ -14,6 +14,7 @@ import {
   searchByPhone,
   searchByShirtNumber,
 } from '../api/users';
+import { colors, radius } from '../theme/colors';
 
 type SearchMode = 'name' | 'number' | 'phone';
 
@@ -136,16 +137,17 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 40,
-    backgroundColor: '#f7f7f7',
+    backgroundColor: colors.background,
     flexGrow: 1,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
+    color: colors.primary,
     marginBottom: 4,
   },
   hint: {
-    color: '#555',
+    color: colors.onSurfaceVariant,
     marginBottom: 16,
   },
   modeRow: {
@@ -156,37 +158,38 @@ const styles = StyleSheet.create({
   modeButton: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#e5e5e5',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainer,
     alignItems: 'center',
   },
   modeButtonActive: {
-    backgroundColor: '#1b4332',
+    backgroundColor: colors.primary,
   },
   modeButtonText: {
     fontWeight: '600',
-    color: '#222',
+    color: colors.onSurface,
   },
   modeButtonTextActive: {
-    color: '#fff',
+    color: colors.onPrimary,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 12,
+    color: colors.onSurface,
   },
   button: {
-    backgroundColor: '#1b4332',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   loader: {
@@ -194,20 +197,24 @@ const styles = StyleSheet.create({
   },
   error: {
     marginTop: 12,
-    color: '#9b2226',
+    color: colors.error,
   },
   card: {
     marginTop: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radius.lg,
     padding: 14,
-    borderWidth: 1,
-    borderColor: '#ddd',
     gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.onSurface,
     marginBottom: 4,
   },
 });

@@ -15,6 +15,15 @@ export async function listTeams(): Promise<Team[]> {
   return response.json();
 }
 
+/** Teams the current COACH is linked to (ADMIN gets all). */
+export async function listMyTeams(): Promise<Team[]> {
+  const response = await apiFetch(`${API_BASE_URL}/my/teams`);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.json();
+}
+
 export async function createTeam(name: string): Promise<Team> {
   const response = await apiFetch(`${API_BASE_URL}/teams`, {
     method: 'POST',

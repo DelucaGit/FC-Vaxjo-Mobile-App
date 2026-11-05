@@ -105,6 +105,16 @@ public class TeamService {
         return coaches;
     }
 
+    /** Teams this coach is linked to via team_coaches. */
+    public List<Team> listTeamsForCoach(Long coachUserId) {
+        List<TeamCoach> links = teamCoachRepository.findByUserId(coachUserId);
+        List<Team> teams = new ArrayList<>();
+        for (TeamCoach link : links) {
+            teamRepository.findById(link.getTeamId()).ifPresent(teams::add);
+        }
+        return teams;
+    }
+
     /**
      * Active players on this team: users with team_id set, role PLAYER only.
      */

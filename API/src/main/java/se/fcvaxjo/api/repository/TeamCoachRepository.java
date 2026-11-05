@@ -11,6 +11,8 @@ public interface TeamCoachRepository extends JpaRepository<TeamCoach, Long> {
 
     List<TeamCoach> findByTeamId(Long teamId);
 
+    List<TeamCoach> findByUserId(Long userId);
+
     Optional<TeamCoach> findByTeamIdAndUserId(Long teamId, Long userId);
 
     boolean existsByTeamIdAndUserId(Long teamId, Long userId);

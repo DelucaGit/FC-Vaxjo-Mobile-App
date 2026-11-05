@@ -329,3 +329,22 @@ Decision: a training belongs to one team and stores **starts_at** + **ends_at**.
 API: `POST/GET /api/trainings`, `GET /api/trainings/{id}`, `GET/PUT .../attendance`. Expo **Trainings** tab for staff. Branch: `feature/trainings-attendance`. Postman: `API/POSTMAN_TRAININGS.md`.
 
 Jira (paste yourself): Epic — Coaches can run trainings… Story — As a coach I would like to create a training… and mark present/absent/excused…
+
+# Demo club seed (27/10-2026)
+
+`DemoClubSeeder`: ensures teams P13 + P14 + P15; each gets 1 coach, up to 10 players (1 parent each), and up to **10 trainings** with attendance snapshots. Idempotent (fills missing players/trainings only). Temp password for demo users: `TempDemo1!`. Also resets `admin@fcvaxjo.se` to `TempAdmin1!` (must change password) so local login works after password drift.
+
+# Player + parent read-only schedule (27/10-2026)
+
+Decision: members may **view** schedule only. Coaches/admins still create trainings and mark Present/Absent/Excused.
+
+- `GET /api/my/children` (PARENT) — linked active players
+- `GET /api/my/trainings` (PLAYER own team; PARENT needs `childId`) — training + that player’s status
+- Expo: **Schedule** tab for PLAYER/PARENT (`MyScheduleScreen`); staff keep **Trainings** tab
+- Branch: `feature/player-parent-trainings-view`. Tests: `MyScheduleServiceTest`. Postman: `API/POSTMAN_TRAININGS.md`
+
+Jira (paste yourself):
+
+- Story: `As a player I would like to see my team's trainings and my attendance status because I need to know when to show up.`
+- Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
+- Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.

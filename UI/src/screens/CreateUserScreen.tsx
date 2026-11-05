@@ -10,6 +10,7 @@ import {
 import { Team, listTeams } from '../api/teams';
 import { ClubUser, createUser, searchByName } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
+import { colors, radius } from '../theme/colors';
 
 const ALL_ROLES = ['PLAYER', 'PARENT', 'COACH', 'ADMIN'] as const;
 
@@ -362,30 +363,33 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 40,
-    backgroundColor: '#f7f7f7',
+    backgroundColor: colors.background,
     flexGrow: 1,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
+    color: colors.primary,
     marginBottom: 4,
   },
   hint: {
-    color: '#555',
+    color: colors.onSurfaceVariant,
     marginBottom: 16,
   },
   label: {
     fontWeight: '600',
+    color: colors.onSurface,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 14,
+    color: colors.onSurface,
   },
   modeRow: {
     flexDirection: 'row',
@@ -396,62 +400,61 @@ const styles = StyleSheet.create({
   modeButton: {
     paddingVertical: 8,
     paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#e5e5e5',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainer,
   },
   modeButtonActive: {
-    backgroundColor: '#1b4332',
+    backgroundColor: colors.primary,
   },
   modeButtonText: {
     fontWeight: '600',
-    color: '#222',
+    color: colors.onSurface,
     fontSize: 12,
   },
   modeButtonTextActive: {
-    color: '#fff',
+    color: colors.onPrimary,
   },
   parentBox: {
     marginBottom: 16,
     padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#eef2ef',
-    borderWidth: 1,
-    borderColor: '#c5d0c8',
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceContainerLow,
   },
   parentTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.onSurface,
     marginBottom: 4,
   },
   matchRow: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radius.lg,
     padding: 12,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
   },
   matchName: {
     fontWeight: '700',
+    color: colors.onSurface,
   },
   matchMeta: {
-    color: '#555',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   selectedBox: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radius.lg,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#1b4332',
+    borderColor: colors.primary,
   },
   selectedText: {
     fontWeight: '600',
+    color: colors.onSurface,
     marginBottom: 6,
   },
   clearLink: {
-    color: '#9b2226',
+    color: colors.error,
     fontWeight: '600',
   },
   secondaryButton: {
@@ -460,27 +463,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   secondaryButtonText: {
-    color: '#1b4332',
+    color: colors.primary,
     fontWeight: '700',
   },
   button: {
-    backgroundColor: '#1b4332',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   success: {
     marginTop: 12,
-    color: '#1b4332',
+    color: colors.primary,
     fontWeight: '600',
   },
   error: {
     marginTop: 12,
-    color: '#9b2226',
+    color: colors.error,
   },
 });
