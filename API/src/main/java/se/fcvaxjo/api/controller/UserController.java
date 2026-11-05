@@ -35,7 +35,13 @@ public class UserController {
         this.userService = userService;
     }
 
+    /**
+     * The list includes every member's email and phone.
+     * Players and parents must not download other people's contact details.
+     * The chairman may: the list is the whole club, not one team.
+     */
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<FetchUserResponse> getAllUsers() {
         List<AppUser> databaseUsers = userService.getAllUsers();
         List<FetchUserResponse> responseUsers = new ArrayList<>();
@@ -50,11 +56,14 @@ public class UserController {
     /**
      * Find users by part of the name. Same URL as number search;
      * Spring picks this method because the query string contains {@code name}.
+     * Players and parents are refused: a name search returns other people's contact details.
+     * The chairman may search the whole club, same as admin and coach.
      *
      * @param name text to look for ({@code Er} finds Erik)
      * @return matching users, may be empty
      */
     @GetMapping(value = "/search", params = "name")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<FetchUserResponse> searchByName(@RequestParam String name) {
         List<AppUser> databaseUsers = userService.searchByName(name);
         List<FetchUserResponse> responseUsers = new ArrayList<>();
@@ -70,10 +79,12 @@ public class UserController {
      * Find one user by shirt number. Same URL as name search;
      * Spring picks this method because the query string contains {@code number}.
      * Returns one user because shirt numbers are unique.
+     * Players and parents are refused, same as name search: the hit contains contact details.
      *
      * @param number the shirt number (exact match)
      */
     @GetMapping(value = "/search", params = "number")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public FetchUserResponse searchByPlayerNumber(@RequestParam Integer number) {
         return toFetchResponse(userService.searchByPlayerNumber(number));
     }
@@ -82,16 +93,25 @@ public class UserController {
      * Find one user by mobile phone. Same URL as name/number search;
      * Spring picks this method because the query string contains {@code phone}.
      * Returns one user because phone numbers are unique when set.
+     * Players and parents are refused, same as name search: the hit contains contact details.
      *
      * @param phone the mobile number (exact match)
      */
     @GetMapping(value = "/search", params = "phone")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public FetchUserResponse searchByMobilePhoneNumber(@RequestParam String phone) {
         return toFetchResponse(userService.searchByMobilePhoneNumber(phone));
     }
 
+    /**
+     * Admin, chairman and coach may read any user. A player or parent may read only their own id,
+     * because the home screen loads their name from this URL.
+     * The check runs before the lookup so a forbidden id is 403, not 404.
+     * A 404 would show that the id exists.
+     */
     @GetMapping("/{id}")
     public FetchUserResponse getUserById(@PathVariable Long id) {
+        userService.assertCallerMayReadUser(id);
         return toFetchResponse(userService.getUserById(id));
     }
 

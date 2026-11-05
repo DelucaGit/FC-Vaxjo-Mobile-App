@@ -393,6 +393,21 @@ Refresh is unchanged. `POST /api/auth/refresh` still sends the access token and 
 
 The JWT payload itself still contains the email. That is the API, not this storage change.
 
+# Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
+
+Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
+
+What shipped:
+
+- `GET /api/users`, all three `/api/users/search` queries, `GET /api/teams/{id}/coaches` and `GET /api/teams/{id}/players` are ADMIN or COACH only. PLAYER and PARENT get 403.
+- `GET /api/users/{id}` stays open for the caller's own id, because the home screen loads the logged-in name from that URL. Anyone else's id is 403, and we answer 403 before 404 so a forbidden id does not reveal that the row exists. The check is `UserService.assertCallerMayReadUser`, same shape as `assertCallerMayCreate`.
+- `GET /api/teams` and `GET /api/teams/{id}` stay open to every logged-in role. They return id and name only, not contact details.
+- COACH is still not limited to their own teams on these reads. That is story S1-3.
+- CHAIRMAN is not added. That role does not exist yet (story S1-2).
+- A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
+
+Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.
+
 # Role matrix and access tests (5/11-2026)
 
 Decision: story S1-6a measures access. It does not change production code.
@@ -428,3 +443,17 @@ What shipped:
 - `docs/api/openapi.yaml` describes the new 401 cases. The open question about role change waiting for expiry is closed.
 - After master gained `CHAIRMAN`, the same check covers that role. A CHAIRMAN token is rejected once the role in the database is no longer CHAIRMAN. `CreateTeamAuthorizationTest` now creates a real user, because a token for a missing user is 401.
 - After PR #31, the inactive-token tests in `KnownInactiveUserTest` run in the normal suite. GET of an inactive row stays tagged `known-gap`, because this story does not hide that row.
+
+# S1-1 follow-up — chairman may read personal data (5/11-2026)
+
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.
+
+# S1-1 follow-up — known-gap tags that now pass (5/11-2026)
+
+Decision: after the role matrix (PR #31) landed, the PLAYER and PARENT checks in `KnownPiiLeakTest` pass, so they run in the normal suite. The class no longer has the `known-gap` tag.
+
+These tests still have the tag, because this story does not make them pass:
+
+- A coach can still read every team (S1-3).
+- A player's own row still includes the parent's phone.
+- A missing phone number is still echoed in the 404 text (gap 6, story S1-12).

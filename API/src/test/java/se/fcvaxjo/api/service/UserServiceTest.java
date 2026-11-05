@@ -244,4 +244,66 @@ class UserServiceTest {
                 () -> userService.updatePlayer(
                         30L, "Kid", "kid@fcvaxjo.se", null, 7, null, null, null, null, null));
     }
+
+    @Test
+    void readUser_adminMayReadAnyone() {
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
+    void readUser_coachMayReadAnyone() {
+        setAuth(2L, "COACH");
+
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
+    void readUser_chairmanMayReadAnyone() {
+        setAuth(4L, "CHAIRMAN");
+
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
+    void readUser_playerMayReadSelf() {
+        setAuth(20L, "PLAYER");
+
+        userService.assertCallerMayReadUser(20L);
+    }
+
+    @Test
+    void readUser_playerMayNotReadSomeoneElse() {
+        setAuth(20L, "PLAYER");
+
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(21L));
+
+        assertEquals("You can only read your own user record", ex.getMessage());
+    }
+
+    @Test
+    void readUser_parentMayReadSelfButNotTheirChild() {
+        setAuth(50L, "PARENT");
+
+        userService.assertCallerMayReadUser(50L);
+
+        assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(20L));
+    }
+
+    @Test
+    void readUser_withoutLoginIsDenied() {
+        SecurityContextHolder.clearContext();
+
+        assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(20L));
+    }
+
+    private void setAuth(Long userId, String role) {
+        var auth = new UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
 }
