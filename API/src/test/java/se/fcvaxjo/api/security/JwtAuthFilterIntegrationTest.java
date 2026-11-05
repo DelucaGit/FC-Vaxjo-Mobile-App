@@ -155,12 +155,14 @@ class JwtAuthFilterIntegrationTest {
     }
 
     private void expectOk(String token) throws Exception {
-        mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        // Team names are open to every logged-in role. The club directory is not,
+        // so a valid coach token is checked on a URL that coach may still call.
+        mockMvc.perform(get("/api/teams").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk());
     }
 
     private void expectLoginRequired(String token) throws Exception {
-        mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        mockMvc.perform(get("/api/teams").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().json(LOGIN_REQUIRED));
     }

@@ -37,11 +37,12 @@ public class UserController {
 
     /**
      * The list includes every member's email and phone.
+     * Same rule as {@code ClubRole.canReadEveryTeam()}: ADMIN and CHAIRMAN.
+     * A coach does not get the whole club. They open one team they train.
      * Players and parents must not download other people's contact details.
-     * The chairman may: the list is the whole club, not one team.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
     public List<FetchUserResponse> getAllUsers() {
         List<AppUser> databaseUsers = userService.getAllUsers();
         List<FetchUserResponse> responseUsers = new ArrayList<>();
@@ -57,7 +58,7 @@ public class UserController {
      * Find users by part of the name. Same URL as number search;
      * Spring picks this method because the query string contains {@code name}.
      * Players and parents are refused: a name search returns other people's contact details.
-     * The chairman may search the whole club, same as admin and coach.
+     * ADMIN and CHAIRMAN search the whole club. A coach only gets people on teams they train.
      *
      * @param name text to look for ({@code Er} finds Erik)
      * @return matching users, may be empty
@@ -80,6 +81,7 @@ public class UserController {
      * Spring picks this method because the query string contains {@code number}.
      * Returns one user because shirt numbers are unique.
      * Players and parents are refused, same as name search: the hit contains contact details.
+     * A coach only finds a shirt number on a team they train. Another team is the same 404 as a missing number.
      *
      * @param number the shirt number (exact match)
      */
@@ -94,6 +96,7 @@ public class UserController {
      * Spring picks this method because the query string contains {@code phone}.
      * Returns one user because phone numbers are unique when set.
      * Players and parents are refused, same as name search: the hit contains contact details.
+     * A coach only finds a phone number on a team they train. Another team is the same 404 as a missing number.
      *
      * @param phone the mobile number (exact match)
      */
@@ -104,9 +107,10 @@ public class UserController {
     }
 
     /**
-     * Admin, chairman and coach may read any user. A player or parent may read only their own id,
-     * because the home screen loads their name from this URL.
-     * The check runs before the lookup so a forbidden id is 403, not 404.
+     * ADMIN and CHAIRMAN may read any user. A coach may read a person on a team they train,
+     * and their own id. A player or parent may read only their own id, because the home
+     * screen loads their name from this URL.
+     * The check runs before the row is returned, so a forbidden id is 403, not 404.
      * A 404 would show that the id exists.
      */
     @GetMapping("/{id}")

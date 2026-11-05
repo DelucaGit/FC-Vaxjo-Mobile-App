@@ -525,10 +525,34 @@ class UserServiceTest {
     }
 
     @Test
-    void readUser_coachMayReadAnyone() {
+    void readUser_coachMayReadPlayerOnOwnTeam() {
+        login(2L, "COACH");
+        when(userRepository.findById(30L)).thenReturn(Optional.of(activePlayerOnTeam(30L, 10L)));
+        when(teamCoachRepository.existsByTeamIdAndUserId(10L, 2L)).thenReturn(true);
+
+        userService.assertCallerMayReadUser(30L);
+    }
+
+    @Test
+    void readUser_coachMayNotReadPlayerOnAnotherTeam() {
+        login(2L, "COACH");
+        when(userRepository.findById(31L)).thenReturn(Optional.of(activePlayerOnTeam(31L, 11L)));
+        when(teamCoachRepository.existsByTeamIdAndUserId(11L, 2L)).thenReturn(false);
+
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(31L));
+
+        assertEquals("You can only read users on a team you train", ex.getMessage());
+    }
+
+    @Test
+    void searchByPlayerNumber_coachGetsTheSameNotFoundWhenTheShirtIsNotOnTheirTeam() {
         login(2L, "COACH");
 
-        userService.assertCallerMayReadUser(99L);
+        NotFoundException ex = assertThrows(NotFoundException.class,
+                () -> userService.searchByPlayerNumber(22));
+
+        assertEquals("No user found with player number 22", ex.getMessage());
     }
 
     @Test

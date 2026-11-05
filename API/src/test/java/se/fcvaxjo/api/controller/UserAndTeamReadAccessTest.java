@@ -75,6 +75,7 @@ class UserAndTeamReadAccessTest {
     private Long coachId;
     private Long playerId;
     private Long otherPlayerId;
+    private Long otherTeamPlayerId;
     private Long parentId;
 
     private String adminToken;
@@ -112,7 +113,8 @@ class UserAndTeamReadAccessTest {
             AppUser player = saveUser("Player", PLAYER_EMAIL, playerRole, 71, "0700000211", parent.getId(), teamId);
             AppUser otherPlayer = saveUser(
                     "Other Player", OTHER_PLAYER_EMAIL, playerRole, 72, OTHER_PLAYER_PHONE, parent.getId(), teamId);
-            saveUser("P13 Player", OTHER_TEAM_PLAYER_EMAIL, playerRole, 73, "0700000213", parent.getId(), otherTeamId);
+            AppUser otherTeamPlayer = saveUser(
+                    "P13 Player", OTHER_TEAM_PLAYER_EMAIL, playerRole, 73, "0700000213", parent.getId(), otherTeamId);
 
             TeamCoach link = new TeamCoach();
             link.setTeamId(teamId);
@@ -126,6 +128,7 @@ class UserAndTeamReadAccessTest {
             parentId = parent.getId();
             playerId = player.getId();
             otherPlayerId = otherPlayer.getId();
+            otherTeamPlayerId = otherTeamPlayer.getId();
 
             adminToken = jwtService.createToken(adminId, ADMIN_EMAIL, "ADMIN");
             coachToken = jwtService.createToken(coachId, COACH_EMAIL, "COACH");
@@ -191,18 +194,24 @@ class UserAndTeamReadAccessTest {
     }
 
     @Test
-    void adminAndCoachCanStillListSearchAndRead() throws Exception {
+    void adminListsTheClubAndCoachStaysOnOwnTeam() throws Exception {
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].email", hasItem(PLAYER_EMAIL)));
 
+        // The whole club list is ADMIN and CHAIRMAN. A coach uses the team roster.
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/users/search?name=Other")
                         .header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value(OTHER_PLAYER_EMAIL));
+
+        mockMvc.perform(get("/api/users/search?name=P13")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
 
         mockMvc.perform(get("/api/users/search?number=72")
                         .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
@@ -222,6 +231,10 @@ class UserAndTeamReadAccessTest {
         mockMvc.perform(get("/api/users/" + playerId).header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(PLAYER_EMAIL));
+
+        mockMvc.perform(get("/api/users/" + otherTeamPlayerId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(coachToken)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -253,6 +266,9 @@ class UserAndTeamReadAccessTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value(COACH_EMAIL));
+
+        expectForbidden(coachToken, "/api/teams/" + otherTeamId + "/players");
+        expectForbidden(coachToken, "/api/teams/" + otherTeamId + "/coaches");
     }
 
     @Test

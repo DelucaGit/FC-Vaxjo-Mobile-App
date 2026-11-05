@@ -30,7 +30,7 @@ Det kör bara mätstickan.
 | Story | Gap-analys | Vad testerna mäter | I `./mvnw test` |
 |---|---|---|---|
 | S1-1 | Topp 5, punkt 1 | Inga seed-lösenord och ingen demoklubb i testprofilen | Gröna (`TestProfileSafetyTest`) |
-| S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | `KnownPiiLeakTest`, exkluderas |
+| S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | Tränarens laggräns är grön (S1-10). Kvar som `known-gap`: spelarens egen rad visar förälderns telefon, och telefon i 404-texten |
 | S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest` är grön och körs i vanliga bygget |
 | S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är kvar | Token-testerna i `KnownInactiveUserTest` är gröna. GET-testerna är kvar som `known-gap` |
 | ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (PR #26), koppla eller ta bort en tränare (S1-7), skapa/ändra/ta bort spelare (S1-3) och byta en spelare till tränare (S1-8) | De testerna är gröna i `KnownChairmanAccessTest` och `TeamAccessTest` |
@@ -47,7 +47,7 @@ Exempel: `coachFromOtherTeam_cannotSeePlayerPhoneNumber`.
 1. **Arrange.** `ClubFixture` har redan skapat Lag Alfa med en spelare och en föräldertelefon. Den som anropar är `Actor.COACH_BETA`, tränaren för det andra laget.
 2. **Act.** `GET /api/teams/{alfa}/players`.
 3. **Assert.** Status 403.
-4. **Varför.** `parentMobilePhoneNumber` är `x-pii`. En tränare får se det bara för sitt eget lag (ADR 0006). Story S1-2. Testet failar idag, för koden svarar 200 med telefonnumret. Därför är det taggat `known-gap`.
+4. **Varför.** `parentMobilePhoneNumber` är `x-pii`. En tränare får se det bara för sitt eget lag (ADR 0006, S1-10). Testet är grönt: koden svarar 403.
 
 ## Fält
 
@@ -85,9 +85,9 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT eget barn | PARENT annat barn | Kod idag |
 |---|---|---|---|---|---|---|---|---|
-| `GET /api/users` | 200, all PII | 200, all PII | 403 | 403 | 403 | 403 | 403 | 200 med all PII för alla inloggade. **S1-2** |
-| `GET /api/users/{id}` | 200 | 200 | 200 i eget lag, 403 annars | 403 | 200 bara sig själv, utan förälderns kontaktfält. 403 för andra | 403 (använd `/api/my`) | 403 | 200 med all PII, även inaktiva. **S1-2** och **S1-4** |
-| `GET /api/users/search` | 200 | 200 | 200 bara träffar i eget lag | tomt / inga andra lag | 403 | 403 | 403 | 200 med all PII för alla. Telefon i 404-texten. **S1-2**, **GAP-6** |
+| `GET /api/users` | 200, all PII | 200, all PII | 403 | 403 | 403 | 403 | 403 | 200 för ADMIN och CHAIRMAN. 403 för COACH. **S1-10** |
+| `GET /api/users/{id}` | 200 | 200 | 200 i eget lag, 403 annars | 403 | 200 bara sig själv, utan förälderns kontaktfält. 403 för andra | 403 (använd `/api/my`) | 403 | COACH är begränsad till egna lag. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiva rader lämnas ut. **S1-10**, **S1-4** |
+| `GET /api/users/search` | 200 | 200 | 200 bara träffar i eget lag | tomt / inga andra lag | 403 | 403 | 403 | COACH ser bara egna lag. Telefon i 404-texten är kvar. **S1-10**, **GAP-6** |
 | `POST /api/users` | 201 | 201 (planerat) | 201 för PLAYER i eget lag | 403 | 403 | 403 | 403 | ADMIN och COACH 201 utan lagkoll. CHAIRMAN 403. **S1-3**, **ADR 0006** |
 | `PUT /api/users/{id}/player` | 200 | 200 (planerat) | 200 | 403 | 403 | 403 | 403 | ADMIN och COACH 200 utan lagkoll. **S1-3**, **ADR 0006** |
 | `DELETE /api/users/{id}` | 204 | 204 (planerat) | 204 | 403 | 403 | 403 | 403 | ADMIN och COACH 204 utan lagkoll. **S1-3**, **ADR 0006** |
@@ -100,8 +100,8 @@ COACH får i koden inte skapa en fristående PARENT (bara PLAYER, plus ny förä
 | Anrop | ADMIN | CHAIRMAN | COACH eget | COACH annat | PLAYER | PARENT | Kod idag |
 |---|---|---|---|---|---|---|---|
 | `GET /api/teams` och `GET /api/teams/{id}` | 200, inga personfält | 200 | 200 | 200 | 200 | 200 | Stämmer |
-| `GET /api/teams/{id}/coaches` | 200 med telefon/e-post | 200 | 200 | 403 | 403 | 403 | 200 med telefon/e-post för alla inloggade. **S1-2** |
-| `GET /api/teams/{id}/players` | 200 med föräldratelefon | 200 | 200 med föräldratelefon | 403 | 403 | 403 | 200 med föräldratelefon för alla inloggade. **S1-2** |
+| `GET /api/teams/{id}/coaches` | 200 med telefon/e-post | 200 | 200 | 403 | 403 | 403 | Stämmer efter S1-10. COACH bara egna lag |
+| `GET /api/teams/{id}/players` | 200 med föräldratelefon | 200 | 200 med föräldratelefon | 403 | 403 | 403 | Stämmer efter S1-10. COACH bara egna lag |
 | `POST /api/teams` | 201 | 201 | 403 | 403 | 403 | 403 | Stämmer efter PR #26. `x-roles` är ADMIN och CHAIRMAN |
 | `POST` / `DELETE .../coaches` | 201 / 204 | 201 / 204 | 403 | 403 | 403 | 403 | ADMIN och CHAIRMAN. Stämmer efter S1-7. `x-roles` är ADMIN och CHAIRMAN |
 
@@ -130,9 +130,9 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 
 **CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Personlistorna svarar 200 för ordföranden och 403 för spelare och förälder (S1-1). Att skapa, ändra och ta bort en spelare fungerar i alla lag (S1-3). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att byta en spelare till tränare svarar 200 (S1-8). Träningar får ordföranden skapa och markera på alla lag (S1-11).
 
-**COACH, eget lag.** Får förälderns telefon på den egna laglistan, och det ska de. Samma tränare får också hela klubbkatalogen via `GET /api/users` och sök, inklusive andra lags föräldratelefon (S1-2).
+**COACH, eget lag.** Får förälderns telefon på den egna laglistan, och det ska de. `GET /api/users` är 403. Sök ger bara träffar i egna lag (S1-10).
 
-**COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 200 med e-post, telefon och förälderns telefon (S1-2). `POST /api/users`, `PUT /api/users/{id}/player` och `DELETE /api/users/{id}` går igenom mot det andra laget, så tränaren kan skriva om förälderns e-post och telefon där (S1-3). Träningar och `/api/my/teams` är redan spärrade.
+**COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 403 (S1-10). Skrivningar mot det andra laget är 403 (S1-3). Träningar och `/api/my/teams` är redan spärrade.
 
 **PLAYER.** `/api/my/trainings` visar bara det egna schemat och inte förälderns telefon. Katalogen, sök, `GET /api/users/{id}` (även den egna raden, som innehåller förälderns telefon), lagets spelare och lagets tränare svarar 200 med andras kontaktfält (S1-2). Skrivningar är 403, och det är rätt.
 
