@@ -41,6 +41,8 @@ class UserAndTeamReadAccessTest {
     private static final String PLAYER_EMAIL = "read-access-player@fcvaxjo.test";
     private static final String OTHER_PLAYER_EMAIL = "read-access-other@fcvaxjo.test";
     private static final String PARENT_EMAIL = "read-access-parent@fcvaxjo.test";
+    private static final String CHAIRMAN_EMAIL = "read-access-chairman@fcvaxjo.test";
+    private static final String OTHER_TEAM_PLAYER_EMAIL = "read-access-p13@fcvaxjo.test";
     private static final String PARENT_PHONE = "0700000201";
     private static final String OTHER_PLAYER_PHONE = "0700000202";
 
@@ -68,6 +70,7 @@ class UserAndTeamReadAccessTest {
     private TransactionTemplate transactionTemplate;
 
     private Long teamId;
+    private Long otherTeamId;
     private Long adminId;
     private Long coachId;
     private Long playerId;
@@ -78,6 +81,7 @@ class UserAndTeamReadAccessTest {
     private String coachToken;
     private String playerToken;
     private String parentToken;
+    private String chairmanToken;
 
     @BeforeEach
     void insertClub() {
@@ -86,6 +90,7 @@ class UserAndTeamReadAccessTest {
             deleteRowsFromEarlierRun();
 
             Role adminRole = roleByName("ADMIN");
+            Role chairmanRole = roleByName("CHAIRMAN");
             Role coachRole = roleByName("COACH");
             Role playerRole = roleByName("PLAYER");
             Role parentRole = roleByName("PARENT");
@@ -95,17 +100,26 @@ class UserAndTeamReadAccessTest {
             team = teamRepository.save(team);
             teamId = team.getId();
 
+            Team otherTeam = new Team();
+            otherTeam.setName("Read Access P13");
+            otherTeam = teamRepository.save(otherTeam);
+            otherTeamId = otherTeam.getId();
+
             AppUser admin = saveUser("Admin", ADMIN_EMAIL, adminRole, null, null, null, null);
+            AppUser chairman = saveUser("Chairman", CHAIRMAN_EMAIL, chairmanRole, null, "0700000199", null, null);
             AppUser coach = saveUser("Coach", COACH_EMAIL, coachRole, null, "0700000200", null, null);
             AppUser parent = saveUser("Parent", PARENT_EMAIL, parentRole, null, PARENT_PHONE, null, null);
             AppUser player = saveUser("Player", PLAYER_EMAIL, playerRole, 71, "0700000211", parent.getId(), teamId);
             AppUser otherPlayer = saveUser(
                     "Other Player", OTHER_PLAYER_EMAIL, playerRole, 72, OTHER_PLAYER_PHONE, parent.getId(), teamId);
+            saveUser("P13 Player", OTHER_TEAM_PLAYER_EMAIL, playerRole, 73, "0700000213", parent.getId(), otherTeamId);
 
             TeamCoach link = new TeamCoach();
             link.setTeamId(teamId);
             link.setUserId(coach.getId());
             teamCoachRepository.save(link);
+
+            chairmanToken = jwtService.createToken(chairman.getId(), CHAIRMAN_EMAIL, "CHAIRMAN");
 
             adminId = admin.getId();
             coachId = coach.getId();
@@ -156,7 +170,6 @@ class UserAndTeamReadAccessTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("You can only read your own user record"));
 
-        expectForbidden(playerToken, "/api/users/" + parentId);
         expectForbidden(playerToken, "/api/users/" + parentId);
         // The child is another person, even when the caller is their parent.
         expectForbidden(parentToken, "/api/users/" + playerId);
@@ -243,6 +256,44 @@ class UserAndTeamReadAccessTest {
     }
 
     @Test
+    void chairmanCanReadUsersAndATeamTheyAreNotLinkedTo() throws Exception {
+        // No team_coaches row for the chairman. The read is still allowed on both teams.
+        mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].email", hasItem(OTHER_TEAM_PLAYER_EMAIL)));
+
+        mockMvc.perform(get("/api/users/search?name=P13")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].email").value(OTHER_TEAM_PLAYER_EMAIL));
+
+        mockMvc.perform(get("/api/users/search?number=73")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(OTHER_TEAM_PLAYER_EMAIL));
+
+        mockMvc.perform(get("/api/users/search?phone=0700000213")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.parentMobilePhoneNumber").value(PARENT_PHONE));
+
+        mockMvc.perform(get("/api/users/" + otherPlayerId).header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(OTHER_PLAYER_EMAIL));
+
+        mockMvc.perform(get("/api/teams/" + otherTeamId + "/players")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].email", hasItem(OTHER_TEAM_PLAYER_EMAIL)))
+                .andExpect(jsonPath("$[*].parentMobilePhoneNumber", hasItem(PARENT_PHONE)));
+
+        mockMvc.perform(get("/api/teams/" + teamId + "/coaches")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(chairmanToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].email").value(COACH_EMAIL));
+    }
+
+    @Test
     void playerCanStillListTeamNames() throws Exception {
         // Id and name are not contact details, so this URL stays open to every logged-in role.
         mockMvc.perform(get("/api/teams").header(HttpHeaders.AUTHORIZATION, bearer(playerToken)))
@@ -284,17 +335,24 @@ class UserAndTeamReadAccessTest {
     }
 
     private void deleteRowsFromEarlierRun() {
-        teamRepository.findByName("Read Access P15").ifPresent(team -> {
+        deleteTeamNamed("Read Access P15");
+        deleteTeamNamed("Read Access P13");
+        deleteUserByEmail(OTHER_TEAM_PLAYER_EMAIL);
+        deleteUserByEmail(OTHER_PLAYER_EMAIL);
+        deleteUserByEmail(PLAYER_EMAIL);
+        deleteUserByEmail(PARENT_EMAIL);
+        deleteUserByEmail(COACH_EMAIL);
+        deleteUserByEmail(CHAIRMAN_EMAIL);
+        deleteUserByEmail(ADMIN_EMAIL);
+    }
+
+    private void deleteTeamNamed(String name) {
+        teamRepository.findByName(name).ifPresent(team -> {
             for (TeamCoach link : teamCoachRepository.findByTeamId(team.getId())) {
                 teamCoachRepository.delete(link);
             }
             teamRepository.delete(team);
         });
-        deleteUserByEmail(OTHER_PLAYER_EMAIL);
-        deleteUserByEmail(PLAYER_EMAIL);
-        deleteUserByEmail(PARENT_EMAIL);
-        deleteUserByEmail(COACH_EMAIL);
-        deleteUserByEmail(ADMIN_EMAIL);
     }
 
     private void deleteUserByEmail(String email) {

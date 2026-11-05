@@ -15,6 +15,7 @@ import se.fcvaxjo.api.DTO.NewParentRequest;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.repository.RoleRepository;
@@ -311,17 +312,31 @@ public class UserService {
     }
 
     /**
-     * Staff may read any user. A player or parent may read only their own id.
-     * CHAIRMAN is not a role in the database yet, so this method does not mention it.
+     * Admin, chairman and coach may read any user.
+     * The chairman is not limited to one team: this method does not look at team_coaches.
+     * A player or parent may read only their own id.
      */
     public void assertCallerMayReadUser(Long userId) {
-        if (hasRole("ADMIN") || hasRole("COACH")) {
+        if (callerMayReadOtherPeople()) {
             return;
         }
         if (isLoggedInUser(userId)) {
             return;
         }
         throw new AccessDeniedException("You can only read your own user record");
+    }
+
+    /**
+     * The rule itself is {@link ClubRole#canReadPersonalData()}.
+     * The token carries one role name, so we ask each club role in turn.
+     */
+    private boolean callerMayReadOtherPeople() {
+        for (ClubRole role : ClubRole.values()) {
+            if (hasRole(role.name()) && role.canReadPersonalData()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public AppUser getUserById(Long id) {

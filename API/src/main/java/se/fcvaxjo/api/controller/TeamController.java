@@ -72,10 +72,10 @@ public class TeamController {
 
     /**
      * Coach email and phone. A player must not collect the staff contact list here.
-     * Which teams a coach may see is a later story; this only blocks players and parents.
+     * The chairman may read every team. We do not check team_coaches for this call.
      */
     @GetMapping("/{id}/coaches")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<FetchUserResponse> listCoaches(@PathVariable Long id) {
         List<FetchUserResponse> responses = new ArrayList<>();
         for (AppUser coach : teamService.listCoaches(id)) {
@@ -87,9 +87,10 @@ public class TeamController {
     /**
      * Each player, plus the parent's name, email and phone.
      * That parent phone is why a child must not call this for any team.
+     * The chairman may, including teams they are not linked to.
      */
     @GetMapping("/{id}/players")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public List<FetchUserResponse> listPlayers(@PathVariable Long id) {
         List<FetchUserResponse> responses = new ArrayList<>();
         for (AppUser player : teamService.listPlayers(id)) {

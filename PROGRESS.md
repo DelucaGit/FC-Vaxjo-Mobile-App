@@ -369,3 +369,7 @@ What shipped:
 - A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
 
 Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.
+
+# S1-1 follow-up — chairman may read personal data (5/11-2026)
+
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.

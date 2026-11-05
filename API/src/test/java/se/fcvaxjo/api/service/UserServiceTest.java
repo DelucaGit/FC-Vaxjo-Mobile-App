@@ -258,6 +258,13 @@ class UserServiceTest {
     }
 
     @Test
+    void readUser_chairmanMayReadAnyone() {
+        setAuth(4L, "CHAIRMAN");
+
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
     void readUser_playerMayReadSelf() {
         setAuth(20L, "PLAYER");
 
