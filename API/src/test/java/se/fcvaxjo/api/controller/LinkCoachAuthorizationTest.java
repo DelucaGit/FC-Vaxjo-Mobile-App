@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,18 +23,21 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jayway.jsonpath.JsonPath;
 
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
 
 /**
- * Who may link a coach is read from the token, same as create-team.
- * The coach row is real because addCoach checks the role in the database.
+ * Each caller is a saved, active user, and the token is issued for that row.
+ * A made-up user id is rejected once the login filter checks the account.
+ * The person being linked is a different COACH row, because addCoach checks
+ * that role in the database.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Transactional // undo the teams and the coach this test inserts
+@Transactional // undo the teams, the coach, and the callers this test inserts
 class LinkCoachAuthorizationTest {
 
     @Autowired
@@ -138,9 +143,20 @@ class LinkCoachAuthorizationTest {
                 .andExpect(jsonPath("$").isEmpty());
     }
 
+    // The token names this saved row, and the role in the token is the role
+    // stored on the user. A fixed id such as 1 is rejected when the login
+    // filter loads the account and checks that it is still active.
     private String bearer(String roleName) {
-        String email = roleName.toLowerCase() + "@fcvaxjo.se";
-        String token = jwtService.createToken(1L, email, roleName);
+        Role role = roleRepository.findByName(roleName).orElseThrow();
+        AppUser user = new AppUser();
+        user.setName(roleName + " tester");
+        user.setEmail(roleName.toLowerCase() + "-" + UUID.randomUUID() + "@example.com");
+        user.setRoleId(role.getId());
+        user.setActive(true);
+        user.setMustChangePassword(false);
+        AppUser saved = userRepository.saveAndFlush(user);
+
+        String token = jwtService.createToken(saved.getId(), saved.getEmail(), roleName);
         return "Bearer " + token;
     }
 }
