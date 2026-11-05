@@ -26,5 +26,8 @@ public interface UserRepository extends JpaRepository<AppUser, Long> {
     /** Active players/users on a team. */
     List<AppUser> findByTeamIdAndActiveTrue(Long teamId);
 
+    /** Active children linked to this parent. */
+    List<AppUser> findByParentIdAndActiveTrue(Long parentId);
+
     List<AppUser> findByActiveTrue();
 }

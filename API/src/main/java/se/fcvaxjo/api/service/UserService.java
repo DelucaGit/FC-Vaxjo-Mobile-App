@@ -1,54 +1,99 @@
 package se.fcvaxjo.api.service;
 
+import java.security.SecureRandom;
+import java.util.List;
+
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import se.fcvaxjo.api.DTO.NewParentRequest;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
-import se.fcvaxjo.api.repository.UserRepository;
-import se.fcvaxjo.api.repository.RoleRepository;
-import se.fcvaxjo.api.repository.TeamRepository;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
-import java.util.List;
+import se.fcvaxjo.api.repository.RoleRepository;
+import se.fcvaxjo.api.repository.TeamRepository;
+import se.fcvaxjo.api.repository.UserRepository;
 
 @Service
 public class UserService {
 
+    private static final String TEMP_PASSWORD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    private static final int TEMP_PASSWORD_LENGTH = 10;
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TeamRepository teamRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
-            TeamRepository teamRepository) {
+            TeamRepository teamRepository,
+            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
-     * Creates a user. When role is PLAYER: exactly one of parentId or newParent,
-     * and a teamId that exists. newParent needs name, email, and phone.
+     * Creates a user with a generated temporary password.
+     * ADMIN may create any role. COACH may only create PLAYER (and linked new parent).
      */
     @Transactional
-    public AppUser createUser(String name, String email, String roleName, Integer playerNumber,
+    public CreatedUserResult createUser(String name, String email, String roleName, Integer playerNumber,
             String mobilePhoneNumber, Long parentId, NewParentRequest newParent, Long teamId) {
+        assertCallerMayCreate(roleName);
+
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new BadRequestException("This role does not exist"));
 
+        String parentTemporaryPassword = null;
         Long resolvedParentId = null;
         Long resolvedTeamId = null;
         if ("PLAYER".equals(roleName)) {
-            resolvedParentId = resolveParentIdForPlayer(parentId, newParent);
+            ParentLink parentLink = resolveParentIdForPlayer(parentId, newParent);
+            resolvedParentId = parentLink.parentId();
+            parentTemporaryPassword = parentLink.temporaryPassword();
             resolvedTeamId = resolveTeamIdForPlayer(teamId);
         }
 
-        return saveNewUser(
+        SavedUser saved = saveNewUser(
                 name, email, role.getId(), playerNumber, mobilePhoneNumber, resolvedParentId, resolvedTeamId);
+        return new CreatedUserResult(saved.user(), saved.temporaryPassword(), parentTemporaryPassword);
+    }
+
+    private void assertCallerMayCreate(String roleName) {
+        if (hasRole("ADMIN")) {
+            return;
+        }
+        if (hasRole("COACH") && "PLAYER".equals(roleName)) {
+            return;
+        }
+        throw new AccessDeniedException("Only ADMIN or COACH can create users; COACH may only create PLAYER");
+    }
+
+    private boolean hasRole(String roleName) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        String expected = "ROLE_" + roleName;
+        for (GrantedAuthority authority : auth.getAuthorities()) {
+            if (expected.equals(authority.getAuthority())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Long resolveTeamIdForPlayer(Long teamId) {
@@ -60,7 +105,7 @@ public class UserService {
         return teamId;
     }
 
-    private Long resolveParentIdForPlayer(Long parentId, NewParentRequest newParent) {
+    private ParentLink resolveParentIdForPlayer(Long parentId, NewParentRequest newParent) {
         boolean hasExisting = parentId != null;
         boolean hasNew = newParent != null;
 
@@ -76,7 +121,7 @@ public class UserService {
             if (!"PARENT".equals(parentRoleName)) {
                 throw new BadRequestException("parentId must point to a user with role PARENT");
             }
-            return parent.getId();
+            return new ParentLink(parent.getId(), null);
         }
 
         requireNonBlank(newParent.getName(), "New parent name is required");
@@ -86,7 +131,7 @@ public class UserService {
         Role parentRole = roleRepository.findByName("PARENT")
                 .orElseThrow(() -> new BadRequestException("This role does not exist"));
 
-        AppUser createdParent = saveNewUser(
+        SavedUser createdParent = saveNewUser(
                 newParent.getName().trim(),
                 newParent.getEmail().trim(),
                 parentRole.getId(),
@@ -94,10 +139,10 @@ public class UserService {
                 newParent.getMobilePhoneNumber().trim(),
                 null,
                 null);
-        return createdParent.getId();
+        return new ParentLink(createdParent.user().getId(), createdParent.temporaryPassword());
     }
 
-    private AppUser saveNewUser(String name, String email, Long roleId, Integer playerNumber,
+    private SavedUser saveNewUser(String name, String email, Long roleId, Integer playerNumber,
             String mobilePhoneNumber, Long parentId, Long teamId) {
         if (email == null || email.isBlank()) {
             throw new BadRequestException("Email is required");
@@ -110,6 +155,8 @@ public class UserService {
             throw new BadRequestException("Phone number already in use");
         }
 
+        String temporaryPassword = generateTemporaryPassword();
+
         AppUser user = new AppUser();
         user.setName(name);
         user.setEmail(email);
@@ -119,7 +166,19 @@ public class UserService {
         user.setParentId(parentId);
         user.setTeamId(teamId);
         user.setActive(true);
-        return userRepository.save(user);
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
+        AppUser saved = userRepository.save(user);
+        return new SavedUser(saved, temporaryPassword);
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder builder = new StringBuilder(TEMP_PASSWORD_LENGTH);
+        for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
+            int index = secureRandom.nextInt(TEMP_PASSWORD_CHARS.length());
+            builder.append(TEMP_PASSWORD_CHARS.charAt(index));
+        }
+        return builder.toString();
     }
 
     /**
@@ -357,5 +416,11 @@ public class UserService {
             throw new NotFoundException("No user found with phone number " + mobilePhoneNumber);
         }
         return user;
+    }
+
+    private record SavedUser(AppUser user, String temporaryPassword) {
+    }
+
+    private record ParentLink(Long parentId, String temporaryPassword) {
     }
 }

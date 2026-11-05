@@ -25,9 +25,10 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- This app uses **React Navigation** (`@react-navigation/native` + `@react-navigation/bottom-tabs`), **not** Expo Router. See `docs/adr/0005-react-navigation-behalls.md`.
+- Navigators are set up in `App.tsx` (`NavigationContainer` + `createBottomTabNavigator`, role-based tabs). Screens live in `src/screens/`. There is no `src/app/` route folder.
+- Use `useNavigation`, `useFocusEffect` and typed props from `@react-navigation/*`. Do not add `expo-router` or migrate to file-based routing without a new ADR.
+- Docs: https://reactnavigation.org/docs/getting-started
 
 ## Building with EAS
 

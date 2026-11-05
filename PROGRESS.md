@@ -16,14 +16,14 @@ The idea is to use:
 
 - React Native (built on Expo)
 - Java Spring Boot
-- AWS
+- Railway (hosting, replaces AWS; see `docs/adr/0002-hosting-pa-railway.md`)
 - PostgreSQL
 
 React Native will be to make the UI of the app. I have chosen this to make the app crossplatform for Android and iOS since the users of the app are expected to have a variation of devices. Expo is supposed to be easier for junior developers like me to set up.
 
 Java Spring Boot will be used to make the API service. Why Java? Because that's what I am currently studying at the moment and also it's a very stable language. Me coming from a security background - I like to have stable systems.
 
-AWS (Amazon Web Services) will be used to store the database (PostgreSQL) and API. I have chosen AWS because that's what I have studied previously at school and I am most familiar with. For Version 1 I will keep PostgreSQL on my own computer first, and move it to AWS later when the basics work.
+Railway will be used to host the database (PostgreSQL) and API. I first planned AWS because that's what I have studied previously at school, but AWS is too expensive for a small club app, so the plan is now Railway (see `docs/adr/0002-hosting-pa-railway.md`). For Version 1 I will keep PostgreSQL on my own computer first, and move it to Railway later when the basics work.
 
 For the repository structure I will go for a monorepo where I keep everything inside one root folder on Github. Inside that I will have one folder for the API (the Java backend) and another folder for the UI (React Native).
 
@@ -135,7 +135,7 @@ I added Lombok (`@Getter`, `@Setter`) so I do not write get/set methods by hand.
 
 I also set `spring.jpa.hibernate.ddl-auto=update` for local Version 1. When I restarted the API, Hibernate created the two tables in `fcvaxjo_db`. I confirmed them in pgAdmin. They are empty. Next step after the models was the repository layer.
 
-`ddl-auto=update` is fine on my PC. I will not use it on a real AWS database later, because it can change tables in ways that are hard to undo.
+`ddl-auto=update` is fine on my PC. I will not use it on the real Railway database later, because it can change tables in ways that are hard to undo.
 
 # Permissions vs a third table (9/9-2026)
 
@@ -298,3 +298,53 @@ Player edit / soft delete (27/10-2026):
 - `users.active` — soft delete (`DELETE /api/users/{id}` sets active=false). Inactive players leave team lists.
 - `PUT /api/users/{id}/player` — edit name, email, phone, shirt, team (required, can switch), parent name/email/phone.
 - Expo: tap a player on Teams → detail form → Save or Remove. Player and parent emails are editable; duplicates return 400.
+
+# First security slice — login + role gates (27/10-2026)
+
+Decision: **local email + BCrypt + JWT now** (no Auth0 yet). IdP can replace `/api/auth/login` later without changing role names. Login id is **email** (no username column).
+
+What shipped:
+
+- `users.password_hash`, `users.must_change_password`
+- `POST /api/auth/login`, `POST /api/auth/change-password`
+- Create user generates a temporary password (returned once); new parent gets one too
+- Spring Security: JWT filter; only login is public; `@PreAuthorize` on create/soft-delete (ADMIN|COACH), role change + team admin ops (ADMIN only); COACH may only create PLAYER
+- Bootstrap admin seeder: `admin@fcvaxjo.se` with a hardcoded temporary password (must change after first login)
+- Expo: login screen, change-password gate, Bearer token on all API calls, Create tab only for ADMIN/COACH
+- Java tests: `AuthServiceTest`, create-user password flags in `UserServiceTest`
+- Postman checklist: `API/POSTMAN_AUTH.md`
+
+Out of this slice (next): parent sees only children; player schedule rights; team-scoped coach limits.
+
+Jira (paste yourself): Epic — Staff and members can sign in safely… Stories 1–2 from the security plan; keep story 3 (parent children) for later.
+
+# JWT 120 minutes + silent refresh (27/10-2026)
+
+Decision: access tokens last **120 minutes** (`app.jwt.expiration-ms=7200000`). `POST /api/auth/refresh` (Bearer required) returns a new JWT for another 120 minutes. Expo `apiFetch` on 401 tries refresh once, then clears session and shows login. No separate refresh-token table yet. Branch: `feature/jwt-120min-refresh`.
+
+# Trainings + attendance (27/10-2026)
+
+Decision: a training belongs to one team and stores **starts_at** + **ends_at**. On create, we **snapshot** active PLAYERs into `training_attendance` (status null). Later joiners do not appear on old trainings. Coach/admin marks `PRESENT` / `ABSENT` / `EXCUSED`. ADMIN any team; COACH only teams in `team_coaches`.
+
+API: `POST/GET /api/trainings`, `GET /api/trainings/{id}`, `GET/PUT .../attendance`. Expo **Trainings** tab for staff. Branch: `feature/trainings-attendance`. Postman: `API/POSTMAN_TRAININGS.md`.
+
+Jira (paste yourself): Epic — Coaches can run trainings… Story — As a coach I would like to create a training… and mark present/absent/excused…
+
+# Demo club seed (27/10-2026)
+
+`DemoClubSeeder`: ensures teams P13 + P14 + P15; each gets 1 coach, up to 10 players (1 parent each), and up to **10 trainings** with attendance snapshots. Idempotent (fills missing players/trainings only). Demo users get a hardcoded temporary password. Also resets `admin@fcvaxjo.se` to its temporary password (must change password) so local login works after password drift. Runs only with the Spring profile `dev` (default locally), never in production.
+
+# Player + parent read-only schedule (27/10-2026)
+
+Decision: members may **view** schedule only. Coaches/admins still create trainings and mark Present/Absent/Excused.
+
+- `GET /api/my/children` (PARENT) — linked active players
+- `GET /api/my/trainings` (PLAYER own team; PARENT needs `childId`) — training + that player’s status
+- Expo: **Schedule** tab for PLAYER/PARENT (`MyScheduleScreen`); staff keep **Trainings** tab
+- Branch: `feature/player-parent-trainings-view`. Tests: `MyScheduleServiceTest`. Postman: `API/POSTMAN_TRAININGS.md`
+
+Jira (paste yourself):
+
+- Story: `As a player I would like to see my team's trainings and my attendance status because I need to know when to show up.`
+- Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
+- Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
