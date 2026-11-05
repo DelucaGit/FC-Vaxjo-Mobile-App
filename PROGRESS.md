@@ -354,3 +354,9 @@ Jira (paste yourself):
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
 `POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+
+# Chairman links coaches (5/11-2026)
+
+Decision: ADMIN and CHAIRMAN may link a coach to any team and remove that link. COACH, PLAYER and PARENT get 403, including a coach on their own team. The rule lives in `ClubRole.canLinkCoach` and in `@PreAuthorize` on the two coach endpoints, same style as creating a team. The service still only checks that the user is a COACH. Creating a coach, or turning a player into a coach, stays in story S1-8.
+
+Why a separate method from `canCreateTeam`: the two rights match today, but they are different actions. Changing one later must not silently change the other.

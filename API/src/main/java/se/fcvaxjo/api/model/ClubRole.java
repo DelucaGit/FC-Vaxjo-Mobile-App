@@ -36,4 +36,14 @@ public enum ClubRole {
     public boolean canCreateTeam() {
         return this == ADMIN || this == CHAIRMAN;
     }
+
+    /**
+     * Linking a coach is club work, separate from creating the team (ADR 0006).
+     * A coach does not assign coaches, not even on a team they already belong to.
+     * The check is written out again so a later change to team creation does not
+     * silently change who may link a coach.
+     */
+    public boolean canLinkCoach() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
 }

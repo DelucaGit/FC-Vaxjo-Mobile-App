@@ -434,11 +434,14 @@ paths:
       tags: [Teams]
       operationId: addTeamCoach
       summary: Koppla en tränare till laget
-      x-roles-planned: [ADMIN, CHAIRMAN]
       description: |
+        Bara ADMIN och CHAIRMAN får koppla en tränare, och de får göra det i alla lag (ADR 0006).
+        COACH, PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+        `@PreAuthorize` nekar anropet innan metoden körs, så meddelandet är Springs standardtext.
+
         Användaren måste ha roll COACH. Fel: "userId is required", "User not found", "Only a COACH can be added to a team",
         "This coach is already on the team" (400); "Team not found" (404). Obs: okänd användare ger 400, inte 404.
-      x-roles: [ADMIN]
+      x-roles: [ADMIN, CHAIRMAN]
       x-source: TeamController.addCoach → TeamService.addCoach
       requestBody:
         required: true
@@ -453,7 +456,13 @@ paths:
               schema: { $ref: '#/components/schemas/FetchUserResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: |
+            COACH, PLAYER eller PARENT. Body är `{"message":"Access Denied"}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: Access Denied }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/teams/{id}/coaches/{userId}:
@@ -468,15 +477,24 @@ paths:
       tags: [Teams]
       operationId: removeTeamCoach
       summary: Ta bort en tränare från laget
-      x-roles-planned: [ADMIN, CHAIRMAN]
-      description: 'Fel: "Team not found", "Coach is not on this team" (404).'
-      x-roles: [ADMIN]
+      description: |
+        Bara ADMIN och CHAIRMAN får ta bort en tränare, och de får göra det i alla lag (ADR 0006).
+        COACH, PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+        `@PreAuthorize` nekar anropet innan metoden körs, så meddelandet är Springs standardtext.
+        Fel: "Team not found", "Coach is not on this team" (404).
+      x-roles: [ADMIN, CHAIRMAN]
       x-source: TeamController.removeCoach → TeamService.removeCoach
       responses:
         '204':
           description: Kopplingen borttagen.
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: |
+            COACH, PLAYER eller PARENT. Body är `{"message":"Access Denied"}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: Access Denied }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/teams/{id}/players:
@@ -893,7 +911,8 @@ components:
       description: |
         Rollnamn (seedas av `RoleSeeder` från `ClubRole`). Hierarki enligt ADR 0006:
         ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER och PARENT är likvärdiga.
-        Bara ADMIN och CHAIRMAN får skapa lag (`POST /api/teams`).
+        Bara ADMIN och CHAIRMAN får skapa lag (`POST /api/teams`) och koppla eller ta bort en tränare
+        (`POST` och `DELETE` på `/api/teams/{id}/coaches`). De får göra det i alla lag.
       enum: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
     AttendanceStatus:
       type: [string, 'null']
