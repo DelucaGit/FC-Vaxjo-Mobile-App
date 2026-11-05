@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './config';
 import { AuthSession, clearSession, getToken, saveSession } from './authStorage';
-import { apiFetch, readErrorMessage } from './http';
+import { apiFetch, readErrorMessage, setRefreshSession } from './http';
 
 export type LoginResult = AuthSession;
 
@@ -55,8 +55,9 @@ export async function changePassword(
 }
 
 /**
- * Exchange a still-valid JWT for a new one (another 120 minutes).
- * Uses raw fetch so apiFetch's 401 retry does not recurse oddly.
+ * Exchange a still-valid access token for a new one (another 120 minutes).
+ * The API has no separate refresh token. The Bearer value is the current JWT.
+ * Uses raw fetch so the 401 retry inside apiFetch does not call itself.
  */
 export async function refreshSession(): Promise<LoginResult> {
   const token = await getToken();
@@ -81,3 +82,6 @@ export async function refreshSession(): Promise<LoginResult> {
 export async function logout(): Promise<void> {
   await clearSession();
 }
+
+// Register after refreshSession exists. A 401 in apiFetch calls this.
+setRefreshSession(refreshSession);

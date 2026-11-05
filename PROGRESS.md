@@ -348,3 +348,27 @@ Jira (paste yourself):
 - Story: `As a player I would like to see my team's trainings and my attendance status because I need to know when to show up.`
 - Story: `As a parent I would like to see my child's trainings and attendance status because I need to follow their schedule.`
 - Tasks: Add/Why/Done when for `GET /api/my/children`, `GET /api/my/trainings`, Expo Schedule tab, Postman + Java tests.
+
+# Secure token storage — story S1-5a (5/11-2026)
+
+Decision: the access token and the refresh-token slot move from AsyncStorage to `expo-secure-store` (Expo SDK 58, `expo-secure-store` ~58.0.2).
+
+Why: AsyncStorage is plain text. The JWT is the login. SecureStore uses the iOS keychain and the Android keystore. Role, email, user id and must-change-password stay in AsyncStorage. They are not the login token.
+
+How the code is split, so it stays easy to explain:
+
+- `UI/src/api/tokenStorage.ts` is the only file that calls SecureStore. get/set/clear for the access token and the refresh token.
+- `UI/src/api/authStorage.ts` still owns the session. `saveSession` / `loadSession` / `clearSession` / `getToken` keep the same names. Login, refresh, change-password and logout did not need a new flow.
+- On web there is no keychain. The tokens stay in memory for that browser tab. They are still not written to AsyncStorage.
+
+Migration: older builds saved one JSON blob, `fcvaxjo_session`, with the JWT inside. On the next app open, `loadSession` copies that token into SecureStore and writes the profile back without it. If SecureStore already has a token, that newer copy is kept and the plain-text copy is still removed. A broken blob is deleted so a token cannot sit in AsyncStorage. A token without a full profile is deleted, not kept. We cannot rebuild a session from a token alone.
+
+Refresh token: the API contract (`LoginResponse`) still has one field, `token`. `POST /api/auth/refresh` sends that JWT and returns a new one. There is no separate refresh token yet. The storage module has a refresh slot anyway, so logout clears both and a later API can store one without calling SecureStore from a screen. `saveSession` clears the refresh slot because today's login response does not include one.
+
+`apiFetch` no longer uses a dynamic `import()` to call refresh. That import made a circle (auth imports apiFetch) and Jest cannot run it. `auth.ts` registers `refreshSession` with `setRefreshSession` instead.
+
+Plugin: `expo-secure-store` in `app.json`, with Android backup exclusion turned on. `faceIDPermission: false` because we do not ask for biometrics. `ios.config.usesNonExemptEncryption: false` because we use the platform keychain, not our own encryption. Apple asks this at submit time.
+
+Tests: Jest + `jest-expo` in `UI/`. Mocks for SecureStore and AsyncStorage. 24 tests. `npx tsc --noEmit`, `npx expo lint` and `npm test` pass.
+
+Open: email is still in the AsyncStorage profile, and the JWT payload still contains the email (gap analysis item 10, second half). Not part of this story.

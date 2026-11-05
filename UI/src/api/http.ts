@@ -22,8 +22,10 @@ export async function readErrorMessage(response: Response): Promise<string> {
 }
 
 type UnauthorizedHandler = () => void;
+type RefreshSession = () => Promise<unknown>;
 
 let onUnauthorized: UnauthorizedHandler | null = null;
+let refreshCurrentSession: RefreshSession | null = null;
 
 /** AuthProvider registers this so a failed refresh clears React session state. */
 export function setOnUnauthorized(handler: UnauthorizedHandler | null): void {
@@ -31,8 +33,17 @@ export function setOnUnauthorized(handler: UnauthorizedHandler | null): void {
 }
 
 /**
- * fetch wrapper that attaches the JWT when the user is logged in.
- * On 401: try refresh once, retry the request; if refresh fails, clear session.
+ * auth.ts calls this. http.ts must not import auth.ts, because auth.ts
+ * already imports apiFetch. A direct import would be a circle.
+ */
+export function setRefreshSession(refresh: RefreshSession | null): void {
+  refreshCurrentSession = refresh;
+}
+
+/**
+ * fetch wrapper that attaches the access token when the user is logged in.
+ * On 401: ask for a new access token once and retry. If that fails, clear
+ * the secure-store tokens and the saved profile.
  */
 export async function apiFetch(
   url: string,
@@ -62,8 +73,10 @@ export async function apiFetch(
   }
 
   try {
-    const { refreshSession } = await import('./auth');
-    await refreshSession();
+    if (!refreshCurrentSession) {
+      throw new Error('Refresh is not set up');
+    }
+    await refreshCurrentSession();
     return apiFetch(url, init, true);
   } catch {
     await clearSession();
