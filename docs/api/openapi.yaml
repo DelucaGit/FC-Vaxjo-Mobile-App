@@ -213,6 +213,9 @@ paths:
         När `roleName` är `COACH` sparas inte `playerNumber`, även om det skickas med. En tränare har inget tröjnummer.
         En ny COACH får alltså inget lag, ingen förälder och inget tröjnummer här. Att koppla tränaren till ett lag
         görs med `POST /api/teams/{id}/coaches` och ingår inte i det här anropet.
+        Ett tröjnummer som redan finns ger 400 "Shirt number already in use" för ADMIN och CHAIRMAN,
+        kontrollerat före insert (F10). En tränare får samma 400 som övriga dubbletter: "Could not create the user".
+        Kroppen har ingen stacktrace och ingen SQL.
 
         Övriga regler: `email` krävs och måste vara unik ("User already exists"); `mobilePhoneNumber` unik om satt.
         Ett temporärt lösenord (10 tecken) genereras och returneras **en gång** i svaret; `mustChangePassword=true`.
@@ -1330,7 +1333,7 @@ x-open-questions:
   - Felformat för fel som inte går via ApiExceptionHandler (felaktig JSON, typfel i path/query, saknad query-parameter, DB-constraint, 500). Spring Boot 4:s standardsvar och om /error-dispatch kräver autentisering i SecurityConfig är inte verifierat.
   - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
-  - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?
+  - Unikhet för playerNumber kontrolleras före insert (F10). ADMIN och CHAIRMAN får 400 "Shirt number already in use". En tränare får "Could not create the user". En DataIntegrityViolation som ändå slinker igenom ger 400 "Could not save the user", utan SQL.
   - "GET /api/users/{id} för en inaktiv användare: ADMIN och CHAIRMAN får 404 \"User not found\" (S1-13). PLAYER, PARENT och COACH får 403, samma som för ett saknat id (F3). Återaktivering är en senare endpoint."
   - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"
   - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?

@@ -95,7 +95,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 
 Beslut (b), stängt: en tränare får skapa en förälder bara tillsammans med en aktiv spelare i ett lag hen tränar (`newParent` på den spelaren). Allt annat om den föräldern är 400, inklusive en fristående `PARENT`. ADMIN och CHAIRMAN får skapa en förälder utan barn. En inaktiv förälder syns inte i `parentName`, `parentEmail` eller `parentMobilePhoneNumber`. Att koppla en spelare till en inaktiv förälder, eller till någon som inte är PARENT, är 400.
 
-F7: när en tränare skapar en användare och e-post eller telefon redan finns, är svaret 400 `Could not create the user`. Samma text i eget lag och i ett annat lag, och samma text för båda fälten. ADMIN och CHAIRMAN behåller de exakta texterna.
+F7: när en tränare skapar en användare och e-post eller telefon redan finns, är svaret 400 `Could not create the user`. Samma text i eget lag och i ett annat lag, och samma text för båda fälten. ADMIN och CHAIRMAN behåller de exakta texterna. Ett tröjnummer som redan finns är samma 400 för tränaren, och `Shirt number already in use` för ADMIN och CHAIRMAN (F10).
 
 ### Lag
 

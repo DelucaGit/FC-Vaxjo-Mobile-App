@@ -656,3 +656,9 @@ Refresh of an inactive account stays a check inside `AuthService.refresh`, but t
 Decision: `spring.jpa.show-sql` is `false` in `application.properties` and in `application-prod.properties`. Only `application-dev.properties` sets it to `true`.
 
 Why the default is false: the app already starts in the `dev` profile locally, so a developer still sees SQL. If Railway forgets `SPRING_PROFILES_ACTIVE=prod`, the default file still keeps the log off. Putting `true` in the default file and hoping prod overrides it would print queries, including email and phone, whenever the profile is missing. The prod file has no secrets. Passwords stay in environment variables. Gap analysis point 7 is closed for the SQL log. `ddl-auto=update` and the database user are still open.
+
+# F10: reject a duplicate shirt before insert (5/11-2026)
+
+Decision: `saveNewUser` calls the same shirt check as an update, before the insert. ADMIN and CHAIRMAN get 400 `Shirt number already in use`. A coach gets `Could not create the user`, the same sentence as a duplicate email, so the text does not say the number is taken on another team. An update by a coach says `Could not update the player` instead of naming the shirt.
+
+A `DataIntegrityViolationException` that still escapes is 400 `Could not save the user`. The database message can contain SQL, so it is not copied into the response.
