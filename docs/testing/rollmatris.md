@@ -32,7 +32,7 @@ Det kör bara mätstickan.
 | S1-1 | Topp 5, punkt 1 | Inga seed-lösenord och ingen demoklubb i testprofilen | Gröna (`TestProfileSafetyTest`) |
 | S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | `KnownPiiLeakTest`, exkluderas |
 | S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest`, exkluderas |
-| S1-4 | Topp 5, punkt 4 | Inaktiv token fungerar fortfarande, och GET visar den inaktiva raden | `KnownInactiveUserTest`, exkluderas |
+| S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är kvar | Token-testerna i `KnownInactiveUserTest` är gröna. GET-testerna är kvar som `known-gap` |
 | ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (fixat i PR #26). Att koppla tränare, skapa/ändra/ta bort spelare och byta roll är kvar | `KnownChairmanAccessTest`, exkluderas. Skapa lag är grönt i `TeamAccessTest` |
 | GAP-6 | Övriga, punkt 6 | 404-texten ekar det sökta telefonnumret | Ett test i `KnownPiiLeakTest`, exkluderas |
 
@@ -78,8 +78,8 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | Mål | Kod idag |
 |---|---|---|
 | `POST /api/auth/login` | Publik. 200 för aktiv användare, 400 för fel lösenord eller inaktiv | Stämmer. Inaktiv stoppas redan här |
-| `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Aktiv användare fungerar. Inaktiv token får 200. **S1-4** |
-| `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 400 | Stämmer |
+| `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
+| `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 400 | Inaktiv token får 401 i filtret, inte 400 |
 
 ### Användare
 
