@@ -18,12 +18,20 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class JwtService {
 
+    /** HS256 needs a key of at least 256 bits. */
+    static final int MIN_SECRET_BYTES = 32;
+
     private final SecretKey key;
     private final long expirationMs;
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-ms}") long expirationMs) {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be set (API/.env locally, Railway variables in production) "
+                            + "and be at least " + MIN_SECRET_BYTES + " bytes long.");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }

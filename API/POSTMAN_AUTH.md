@@ -4,8 +4,10 @@ Base URL: `http://localhost:8080/api`
 
 Bootstrap admin (seeded once):
 
+> Passwords are not written here. `{{adminPassword}}` = `BOOTSTRAP_ADMIN_PASSWORD` and `{{demoPassword}}` = `DEMO_PASSWORD` in your local `API/.env` (set them as Postman environment variables).
+
 - Email: `admin@fcvaxjo.se`
-- Temporary password: `TempAdmin1!`
+- Temporary password: `{{adminPassword}}`
 
 ## Checklist
 
@@ -14,13 +16,13 @@ Bootstrap admin (seeded once):
 
 2. **Login**  
    `POST /auth/login`  
-   Body: `{ "email": "admin@fcvaxjo.se", "password": "TempAdmin1!" }`  
+   Body: `{ "email": "admin@fcvaxjo.se", "password": "{{adminPassword}}" }`  
    → 200 with `token`, `mustChangePassword: true`
 
 3. **Change password**  
    `POST /auth/change-password`  
    Header: `Authorization: Bearer <token>`  
-   Body: `{ "currentPassword": "TempAdmin1!", "newPassword": "NewSecure1!" }`  
+   Body: `{ "currentPassword": "{{adminPassword}}", "newPassword": "{{newPassword}}" }`  
    → 200, `mustChangePassword: false`, new `token`
 
 4. **Create player as ADMIN**  

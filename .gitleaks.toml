@@ -1,0 +1,20 @@
+# Minimal gitleaks config for FC Växjö. Used by .githooks/pre-commit (gitleaks protect --staged).
+title = "FC Vaxjo gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "spring-placeholder-secret-default"
+description = "Spring placeholder with a hardcoded default value for a secret, e.g. ${JWT_SECRET:...}"
+regex = '''\$\{[A-Z_]*(SECRET|PASSWORD|TOKEN|KEY)[A-Z_]*:[^}]{6,}\}'''
+
+[[rules]]
+id = "hardcoded-password-literal"
+description = "Password or secret written as a quoted literal"
+regex = '''(?i)(password|passwd|secret)[a-z_]*["']?\s*[:=]\s*["'][^"'${<\s][^"'\s]{3,}["']'''
+
+[allowlist]
+description = "Clearly test-only values"
+paths = ['''API/src/test/resources/application-test\.properties''']
+regexes = ['''test-only''', '''\{\{[A-Za-z]+\}\}''']

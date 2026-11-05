@@ -44,7 +44,7 @@ ADMIN works for any team. COACH must be linked to the team.
 
 ## Player / parent read-only schedule
 
-Log in as a demo PLAYER (`player1.p13@demo.fcvaxjo.se` / `TempDemo1!`) or PARENT (`parent1.p13@demo.fcvaxjo.se`).
+Log in as a demo PLAYER (`player1.p13@demo.fcvaxjo.se` / `{{demoPassword}}`) or PARENT (`parent1.p13@demo.fcvaxjo.se` / `{{demoPassword}}`). `{{demoPassword}}` = `DEMO_PASSWORD` in your local `API/.env`.
 
 8. **Parent: list children**  
    `GET /my/children` (PARENT token)  

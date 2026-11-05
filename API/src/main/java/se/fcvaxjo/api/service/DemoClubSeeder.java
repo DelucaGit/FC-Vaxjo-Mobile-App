@@ -6,6 +6,9 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
@@ -30,13 +33,15 @@ import se.fcvaxjo.api.repository.UserRepository;
  * + up to 10 trainings with attendance snapshots.
  * Idempotent per team. Resets bootstrap admin password for local login.
  * Only runs with the "dev" profile so production never gets demo users or known passwords.
+ * Passwords come from DEMO_PASSWORD and BOOTSTRAP_ADMIN_PASSWORD (API/.env), never from code.
+ * If DEMO_PASSWORD is not set, the whole demo seed is skipped.
  */
 @Component
 @Profile("dev")
 @Order(3)
 public class DemoClubSeeder implements CommandLineRunner {
 
-    private static final String TEMP_PASSWORD = "TempDemo1!";
+    private static final Logger log = LoggerFactory.getLogger(DemoClubSeeder.class);
     private static final int PLAYERS_PER_TEAM = 10;
     private static final int TRAININGS_PER_TEAM = 10;
 
@@ -48,6 +53,9 @@ public class DemoClubSeeder implements CommandLineRunner {
     private final TrainingAttendanceRepository attendanceRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final String demoPassword;
+    private final String adminEmail;
+    private final String adminPassword;
 
     public DemoClubSeeder(
             UserRepository userRepository,
@@ -57,7 +65,10 @@ public class DemoClubSeeder implements CommandLineRunner {
             TrainingRepository trainingRepository,
             TrainingAttendanceRepository attendanceRepository,
             PasswordEncoder passwordEncoder,
-            UserService userService) {
+            UserService userService,
+            @Value("${app.seed.demo-password:}") String demoPassword,
+            @Value("${app.seed.admin-email}") String adminEmail,
+            @Value("${app.seed.admin-password:}") String adminPassword) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
@@ -66,10 +77,18 @@ public class DemoClubSeeder implements CommandLineRunner {
         this.attendanceRepository = attendanceRepository;
         this.passwordEncoder = passwordEncoder;
         this.userService = userService;
+        this.demoPassword = demoPassword;
+        this.adminEmail = adminEmail;
+        this.adminPassword = adminPassword;
     }
 
     @Override
     public void run(String... args) {
+        if (demoPassword == null || demoPassword.isBlank()) {
+            log.warn("DEMO_PASSWORD is not set: skipping demo club seed.");
+            return;
+        }
+
         resetBootstrapAdminPassword();
 
         Role coachRole = requireRole("COACH");
@@ -86,8 +105,11 @@ public class DemoClubSeeder implements CommandLineRunner {
     }
 
     private void resetBootstrapAdminPassword() {
-        userRepository.findByEmail(AdminSeeder.BOOTSTRAP_EMAIL).ifPresent(admin -> {
-            admin.setPasswordHash(passwordEncoder.encode(AdminSeeder.BOOTSTRAP_TEMP_PASSWORD));
+        if (adminPassword == null || adminPassword.isBlank()) {
+            return;
+        }
+        userRepository.findByEmail(adminEmail).ifPresent(admin -> {
+            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
             admin.setMustChangePassword(true);
             userRepository.save(admin);
         });
@@ -127,6 +149,11 @@ public class DemoClubSeeder implements CommandLineRunner {
                     && user.getEmail().endsWith("@demo.fcvaxjo.se")
                     && user.getEmail().startsWith("player")) {
                 existingDemoPlayers++;
+                // Keep demo logins in sync with DEMO_PASSWORD (older rows may still have an old password).
+                resetDemoLogin(user);
+                if (user.getParentId() != null) {
+                    userRepository.findById(user.getParentId()).ifPresent(this::resetDemoLogin);
+                }
             }
         }
 
@@ -201,7 +228,16 @@ public class DemoClubSeeder implements CommandLineRunner {
         return players;
     }
 
-    private AppUser saveUser(
+    private void resetDemoLogin(AppUser user) {
+        if (user.getEmail() == null || !user.getEmail().endsWith("@demo.fcvaxjo.se")) {
+            return;
+        }
+        user.setPasswordHash(passwordEncoder.encode(demoPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+    }
+
+        private AppUser saveUser(
             String name,
             String email,
             Long roleId,
@@ -211,7 +247,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             Long teamId) {
         return userRepository.findByEmail(email).map(existing -> {
             // Keep demo logins working across restarts (password may have been changed).
-            existing.setPasswordHash(passwordEncoder.encode(TEMP_PASSWORD));
+            existing.setPasswordHash(passwordEncoder.encode(demoPassword));
             existing.setMustChangePassword(true);
             existing.setActive(true);
             if (teamId != null) {
@@ -231,7 +267,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             user.setParentId(parentId);
             user.setTeamId(teamId);
             user.setActive(true);
-            user.setPasswordHash(passwordEncoder.encode(TEMP_PASSWORD));
+            user.setPasswordHash(passwordEncoder.encode(demoPassword));
             user.setMustChangePassword(true);
             return userRepository.save(user);
         });
