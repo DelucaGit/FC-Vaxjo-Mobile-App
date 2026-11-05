@@ -15,7 +15,10 @@ export async function listTeams(): Promise<Team[]> {
   return response.json();
 }
 
-/** Teams the current COACH is linked to (ADMIN gets all). */
+/**
+ * Teams the current COACH is linked to.
+ * ADMIN gets every team. CHAIRMAN is not allowed on this URL (openapi x-roles).
+ */
 export async function listMyTeams(): Promise<Team[]> {
   const response = await apiFetch(`${API_BASE_URL}/my/teams`);
   if (!response.ok) {

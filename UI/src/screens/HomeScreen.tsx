@@ -9,35 +9,13 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../auth/AuthContext';
+import { isMember, isStaff, roleLabel } from '../auth/roles';
 import { listMyChildren, listMyTrainings, MyTraining } from '../api/mySchedule';
 import { listMyTeams, listTeams } from '../api/teams';
 import { listTrainings, Training } from '../api/trainings';
 import { ClubUser, getUserById } from '../api/users';
+import type { TabParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
-
-type TabParamList = {
-  Home: undefined;
-  Schema: undefined;
-  Laget: undefined;
-  Mer: undefined;
-  Search: undefined;
-  Create: undefined;
-};
-
-function roleLabel(roleName: string): string {
-  switch (roleName) {
-    case 'COACH':
-      return 'Tränare';
-    case 'ADMIN':
-      return 'Admin';
-    case 'PLAYER':
-      return 'Spelare';
-    case 'PARENT':
-      return 'Förälder';
-    default:
-      return roleName;
-  }
-}
 
 function firstName(name: string | null | undefined, email: string): string {
   if (name && name.trim()) {
@@ -129,10 +107,8 @@ export default function HomeScreen() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const isStaff =
-    session?.roleName === 'ADMIN' || session?.roleName === 'COACH';
-  const isMember =
-    session?.roleName === 'PLAYER' || session?.roleName === 'PARENT';
+  const staff = isStaff(session?.roleName);
+  const member = isMember(session?.roleName);
 
   useFocusEffect(
     useCallback(() => {
@@ -150,10 +126,12 @@ export default function HomeScreen() {
           }
           setProfile(me);
 
-          if (isStaff) {
+          if (staff) {
             let teamId = me.teamId;
             let teamName = me.teamName;
             // Coaches are linked via team_coaches, not users.team_id.
+            // GET /api/my/teams allows COACH and ADMIN only, so a chairman
+            // uses the full team list (same as an admin).
             if (teamId == null) {
               const myTeams =
                 session.roleName === 'COACH'
@@ -208,7 +186,7 @@ export default function HomeScreen() {
               setNextPass(null);
               setActivity([]);
             }
-          } else if (isMember) {
+          } else if (member) {
             let rows: MyTraining[] = [];
             if (session.roleName === 'PARENT') {
               const kids = await listMyChildren();
@@ -273,7 +251,7 @@ export default function HomeScreen() {
       return () => {
         cancelled = true;
       };
-    }, [session, isStaff, isMember]),
+    }, [session, staff, member]),
   );
 
   const name = firstName(profile?.name, session?.email ?? '');
@@ -331,7 +309,7 @@ export default function HomeScreen() {
                   {nextPass.title ? ` · ${nextPass.title}` : ''}
                 </Text>
               </View>
-              {isStaff ? (
+              {staff ? (
                 <Pressable
                   style={styles.cta}
                   onPress={() => navigation.navigate('Schema')}
@@ -353,7 +331,7 @@ export default function HomeScreen() {
             <>
               <Text style={styles.nextTitle}>Inget pass inbokat</Text>
               <Text style={styles.nextMeta}>Skapa eller vänta på nästa träning.</Text>
-              {isStaff ? (
+              {staff ? (
                 <Pressable
                   style={styles.cta}
                   onPress={() => navigation.navigate('Schema')}
@@ -368,7 +346,7 @@ export default function HomeScreen() {
 
         <Text style={styles.sectionTitle}>SNABBVAL</Text>
         <View style={styles.grid}>
-          {isStaff ? (
+          {staff ? (
             <QuickAction
               icon="✓"
               iconBg={colors.primary}

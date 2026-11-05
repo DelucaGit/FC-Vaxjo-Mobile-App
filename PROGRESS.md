@@ -354,3 +354,11 @@ Jira (paste yourself):
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
 `POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+
+# App knows the chairman (S1-5b)
+
+Decision: the Expo app uses one role helper (`UI/src/auth/roles.ts`) with the same ranks as `ClubRole`. ADMIN 4 > CHAIRMAN 3 > COACH 2 > PLAYER 1 = PARENT 1. The Swedish label for CHAIRMAN is Ordförande.
+
+"Skapa lag" moved to its own screen. The button and the tab route exist only for ADMIN and CHAIRMAN. A coach cannot open that screen by navigating, because the route is not registered. Other staff checks (attendance tab, create user, edit roster) now include CHAIRMAN, because that role is above COACH. A coach still only sees "Spelare" when creating a user. An admin can also pick Ordförande. A chairman gets the same picker as a coach until ADR 0006 answers whether a chairman may create a coach. POST /api/users still rejects CHAIRMAN.
+
+Contract gaps left as they are in `openapi.yaml` (not changed in this story): trainings and create-user are still ADMIN+COACH on the API, linking a coach is still ADMIN only, and GET /api/my/teams does not allow CHAIRMAN. The app therefore sends a chairman to the full team list, not "my teams".

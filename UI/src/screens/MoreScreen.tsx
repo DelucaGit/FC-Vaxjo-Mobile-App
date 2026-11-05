@@ -2,22 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../auth/AuthContext';
+import { isStaff } from '../auth/roles';
+import type { TabParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
-
-type TabParamList = {
-  Home: undefined;
-  Schema: undefined;
-  Laget: undefined;
-  Mer: undefined;
-  Search: undefined;
-  Create: undefined;
-};
 
 export default function MoreScreen() {
   const { session, logout } = useAuth();
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
-  const isStaff =
-    session?.roleName === 'ADMIN' || session?.roleName === 'COACH';
+  const staff = isStaff(session?.roleName);
 
   return (
     <View style={styles.container}>
@@ -33,7 +25,7 @@ export default function MoreScreen() {
         <Text style={styles.chevron}>›</Text>
       </Pressable>
 
-      {isStaff ? (
+      {staff ? (
         <Pressable
           style={styles.row}
           onPress={() => navigation.navigate('Create')}

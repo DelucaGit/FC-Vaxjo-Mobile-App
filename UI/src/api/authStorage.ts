@@ -8,6 +8,7 @@ const SESSION_KEY = 'fcvaxjo_session';
 
 export type AuthSession = {
   token: string;
+  /** Club role from the API: ADMIN, CHAIRMAN, COACH, PLAYER, or PARENT. */
   roleName: string;
   email: string;
   userId: number;

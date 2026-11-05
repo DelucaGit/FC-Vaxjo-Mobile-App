@@ -11,11 +11,13 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../auth/AuthContext';
+import { canCreateTeam, isStaff } from '../auth/roles';
+import type { TabParamList } from '../navigation/types';
 import {
   Team,
   addTeamCoach,
-  createTeam,
   listTeamCoaches,
   listTeamPlayers,
   listTeams,
@@ -79,12 +81,13 @@ async function openPhoneLink(
 
 export default function TeamsScreen() {
   const { session } = useAuth();
-  const navigation = useNavigation();
-  const isStaff =
-    session?.roleName === 'ADMIN' || session?.roleName === 'COACH';
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  // Edit roster and add a coach stay as they were. Chairman is included
+  // because that role is above coach. Creating a team is a separate check.
+  const staff = isStaff(session?.roleName);
+  const mayCreateTeam = canCreateTeam(session?.roleName);
 
   const [teams, setTeams] = useState<Team[]>([]);
-  const [newTeamName, setNewTeamName] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [coaches, setCoaches] = useState<ClubUser[]>([]);
   const [players, setPlayers] = useState<ClubUser[]>([]);
@@ -182,29 +185,6 @@ export default function TeamsScreen() {
     setEditParentName(player.parentName ?? '');
     setEditParentEmail(player.parentEmail ?? '');
     setEditParentPhone(player.parentMobilePhoneNumber ?? '');
-  }
-
-  async function onCreateTeam() {
-    const trimmed = newTeamName.trim();
-    if (!trimmed) {
-      setError('Team name is required (e.g. P15).');
-      setMessage(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const team = await createTeam(trimmed);
-      setMessage(`Created team ${team.name} (id ${team.id}).`);
-      setNewTeamName('');
-      await loadTeams();
-      await onSelectTeam(team);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create team failed.');
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function onSelectTeam(team: Team) {
@@ -408,7 +388,7 @@ export default function TeamsScreen() {
             <Text style={styles.headerBtnText}>←</Text>
           </Pressable>
           <Text style={styles.rosterHeaderTitle}>SPELARE</Text>
-          {isStaff ? (
+          {staff ? (
             <Pressable
               style={styles.headerBtn}
               onPress={() => setShowEditForm((v) => !v)}
@@ -519,7 +499,7 @@ export default function TeamsScreen() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {message ? <Text style={styles.success}>{message}</Text> : null}
 
-          {showEditForm && isStaff ? (
+          {showEditForm && staff ? (
             <View style={styles.detailBox}>
               <Text style={styles.detailTitle}>Redigera spelare</Text>
 
@@ -615,7 +595,7 @@ export default function TeamsScreen() {
           ) : null}
         </ScrollView>
 
-        {isStaff ? (
+        {staff ? (
           <View style={styles.stickyBar}>
             <Pressable
               style={styles.saveBtn}
@@ -770,7 +750,7 @@ export default function TeamsScreen() {
                       </Text>
                     </View>
                   </View>
-                  {isStaff ? (
+                  {staff ? (
                     <Pressable onPress={() => onRemoveCoach(coach)} hitSlop={8}>
                       <Text style={styles.clearLink}>Ta bort</Text>
                     </Pressable>
@@ -785,7 +765,7 @@ export default function TeamsScreen() {
             <Text style={styles.hint}>Inga tränare att visa.</Text>
           ) : null}
 
-          {showAddCoach && isStaff ? (
+          {showAddCoach && staff ? (
             <View style={styles.detailBox}>
               <Text style={styles.detailTitle}>Lägg till tränare</Text>
               <TextInput
@@ -814,7 +794,7 @@ export default function TeamsScreen() {
           ) : null}
         </ScrollView>
 
-        {isStaff ? (
+        {staff ? (
           <Pressable
             style={styles.fab}
             onPress={() => {
@@ -850,26 +830,14 @@ export default function TeamsScreen() {
       <Text style={styles.title}>Laget</Text>
       <Text style={styles.hint}>Välj ett lag för att öppna roster.</Text>
 
-      {isStaff ? (
-        <>
-          <Text style={styles.label}>Nytt lagnamn</Text>
-          <TextInput
-            style={styles.input}
-            value={newTeamName}
-            onChangeText={setNewTeamName}
-            placeholder="P15"
-            autoCapitalize="characters"
-          />
-          <Pressable
-            style={styles.button}
-            onPress={onCreateTeam}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Sparar…' : 'Skapa lag'}
-            </Text>
-          </Pressable>
-        </>
+      {mayCreateTeam ? (
+        <Pressable
+          style={styles.button}
+          onPress={() => navigation.navigate('CreateTeam')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.buttonText}>Skapa lag</Text>
+        </Pressable>
       ) : null}
 
       <Text style={[styles.label, styles.sectionGap]}>Alla lag</Text>
