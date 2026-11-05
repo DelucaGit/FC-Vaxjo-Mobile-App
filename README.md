@@ -70,4 +70,4 @@ npm start
 
 Press `w` for web, or scan the QR code with Expo Go. For a real phone, set your PC's LAN IP in `UI/src/api/config.ts`.
 
-Roles: `ADMIN`, `COACH`, `PLAYER`, `PARENT` (`CHAIRMAN` is planned; see `docs/adr/0006-roller-och-behorighet.md`).
+Roles: `ADMIN` > `CHAIRMAN` > `COACH` > `PLAYER` = `PARENT`. Only ADMIN and CHAIRMAN can create a team (see `docs/adr/0006-roller-och-behorighet.md`).

@@ -4,9 +4,14 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.repository.RoleRepository;
 
+/**
+ * Inserts every club role on startup when that name is missing.
+ * The row id is not the rank. Rank lives in {@link ClubRole}.
+ */
 @Component
 @Order(1)
 public class RoleSeeder implements CommandLineRunner {
@@ -19,10 +24,9 @@ public class RoleSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        seed("ADMIN");
-        seed("COACH");
-        seed("PLAYER");
-        seed("PARENT");
+        for (ClubRole role : ClubRole.values()) {
+            seed(role.name());
+        }
     }
 
     private void seed(String name) {
