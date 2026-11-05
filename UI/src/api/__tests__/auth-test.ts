@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resetMemoryStores } from '../../test/inMemoryKv';
 import { changePassword, login, logout, refreshSession } from '../auth';
 import { saveSession } from '../authStorage';
-import { getAccessToken, getRefreshToken, setRefreshToken } from '../tokenStorage';
+import { getAccessToken, getEmail, getRefreshToken, setRefreshToken } from '../tokenStorage';
 
 const SESSION_KEY = 'fcvaxjo_session';
 
@@ -38,9 +38,10 @@ describe('auth token flow', () => {
     expect(await getAccessToken()).toBe('fresh-access');
     const raw = await AsyncStorage.getItem(SESSION_KEY);
     expect(raw).not.toContain('fresh-access');
+    expect(raw).not.toContain('player@fcvaxjo.se');
+    expect(await getEmail()).toBe('player@fcvaxjo.se');
     expect(JSON.parse(raw as string)).toEqual({
       roleName: 'PLAYER',
-      email: 'player@fcvaxjo.se',
       userId: 4,
       mustChangePassword: true,
     });
@@ -82,6 +83,8 @@ describe('auth token flow', () => {
     const raw = await AsyncStorage.getItem(SESSION_KEY);
     expect(raw).not.toContain('rotated-access');
     expect(raw).not.toContain('old-access');
+    expect(raw).not.toContain('player@fcvaxjo.se');
+    expect(await getEmail()).toBe('player@fcvaxjo.se');
   });
 
   test('refreshSession fails when there is no saved session', async () => {
@@ -107,6 +110,7 @@ describe('auth token flow', () => {
     expect(await getAccessToken()).toBe('after-change');
     const raw = await AsyncStorage.getItem(SESSION_KEY);
     expect(raw).not.toContain('after-change');
+    expect(raw).not.toContain('player@fcvaxjo.se');
     expect(JSON.parse(raw as string).mustChangePassword).toBe(false);
   });
 
@@ -124,6 +128,7 @@ describe('auth token flow', () => {
 
     expect(await getAccessToken()).toBeNull();
     expect(await getRefreshToken()).toBeNull();
+    expect(await getEmail()).toBeNull();
     expect(await AsyncStorage.getItem(SESSION_KEY)).toBeNull();
   });
 });

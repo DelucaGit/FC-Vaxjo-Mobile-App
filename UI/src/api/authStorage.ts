@@ -1,21 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  clearEmail,
   clearRefreshToken,
   clearTokens,
   getAccessToken,
+  getEmail,
   getRefreshToken,
   setAccessToken,
+  setEmail,
   setRefreshToken,
 } from './tokenStorage';
 
 /**
- * The profile (role, email, user id, must-change-password) stays in
- * AsyncStorage. The tokens do not. They are saved by tokenStorage.
+ * Plain-text profile: role, user id, and must-change-password.
  *
- * Why the migration: older builds saved the whole session, JWT included,
- * as one JSON value. Phones that already logged in still have that value.
- * On the next open we copy the token into SecureStore and write the
- * profile back without it, so the JWT is not left in plain text.
+ * Why these three stay in AsyncStorage: the app needs them to pick tabs,
+ * load "me", and show the change-password gate. They are not contact data.
+ *
+ * Email is personal data, so it is saved by tokenStorage (SecureStore),
+ * same as the tokens. Logout clears it there.
+ *
+ * Why the migration: older builds saved the JWT and the email inside
+ * fcvaxjo_session. Phones that already logged in still have that JSON.
+ * On the next open we copy those values into SecureStore and write the
+ * profile back without them, so they are not left in plain text.
  */
 
 const SESSION_KEY = 'fcvaxjo_session';
@@ -30,7 +38,6 @@ export type AuthSession = {
 
 type SessionProfile = {
   roleName: string;
-  email: string;
   userId: number;
   mustChangePassword: boolean;
 };
@@ -43,7 +50,6 @@ function isProfile(value: unknown): value is SessionProfile {
   return (
     typeof record.roleName === 'string' &&
     record.roleName.length > 0 &&
-    typeof record.email === 'string' &&
     typeof record.userId === 'number' &&
     Number.isFinite(record.userId) &&
     typeof record.mustChangePassword === 'boolean'
@@ -53,13 +59,12 @@ function isProfile(value: unknown): value is SessionProfile {
 function toProfile(session: AuthSession): SessionProfile {
   return {
     roleName: session.roleName,
-    email: session.email,
     userId: session.userId,
     mustChangePassword: session.mustChangePassword,
   };
 }
 
-function storedToken(record: Record<string, unknown>, field: 'token' | 'refreshToken'): string | null {
+function storedText(record: Record<string, unknown>, field: string): string | null {
   const value = record[field];
   if (typeof value !== 'string' || value.length === 0) {
     return null;
@@ -67,7 +72,7 @@ function storedToken(record: Record<string, unknown>, field: 'token' | 'refreshT
   return value;
 }
 
-async function moveLegacyTokensOutOfAsyncStorage(): Promise<void> {
+async function moveLegacySecretsOutOfAsyncStorage(): Promise<void> {
   const raw = await AsyncStorage.getItem(SESSION_KEY);
   if (!raw) {
     return;
@@ -77,7 +82,7 @@ async function moveLegacyTokensOutOfAsyncStorage(): Promise<void> {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    // Not JSON. Drop it so a broken value cannot hide a token.
+    // Not JSON. Drop it so a broken value cannot hide a token or an email.
     await AsyncStorage.removeItem(SESSION_KEY);
     return;
   }
@@ -89,22 +94,23 @@ async function moveLegacyTokensOutOfAsyncStorage(): Promise<void> {
 
   const record = parsed as Record<string, unknown>;
 
-  // A token without role/email/id cannot rebuild a session.
-  // Delete the whole value so the token does not stay in plain text.
+  // A secret without role and user id cannot rebuild a session.
+  // Delete the whole value so the secret does not stay in plain text.
   if (!isProfile(record)) {
     await AsyncStorage.removeItem(SESSION_KEY);
     return;
   }
 
-  const hasTokenField = 'token' in record || 'refreshToken' in record;
-  if (!hasTokenField) {
+  const hasSecretField = 'token' in record || 'refreshToken' in record || 'email' in record;
+  if (!hasSecretField) {
     return;
   }
 
-  const legacyAccessToken = storedToken(record, 'token');
-  const legacyRefreshToken = storedToken(record, 'refreshToken');
+  const legacyAccessToken = storedText(record, 'token');
+  const legacyRefreshToken = storedText(record, 'refreshToken');
+  const legacyEmail = storedText(record, 'email');
 
-  // SecureStore wins when it already has a token. That copy was written
+  // SecureStore wins when it already has a value. That copy was written
   // by this version of the app. The AsyncStorage copy is the old one.
   if (legacyAccessToken && !(await getAccessToken())) {
     await setAccessToken(legacyAccessToken);
@@ -112,10 +118,12 @@ async function moveLegacyTokensOutOfAsyncStorage(): Promise<void> {
   if (legacyRefreshToken && !(await getRefreshToken())) {
     await setRefreshToken(legacyRefreshToken);
   }
+  if (legacyEmail && !(await getEmail())) {
+    await setEmail(legacyEmail);
+  }
 
   const profile: SessionProfile = {
     roleName: record.roleName,
-    email: record.email,
     userId: record.userId,
     mustChangePassword: record.mustChangePassword,
   };
@@ -123,14 +131,18 @@ async function moveLegacyTokensOutOfAsyncStorage(): Promise<void> {
 }
 
 export async function saveSession(session: AuthSession): Promise<void> {
-  // Blank check first, so an empty token cannot wipe a real session.
-  // The token is saved before the profile. If SecureStore rejects the
+  // Check first, so a blank value cannot wipe a real session.
+  // Secrets are saved before the profile. If SecureStore rejects the
   // write, the profile on disk stays as it was.
   if (session.token.trim() === '') {
     throw new Error('Token must not be empty');
   }
+  if (session.email.trim() === '') {
+    throw new Error('Email must not be empty');
+  }
 
   await setAccessToken(session.token);
+  await setEmail(session.email);
   // Login and refresh return a new JWT only. Drop any previous refresh
   // token so it cannot outlive this session.
   await clearRefreshToken();
@@ -138,11 +150,12 @@ export async function saveSession(session: AuthSession): Promise<void> {
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
-  await moveLegacyTokensOutOfAsyncStorage();
+  await moveLegacySecretsOutOfAsyncStorage();
 
   const token = await getAccessToken();
+  const email = await getEmail();
   const raw = await AsyncStorage.getItem(SESSION_KEY);
-  if (!raw || !token) {
+  if (!raw || !token || !email) {
     return null;
   }
 
@@ -152,7 +165,7 @@ export async function loadSession(): Promise<AuthSession | null> {
       await AsyncStorage.removeItem(SESSION_KEY);
       return null;
     }
-    return { ...profile, token };
+    return { ...profile, token, email };
   } catch {
     await AsyncStorage.removeItem(SESSION_KEY);
     return null;
@@ -161,6 +174,7 @@ export async function loadSession(): Promise<AuthSession | null> {
 
 export async function clearSession(): Promise<void> {
   await clearTokens();
+  await clearEmail();
   await AsyncStorage.removeItem(SESSION_KEY);
 }
 

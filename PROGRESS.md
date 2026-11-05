@@ -372,3 +372,17 @@ Plugin: `expo-secure-store` in `app.json`, with Android backup exclusion turned 
 Tests: Jest + `jest-expo` in `UI/`. Mocks for SecureStore and AsyncStorage. 24 tests. `npx tsc --noEmit`, `npx expo lint` and `npm test` pass.
 
 Open: email is still in the AsyncStorage profile, and the JWT payload still contains the email (gap analysis item 10, second half). Not part of this story.
+
+# Signed-in email leaves AsyncStorage (5/11-2026)
+
+Update to the note above: the email does not stay in AsyncStorage.
+
+Decision: the signed-in email is personal data, and the screens need it (Home greeting, More, change-password). It is saved with get/set/clear in `tokenStorage.ts`, the same file as the tokens, and removed from `fcvaxjo_session`. Logout clears it.
+
+Migration: on the next open, if the old JSON still has `email`, copy it into SecureStore (unless SecureStore already has one) and write the profile back without it. This also covers phones that already ran the token migration and only have the email left in the JSON. A broken blob is deleted.
+
+What stays in AsyncStorage, and why: `roleName` (which tabs to show), `userId` (Home loads that person), `mustChangePassword` (the gate after login). They are not contact data.
+
+Refresh is unchanged. `POST /api/auth/refresh` still sends the access token and stores the new JWT. `saveSession` still clears the refresh slot because the server does not send a separate refresh token.
+
+The JWT payload itself still contains the email. That is the API, not this storage change.
