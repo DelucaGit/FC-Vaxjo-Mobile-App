@@ -39,13 +39,33 @@ Base URL: `http://localhost:8080/api`
 
 Local runs use the Spring profile `dev` by default (`SPRING_PROFILES_ACTIVE` overrides it). In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`. Production must set another profile and its own secrets as Railway variables.
 
-Run tests:
+Run the tests from the `API` folder. You do not need local PostgreSQL or `API/.env`.
 
-```powershell
-.\mvnw.cmd test
+Each Spring test turns on the `test` profile with `@ActiveProfiles("test")`. That loads `API/src/test/resources/application-test.properties`: an in-memory H2 database and a test-only JWT secret. GitHub Actions runs the same two commands (`.github/workflows/backend-ci.yml`).
+
+The normal build skips tests tagged `known-gap`. That tag marks rules the code still breaks. `API/pom.xml` sets `excludedGroups` to `known-gap`, so `./mvnw test` stays green. The known-gap run is the measuring stick. Those tests fail until the story is fixed.
+
+Normal build, Git Bash on Windows and Linux or Mac:
+
+```bash
+bash mvnw -B verify
 ```
 
-Tests use the `test` profile (`API/src/test/resources/application-test.properties`) with a test-only JWT secret. `contextLoads` still needs local Postgres and `DB_PASSWORD`.
+Known-gap only. `-DexcludedGroups=` (empty) clears the skip in `pom.xml`. Without it, Maven would skip the tests you just asked for. `-Dgroups=known-gap` runs only that tag.
+
+```bash
+bash mvnw -B verify -DexcludedGroups= -Dgroups=known-gap
+```
+
+Same two commands in PowerShell:
+
+```powershell
+.\mvnw.cmd -B verify
+```
+
+```powershell
+.\mvnw.cmd -B verify "-DexcludedGroups=" "-Dgroups=known-gap"
+```
 
 ## Secrets: never commit them
 
