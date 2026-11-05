@@ -15,6 +15,7 @@ import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.AttendanceStatus;
+import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
@@ -141,31 +142,58 @@ public class TrainingService {
     }
 
     /**
-     * ADMIN may manage any team. COACH only teams they are linked to.
+     * ADMIN and CHAIRMAN may manage trainings on every team.
+     * A coach may manage only a team they are linked to.
+     * The link is a row in team_coaches. The role alone is not enough for a coach,
+     * and a chairman does not need that row.
      */
     private void assertCanManageTeam(Long teamId) {
-        if (hasRole("ADMIN")) {
+        ClubRole role = currentClubRole();
+        if (role != null && role.canManageAllTrainings()) {
             return;
         }
-        if (hasRole("COACH") && teamId != null
-                && teamCoachRepository.existsByTeamIdAndUserId(teamId, currentUserId())) {
+        if (role == ClubRole.COACH && isCoachOfTeam(teamId)) {
             return;
         }
-        throw new AccessDeniedException("Only ADMIN or a coach of this team can manage trainings");
+        throw new AccessDeniedException(
+                "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings");
     }
 
-    private boolean hasRole(String roleName) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) {
+    private boolean isCoachOfTeam(Long teamId) {
+        if (teamId == null) {
             return false;
         }
-        String expected = "ROLE_" + roleName;
+        return teamCoachRepository.existsByTeamIdAndUserId(teamId, currentUserId());
+    }
+
+    /**
+     * The token carries one club role (ADR 0006). Spring stores it as ROLE_NAME.
+     * An unknown name is ignored so a bad token is not treated as a chairman.
+     */
+    private ClubRole currentClubRole() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return null;
+        }
         for (GrantedAuthority authority : auth.getAuthorities()) {
-            if (expected.equals(authority.getAuthority())) {
-                return true;
+            ClubRole role = clubRoleFromAuthority(authority.getAuthority());
+            if (role != null) {
+                return role;
             }
         }
-        return false;
+        return null;
+    }
+
+    private ClubRole clubRoleFromAuthority(String authority) {
+        if (authority == null || !authority.startsWith("ROLE_")) {
+            return null;
+        }
+        String roleName = authority.substring("ROLE_".length());
+        try {
+            return ClubRole.valueOf(roleName);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private Long currentUserId() {

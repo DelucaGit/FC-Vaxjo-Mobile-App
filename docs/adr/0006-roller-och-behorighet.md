@@ -8,7 +8,7 @@ Koden har fyra roller (ADMIN, COACH, PLAYER, PARENT). Klubbens ordförande behö
 ## Beslut
 - Hierarki: **ADMIN > CHAIRMAN (ordförande) > COACH > PLAYER = PARENT.** En användare har en roll.
 - **ADMIN** har full behörighet, inklusive att tilldela ADMIN.
-- **CHAIRMAN** har klubbens verksamhetsbehörighet: skapa lag, koppla tränare till lag och ta bort den kopplingen. Bara ADMIN och CHAIRMAN skapar lag och hanterar vilka tränare som hör till ett lag. De får göra det i alla lag.
+- **CHAIRMAN** har klubbens verksamhetsbehörighet: skapa lag, koppla tränare till lag och ta bort den kopplingen, och skapa och ändra träningar för alla lag (samma som ADMIN). Bara ADMIN och CHAIRMAN skapar lag och hanterar vilka tränare som hör till ett lag. De får göra det i alla lag.
 - **COACH** får, **bara inom egna lag** (`team_coaches`), skapa spelare och föräldrar, ändra spelare, ta bort spelare ur lag och hantera träningar och närvaro.
 - **PLAYER** ser sitt eget schema. **PARENT** ser sina egna barns scheman. Ingen av dem ser andra användares kontaktuppgifter.
 - Allt kontrolleras i backend med `@PreAuthorize` för roll och service-kontroll för lagomfång.
@@ -55,3 +55,10 @@ Gamla närvarorader ligger kvar. De är historik och skrivs inte om.
 Efter bytet måste personen logga in igen för att få en token med rollen COACH. Den gamla token säger fortfarande PLAYER. PR #29 är inmergad här, så filtret jämför token med databasen och nästa anrop blir 401. Testerna sparar en riktig aktiv användare och låter token peka på just det id:t och den rollen.
 
 Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
+
+## Genomförande (S1-11)
+- `ClubRole.canManageAllTrainings()` är sant för ADMIN och CHAIRMAN. COACH, PLAYER och PARENT är falskt. Lagkontrollen för en tränare ligger kvar i `TrainingService`, eftersom rollen inte vet vilka rader som finns i `team_coaches`.
+- CHAIRMAN får skapa träning och markera närvaro på vilket lag som helst, utan att vara kopplad som tränare. Samma sak gäller att lista och hämta träningen, så ordföranden kan se det hen just ändrade.
+- COACH är oförändrad: bara lag där hen finns i `team_coaches`.
+- PLAYER och PARENT får 403 på personalens tränings-URL:er. De läser sitt schema via `/api/my/trainings`.
+- Det finns fortfarande ingen URL för att byta titel eller tid på en träning. "Ändra" är den ändring ADMIN redan kan göra: markera närvaro.

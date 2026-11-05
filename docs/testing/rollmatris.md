@@ -107,10 +107,10 @@ COACH får i koden inte skapa en fristående PARENT (bara PLAYER, plus ny förä
 
 ### Träningar
 
-`x-roles`: ADMIN och COACH. `x-scope`: COACH bara lag i `team_coaches`. CHAIRMAN, PLAYER och PARENT: 403.
+`x-roles`: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403.
 Det gäller lista, hämta, skapa, lista närvaro och markera närvaro.
 
-Kod idag: stämmer. Närvarosvaret har spelarens namn, inte e-post och inte förälderns telefon.
+Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post och inte förälderns telefon.
 
 ### Mitt schema
 
@@ -128,7 +128,7 @@ Kod idag: stämmer. Närvarosvaret har spelarens namn, inte e-post och inte för
 
 **ADMIN.** Får se det ADMIN ska se. Två hål: `GET /api/users/{id}` lämnar ut en inaktiv spelare, med e-post och telefon (S1-4). Sök på ett nummer som inte finns skriver numret i 404-texten (GAP-6).
 
-**CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Personlistorna svarar 200 för ordföranden och 403 för spelare och förälder (S1-1). Att skapa, ändra och ta bort en spelare fungerar i alla lag (S1-3). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att byta en spelare till tränare svarar 200 (S1-8). Träningar är 403, och det är rätt, för de är inte planerade för CHAIRMAN än.
+**CHAIRMAN.** Rollen finns och `POST /api/teams` svarar 201 (PR #26). Personlistorna svarar 200 för ordföranden och 403 för spelare och förälder (S1-1). Att skapa, ändra och ta bort en spelare fungerar i alla lag (S1-3). Att koppla eller ta bort en tränare svarar 201 och 204 (S1-7). Att byta en spelare till tränare svarar 200 (S1-8). Träningar får ordföranden skapa och markera på alla lag (S1-11).
 
 **COACH, eget lag.** Får förälderns telefon på den egna laglistan, och det ska de. Samma tränare får också hela klubbkatalogen via `GET /api/users` och sök, inklusive andra lags föräldratelefon (S1-2).
 

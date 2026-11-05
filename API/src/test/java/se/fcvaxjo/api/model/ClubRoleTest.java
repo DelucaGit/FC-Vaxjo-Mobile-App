@@ -40,6 +40,15 @@ class ClubRoleTest {
     }
 
     @Test
+    void onlyAdminAndChairmanCanManageTrainingsOnEveryTeam() {
+        assertTrue(ClubRole.ADMIN.canManageAllTrainings());
+        assertTrue(ClubRole.CHAIRMAN.canManageAllTrainings());
+        assertFalse(ClubRole.COACH.canManageAllTrainings());
+        assertFalse(ClubRole.PLAYER.canManageAllTrainings());
+        assertFalse(ClubRole.PARENT.canManageAllTrainings());
+    }
+
+    @Test
     void onlyAdminAndChairmanAreClubLeads() {
         assertTrue(ClubRole.ADMIN.isClubLead());
         assertTrue(ClubRole.CHAIRMAN.isClubLead());

@@ -48,6 +48,16 @@ public enum ClubRole {
     }
 
     /**
+     * Trainings for every team, not one team.
+     * A coach is left out on purpose. A coach may only manage trainings
+     * on teams they are linked to, and that link lives in team_coaches.
+     * ClubRole does not know those rows, so the team check stays in TrainingService.
+     */
+    public boolean canManageAllTrainings() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
      * Club-lead roles. A chairman must not hand these out.
      * Only an admin may create or assign ADMIN and CHAIRMAN.
      */

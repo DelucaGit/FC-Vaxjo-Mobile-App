@@ -509,3 +509,7 @@ These tests still have the tag, because this story does not make them pass:
 # Known-gap tags after S1-3 (5/11-2026)
 
 The role matrix arrived from master (PR #31) after this branch already limited coaches to their own teams and let the chairman manage players. `KnownCoachScopeTest` and the three chairman player tests now run with the normal suite. The inactive-token checks, the chairman coach-link checks, and turning a player into a coach run in the normal suite too, because those branches are merged in here. The tag stays on a coach reading another team, the parent's phone on a player's own row, GET of an inactive user, and the phone number in a 404.
+
+# Chairman can manage trainings on every team (5/11-2026)
+
+Decision: a chairman creates a training and marks attendance for any team, the same as an admin. They do not need a row in `team_coaches`. The yes/no is `ClubRole.canManageAllTrainings()`, so the service does not copy the rank as a loose string check. A coach is unchanged: only teams they are linked to. PLAYER and PARENT still get 403 on the staff training URLs. There is still no URL to edit a training's title or time. "Change" here is the change an admin can already make: mark who was present. Branch: `cursor/s1-11-chairman-trainings-4539`.

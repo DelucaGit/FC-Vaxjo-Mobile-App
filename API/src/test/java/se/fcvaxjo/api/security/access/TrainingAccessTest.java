@@ -13,9 +13,10 @@ import se.fcvaxjo.api.support.ClubFixture;
 import se.fcvaxjo.api.support.SampleRequests;
 
 /**
- * Trainings already enforce the team scope in TrainingService.
- * x-roles is ADMIN and COACH. x-scope: COACH only for teams in team_coaches.
- * CHAIRMAN is not in x-roles for trainings, so 403 is the target.
+ * Trainings enforce the team scope in TrainingService.
+ * x-roles is ADMIN, CHAIRMAN and COACH. A coach is limited to team_coaches.
+ * S1-11 lets the chairman manage trainings on every team, same as an admin.
+ * The older matrix expected 403 for CHAIRMAN. That expectation is out of date.
  */
 class TrainingAccessTest extends ClubApiTest {
 
@@ -35,8 +36,9 @@ class TrainingAccessTest extends ClubApiTest {
     }
 
     @Test
-    void chairman_cannotListTrainings() throws Exception {
-        get(Actor.CHAIRMAN, alfaTrainings()).andExpect(status().isForbidden());
+    void chairman_canListTrainingsForAnyTeam() throws Exception {
+        // S1-11: the chairman is not limited to team_coaches.
+        get(Actor.CHAIRMAN, alfaTrainings()).andExpect(status().isOk());
     }
 
     @Test
@@ -53,6 +55,12 @@ class TrainingAccessTest extends ClubApiTest {
     @Test
     void admin_canReadOneTraining() throws Exception {
         get(Actor.ADMIN, oneTraining()).andExpect(status().isOk());
+    }
+
+    @Test
+    void chairman_canReadOneTraining() throws Exception {
+        // Same rule as the list: the chairman can see the training they just changed.
+        get(Actor.CHAIRMAN, oneTraining()).andExpect(status().isOk());
     }
 
     @Test
@@ -94,9 +102,10 @@ class TrainingAccessTest extends ClubApiTest {
     }
 
     @Test
-    void chairman_cannotCreateTraining() throws Exception {
+    void chairman_canCreateTraining() throws Exception {
+        // S1-11 replaced the old 403. The chairman creates a training on any team.
         post(Actor.CHAIRMAN, "/api/trainings", SampleRequests.training(world.teamAlfaId()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -167,9 +176,10 @@ class TrainingAccessTest extends ClubApiTest {
     }
 
     @Test
-    void chairman_cannotMarkAttendance() throws Exception {
+    void chairman_canMarkAttendance() throws Exception {
+        // S1-11: marking attendance is the change a chairman is allowed to make.
         put(Actor.CHAIRMAN, markAlfaPlayer(), SampleRequests.present())
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     private String alfaTrainings() {
