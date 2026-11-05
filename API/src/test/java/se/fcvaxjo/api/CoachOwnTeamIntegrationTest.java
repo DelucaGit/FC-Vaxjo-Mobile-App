@@ -3,6 +3,7 @@ package se.fcvaxjo.api;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -50,6 +51,9 @@ class CoachOwnTeamIntegrationTest {
 
     private static final String NOT_THIS_TEAM =
             "Only ADMIN or a coach of this team can manage its players";
+
+    private static final String STANDALONE_PARENT_DENIED =
+            "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
 
     @Autowired
     private MockMvc mockMvc;
@@ -119,7 +123,7 @@ class CoachOwnTeamIntegrationTest {
     }
 
     @Test
-    void coachCreatesParent() throws Exception {
+    void coachCannotCreateStandaloneParent() throws Exception {
         CreateUserRequest body = new CreateUserRequest();
         body.setName("New Parent");
         body.setEmail("new-parent@fcvaxjo.se");
@@ -130,12 +134,31 @@ class CoachOwnTeamIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(coach))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(body)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(STANDALONE_PARENT_DENIED));
+
+        assertTrue(userRepository.findByEmail("new-parent@fcvaxjo.se").isEmpty());
+    }
+
+    @Test
+    void adminCreatesStandaloneParent() throws Exception {
+        CreateUserRequest body = new CreateUserRequest();
+        body.setName("Club Parent");
+        body.setEmail("club-parent@fcvaxjo.se");
+        body.setRoleName("PARENT");
+        body.setMobilePhoneNumber("0701000009");
+
+        mockMvc.perform(post("/api/users")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(body)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.roleName").value("PARENT"))
                 .andExpect(jsonPath("$.teamId").value(nullValue()));
 
-        AppUser created = userRepository.findByEmail("new-parent@fcvaxjo.se").orElseThrow();
+        AppUser created = userRepository.findByEmail("club-parent@fcvaxjo.se").orElseThrow();
         assertEquals(roleId("PARENT"), created.getRoleId());
+        assertNull(created.getParentId());
     }
 
     @Test
@@ -156,7 +179,11 @@ class CoachOwnTeamIntegrationTest {
                 .andExpect(jsonPath("$.parentTemporaryPassword").isNotEmpty());
 
         assertTrue(userRepository.findByEmail("fresh-parent@fcvaxjo.se").isPresent());
-        assertTrue(userRepository.findByEmail("kid-parent@fcvaxjo.se").isPresent());
+        AppUser kid = userRepository.findByEmail("kid-parent@fcvaxjo.se").orElseThrow();
+        AppUser freshParent = userRepository.findByEmail("fresh-parent@fcvaxjo.se").orElseThrow();
+        // The parent exists only because this child on the coach's team points at them.
+        assertEquals(freshParent.getId(), kid.getParentId());
+        assertEquals(ownTeam.getId(), kid.getTeamId());
     }
 
     @Test

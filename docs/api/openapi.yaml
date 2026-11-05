@@ -152,11 +152,15 @@ paths:
       operationId: createUser
       summary: Skapa användare med temporärt lösenord
       x-roles-planned: [ADMIN, CHAIRMAN, COACH]
-      x-scope-planned: CHAIRMAN får skapa alla roller utom ADMIN (öppen fråga om CHAIRMAN får skapa COACH). Lagkontrollen för COACH är implementerad, se `x-scope`.
+      x-scope-planned: CHAIRMAN ska få skapa en fristående PARENT, samma som ADMIN, när PR #26 är mergad in i den här basen. Rollen finns inte här än. Öppen fråga om CHAIRMAN får skapa COACH.
       description: |
-        ADMIN får skapa alla roller. COACH får skapa `PLAYER` och `PARENT`.
-        Annan roll som COACH ger 403
-        "Only ADMIN or COACH can create users; COACH may only create PLAYER or PARENT".
+        ADMIN får skapa alla roller, inklusive en fristående `PARENT` (en förälder utan barn).
+        COACH får bara skapa `PLAYER` i ett lag hen tränar.
+        En förälder som COACH skapar måste skickas som `newParent` på den spelaren, så föräldern kopplas till barnet.
+        `roleName=PARENT` från en COACH ger 403
+        "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train".
+        Annan roll från en COACH ger 403
+        "Only ADMIN or COACH can create users; COACH may only create PLAYER".
 
         För `roleName=PLAYER` gäller:
         - `teamId` krävs (400 "A PLAYER needs a teamId"),
@@ -166,14 +170,13 @@ paths:
         - ADMIN: laget måste finnas (400 "Team not found"),
         - exakt en av `parentId` eller `newParent` (annars 400),
         - `parentId` måste peka på en användare med roll PARENT.
-        `newParent` sparas bara om lagkontrollen redan har gått igenom.
+        `newParent` sparas bara om lagkontrollen redan har gått igenom. Då pekar spelarens `parentId` på den nya föräldern.
         För andra roller ignoreras `parentId`, `newParent` och `teamId`.
-        En fristående `PARENT` har inget lag, så där finns ingen lagkontroll.
 
         Övriga regler: `email` krävs och måste vara unik ("User already exists"); `mobilePhoneNumber` unik om satt.
         Ett temporärt lösenord (10 tecken) genereras och returneras **en gång** i svaret; `mustChangePassword=true`.
       x-roles: [ADMIN, COACH]
-      x-scope: COACH får skapa PLAYER och PARENT. PLAYER bara i lag där coachen finns i `team_coaches`. ADMIN utan laggräns.
+      x-scope: COACH får skapa PLAYER bara i lag där hen finns i `team_coaches`, och PARENT bara som `newParent` på den spelaren. Fristående PARENT är bara ADMIN tills CHAIRMAN finns.
       x-source: UserController.createUser → UserService.createUser
       requestBody:
         required: true

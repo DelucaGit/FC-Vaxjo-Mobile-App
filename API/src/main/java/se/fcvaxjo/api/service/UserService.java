@@ -36,6 +36,13 @@ public class UserService {
     private static final String MANAGE_PLAYERS_DENIED =
             "Only ADMIN or a coach of this team can manage its players";
 
+    /**
+     * A parent with no child is not on a team, so team_coaches cannot limit the coach.
+     * CHAIRMAN is not on this branch yet. When that role arrives it should be allowed here too.
+     */
+    private static final String STANDALONE_PARENT_DENIED =
+            "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TeamRepository teamRepository;
@@ -58,8 +65,9 @@ public class UserService {
 
     /**
      * Creates a user with a generated temporary password.
-     * ADMIN may create any role. COACH may create PLAYER (own teams only) and PARENT.
-     * A new parent sent with a player is created only after the team check passes.
+     * ADMIN may create any role, including a parent with no child.
+     * COACH may create a PLAYER on a team they train. A new parent is allowed only
+     * inside that same request, after the team check, so the parent is tied to that child.
      */
     @Transactional
     public CreatedUserResult createUser(String name, String email, String roleName, Integer playerNumber,
@@ -98,16 +106,22 @@ public class UserService {
         if (hasRole("COACH") && coachMayCreateThisRole(roleName)) {
             return;
         }
-        throw new AccessDeniedException(
-                "Only ADMIN or COACH can create users; COACH may only create PLAYER or PARENT");
+        throw new AccessDeniedException(deniedCreateMessage(roleName));
     }
 
     /**
-     * A coach creates people on their own team: the player, and the parent who needs to be reached.
-     * Other roles (another coach, an admin) stay with ADMIN.
+     * A coach's parent must belong to a child on one of the coach's teams.
+     * That only happens via newParent on a PLAYER. A PARENT row on its own has no team to check.
      */
     private boolean coachMayCreateThisRole(String roleName) {
-        return "PLAYER".equals(roleName) || "PARENT".equals(roleName);
+        return "PLAYER".equals(roleName);
+    }
+
+    private String deniedCreateMessage(String roleName) {
+        if (hasRole("COACH") && "PARENT".equals(roleName)) {
+            return STANDALONE_PARENT_DENIED;
+        }
+        return "Only ADMIN or COACH can create users; COACH may only create PLAYER";
     }
 
     /**

@@ -358,7 +358,7 @@ Decision: keep the role check on the controller (`@PreAuthorize`). Check the tea
 What shipped:
 
 - COACH may create `PLAYER` only when they train that `teamId`. Otherwise 403. The check runs before any insert, so a refused call does not leave a new parent behind.
-- COACH may create a standalone `PARENT` (ADR 0006). A parent has no team.
+- COACH may not create a standalone `PARENT`. A parent has no team, so there is no `team_coaches` row to check. The coach creates the parent only as `newParent` on a player in their own team. ADMIN may still create a parent with no child. CHAIRMAN should get that same right when PR #26 is merged into this base. The role is not on this branch yet.
 - COACH may soft-delete a player only on their own team. ADMIN still can on every team.
 - COACH may edit a player only when they train both the current team and the new team. That closes the same hole: a coach could otherwise rewrite another parent's phone number.
 - Unknown team ids return 403 for a coach (not 400 "Team not found"), so the error does not reveal which teams exist. Same order as trainings.

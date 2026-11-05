@@ -45,6 +45,9 @@ class UserServiceTest {
     private static final String NOT_THIS_TEAM =
             "Only ADMIN or a coach of this team can manage its players";
 
+    private static final String STANDALONE_PARENT_DENIED =
+            "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
+
     @Mock
     private UserRepository userRepository;
 
@@ -189,7 +192,7 @@ class UserServiceTest {
                         "Other Coach", "coach2@fcvaxjo.se", "COACH", null, null, null, null, null));
 
         assertEquals(
-                "Only ADMIN or COACH can create users; COACH may only create PLAYER or PARENT",
+                "Only ADMIN or COACH can create users; COACH may only create PLAYER",
                 error.getMessage());
     }
 
@@ -251,9 +254,19 @@ class UserServiceTest {
     }
 
     @Test
-    void createParent_asCoach_isAllowed() {
+    void createStandaloneParent_asCoach_isForbidden() {
         login(2L, "COACH");
 
+        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+                () -> userService.createUser(
+                        "Parent", "parent@fcvaxjo.se", "PARENT", null, "0701111111", null, null, null));
+
+        assertEquals(STANDALONE_PARENT_DENIED, error.getMessage());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createStandaloneParent_asAdmin_isAllowed() {
         Role parentRole = new Role();
         parentRole.setId(4L);
         parentRole.setName("PARENT");
