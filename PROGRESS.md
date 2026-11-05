@@ -353,7 +353,7 @@ Jira (paste yourself):
 
 Decision: add the chairman as a real role, with rank ADMIN > CHAIRMAN > COACH > PLAYER = PARENT. PLAYER and PARENT stay equal. The rank lives in `ClubRole`, not in the database id. `RoleSeeder` inserts `CHAIRMAN` when the row is missing. The `roles.name` column is already a string, so no new migration (there is no Flyway/Liquibase yet).
 
-`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Branch: `cursor/s1-2-roll-chairman-24da`.
+`POST /api/teams` allows only ADMIN and CHAIRMAN (`@PreAuthorize`, same style as the other endpoints). COACH, PLAYER and PARENT get 403. Linking a coach to a team is still ADMIN only. That part of ADR 0006 is not in this story. Merged as PR #26.
 
 # Coach only on own teams (5/11-2026)
 
@@ -394,4 +394,27 @@ Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls 
 
 # S1-1 follow-up — chairman may read personal data (5/11-2026)
 
-Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams on reads. Creating a coach or an admin is still ADMIN only.
+
+# Role matrix and access tests (5/11-2026)
+
+Decision: story S1-6a measures access. It does not change production code.
+
+Why this shape: the OpenAPI file already says who may call each URL (`x-roles`, `x-scope`, `x-pii`). ADR 0006 is the target where the contract also has `x-roles-planned`. One short test per behavior is easier to explain than one test that loops every role. Tests the code still fails stay in the suite as a measuring stick, tagged `known-gap`, and Maven skips that tag so `./mvnw test` stays green.
+
+Rebased onto `origin/master` after PR #24, #25 and #26. Creating a team as CHAIRMAN is no longer a known gap, because #26 already allows it. Linking a coach, and chairman writes on users, are still known gaps.
+
+What is on branch `test/s1-6-rollmatris` (not pushed):
+
+- `docs/testing/rollmatris.md` — target vs what the code does today, and how to run the known gaps
+- Test profile uses in-memory H2. Fictional club: Lag Alfa and Lag Beta, own child and other child
+- Passing MockMvc tests for the rules that already hold, including CHAIRMAN `POST /api/teams`
+- Known-gap tests for S1-2 (read PII), S1-3 (coach not limited to own team on user changes), S1-4 (inactive token and GET of an inactive player), the remaining CHAIRMAN writes (ADR 0006), and phone numbers echoed in 404 text (gap point 6)
+
+Story ids follow the numbering in `docs/gap-analys.md` top 5. The gap file itself does not write S1-1..S1-4. S1-1 is point 1 (seed passwords, already fixed). S1-2 is point 2, S1-3 is point 3, S1-4 is point 4.
+
+Next: product owner approves before any push. Do not merge. The known-gap tests should start passing only when those stories change production code.
+
+# Known-gap tags after S1-3 (5/11-2026)
+
+The role matrix arrived from master (PR #31) after this branch already limited coaches to their own teams and let the chairman manage players. `KnownCoachScopeTest` and the three chairman player tests now run with the normal suite. The tag stays on chairman role change, linking or unlinking a coach, the personal-data reads, and the inactive-token checks. Those are still not done here.
