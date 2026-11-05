@@ -527,3 +527,16 @@ Follow-up on the same branch: a chairman keeps the coach screens for every team 
 # App branch merged with master (5/11-2026)
 
 Master now has secure token storage (PR #28), chairman player rules, chairman may create a coach (S1-8 / PR #34), and chairman trainings (PR #35). This branch keeps that storage and the app role checks. The create-user picker for a chairman is now player, parent, and coach, matching `POST /api/users`. A bare 403 still becomes the sentence that the function is not available for the role yet.
+
+# S1-CI: backend tests on every pull request (5/11-2026)
+
+Decision: GitHub Actions runs the same Maven build as a laptop, on pull requests against master and on pushes to master. The workflow only starts when `API/**` or the workflow file itself changes, so a UI-only change does not wait for Java.
+
+What shipped:
+
+- `.github/workflows/backend-ci.yml`. Java 21 (Temurin), the version in `API/pom.xml`. Maven cache. No database service and no secrets.
+- The test profile is not switched on by the workflow. Each Spring test already has `@ActiveProfiles("test")`, which loads in-memory H2.
+- The main job runs `bash mvnw -B verify`. `excludedGroups` in `pom.xml` is `known-gap`, so those tests stay out. Checked locally: 274 tests, 0 failures.
+- A second job runs only that tag: `bash mvnw -B verify -DexcludedGroups= -Dgroups=known-gap`. The empty `-DexcludedGroups=` is required, because the pom would otherwise skip the tests this job asks for. Checked locally: 11 tests, 11 failures, and none of the normal suite.
+- `continue-on-error` is on that Maven step. The failures stay in the log, the check stays green, and the merge is not blocked. The known-gap surefire report is uploaded every time. The main job uploads its report only when the build fails.
+- README tells how to run both commands in Git Bash on Windows and on Linux or Mac. `pom.xml` was left alone (PR #36 also edits it).
