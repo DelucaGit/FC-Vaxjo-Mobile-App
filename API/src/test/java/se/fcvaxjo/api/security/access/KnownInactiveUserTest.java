@@ -58,7 +58,7 @@ class KnownInactiveUserTest extends ClubApiTest {
     }
 
     @Test
-    @DisplayName("S1-4: tränare ska inte hämta en inaktiv spelare")
+    @DisplayName("S1-4: tränare ska få 404 för en inaktiv spelare")
     void coach_cannotReadInactivePlayer() throws Exception {
         // Alfa's coach trains the inactive player's team. The row is still hidden.
         expectInactiveHidden(Actor.COACH_ALFA);
@@ -72,7 +72,7 @@ class KnownInactiveUserTest extends ClubApiTest {
     }
 
     @Test
-    @DisplayName("S1-4: förälder ska inte hämta en inaktiv spelare")
+    @DisplayName("S1-4: förälder ska få 404 för en inaktiv spelare")
     void parent_cannotReadInactivePlayer() throws Exception {
         expectInactiveHidden(Actor.PARENT_ALFA);
     }
