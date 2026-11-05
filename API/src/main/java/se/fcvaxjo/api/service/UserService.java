@@ -316,7 +316,7 @@ public class UserService {
         user.setParentId(parentId);
         user.setTeamId(teamId);
         user.setActive(true);
-        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        PasswordChange.storeHash(user, passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(true);
         AppUser saved = userRepository.save(user);
         return new SavedUser(saved, temporaryPassword);

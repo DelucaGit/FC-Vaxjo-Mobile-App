@@ -1,7 +1,5 @@
 package se.fcvaxjo.api.service;
 
-import java.time.Instant;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -89,10 +87,8 @@ public class AuthService {
             throw new BadRequestException("Current password is wrong");
         }
 
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        PasswordChange.storeHash(user, passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
-        // The filter rejects tokens whose iat second is before this time.
-        user.setPasswordChangedAt(Instant.now());
         userRepository.save(user);
 
         String roleName = userService.getRoleName(user.getRoleId());

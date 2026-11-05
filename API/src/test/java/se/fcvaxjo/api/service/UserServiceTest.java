@@ -288,6 +288,7 @@ class UserServiceTest {
         assertEquals(4L, result.getUser().getRoleId());
         assertNull(result.getUser().getTeamId());
         assertNotNull(result.getTemporaryPassword());
+        assertNotNull(result.getUser().getPasswordChangedAt());
     }
 
     @Test
