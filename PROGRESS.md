@@ -372,3 +372,22 @@ What shipped:
 - CHAIRMAN is not part of this story. It is still only in the planned OpenAPI fields.
 
 Tests: `UserServiceTest` (mocked) and `CoachOwnTeamIntegrationTest` (HTTP + H2). The test profile uses an in-memory database so the suite does not need local Postgres or a real password.
+
+# Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
+
+Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
+
+What shipped:
+
+- `GET /api/users`, all three `/api/users/search` queries, `GET /api/teams/{id}/coaches` and `GET /api/teams/{id}/players` are ADMIN or COACH only. PLAYER and PARENT get 403.
+- `GET /api/users/{id}` stays open for the caller's own id, because the home screen loads the logged-in name from that URL. Anyone else's id is 403, and we answer 403 before 404 so a forbidden id does not reveal that the row exists. The check is `UserService.assertCallerMayReadUser`, same shape as `assertCallerMayCreate`.
+- `GET /api/teams` and `GET /api/teams/{id}` stay open to every logged-in role. They return id and name only, not contact details.
+- COACH is still not limited to their own teams on these reads. That is story S1-3.
+- CHAIRMAN is not added. That role does not exist yet (story S1-2).
+- A player who reads their own row still gets the linked parent's phone in `FetchUserResponse`. Hiding that field is data minimisation (ADR 0004), not this story.
+
+Tests: `UserServiceTest` for the own-id rule. `UserAndTeamReadAccessTest` calls the API with JWTs for 401, 403 and the staff paths that must keep working.
+
+# S1-1 follow-up — chairman may read personal data (5/11-2026)
+
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.

@@ -413,4 +413,59 @@ class UserServiceTest {
         player.setTeamId(teamId);
         return player;
     }
+
+    @Test
+    void readUser_adminMayReadAnyone() {
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
+    void readUser_coachMayReadAnyone() {
+        login(2L, "COACH");
+
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
+    void readUser_chairmanMayReadAnyone() {
+        login(4L, "CHAIRMAN");
+
+        userService.assertCallerMayReadUser(99L);
+    }
+
+    @Test
+    void readUser_playerMayReadSelf() {
+        login(20L, "PLAYER");
+
+        userService.assertCallerMayReadUser(20L);
+    }
+
+    @Test
+    void readUser_playerMayNotReadSomeoneElse() {
+        login(20L, "PLAYER");
+
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(21L));
+
+        assertEquals("You can only read your own user record", ex.getMessage());
+    }
+
+    @Test
+    void readUser_parentMayReadSelfButNotTheirChild() {
+        login(50L, "PARENT");
+
+        userService.assertCallerMayReadUser(50L);
+
+        assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(20L));
+    }
+
+    @Test
+    void readUser_withoutLoginIsDenied() {
+        SecurityContextHolder.clearContext();
+
+        assertThrows(AccessDeniedException.class,
+                () -> userService.assertCallerMayReadUser(20L));
+    }
+
 }
