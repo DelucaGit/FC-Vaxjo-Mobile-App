@@ -31,11 +31,38 @@ class ClubRoleTest {
     }
 
     @Test
+    void onlyAdminAndChairmanCanLinkACoach() {
+        assertTrue(ClubRole.ADMIN.canLinkCoach());
+        assertTrue(ClubRole.CHAIRMAN.canLinkCoach());
+        assertFalse(ClubRole.COACH.canLinkCoach());
+        assertFalse(ClubRole.PLAYER.canLinkCoach());
+        assertFalse(ClubRole.PARENT.canLinkCoach());
+    }
+
+    @Test
     void onlyAdminAndChairmanCanManageTrainingsOnEveryTeam() {
         assertTrue(ClubRole.ADMIN.canManageAllTrainings());
         assertTrue(ClubRole.CHAIRMAN.canManageAllTrainings());
         assertFalse(ClubRole.COACH.canManageAllTrainings());
         assertFalse(ClubRole.PLAYER.canManageAllTrainings());
         assertFalse(ClubRole.PARENT.canManageAllTrainings());
+    }
+
+    @Test
+    void onlyAdminAndChairmanAreClubLeads() {
+        assertTrue(ClubRole.ADMIN.isClubLead());
+        assertTrue(ClubRole.CHAIRMAN.isClubLead());
+        assertFalse(ClubRole.COACH.isClubLead());
+        assertFalse(ClubRole.PLAYER.isClubLead());
+        assertFalse(ClubRole.PARENT.isClubLead());
+    }
+
+    @Test
+    void adminChairmanAndCoachMayReadOtherPeople() {
+        assertTrue(ClubRole.ADMIN.canReadPersonalData());
+        assertTrue(ClubRole.CHAIRMAN.canReadPersonalData());
+        assertTrue(ClubRole.COACH.canReadPersonalData());
+        assertFalse(ClubRole.PLAYER.canReadPersonalData());
+        assertFalse(ClubRole.PARENT.canReadPersonalData());
     }
 }

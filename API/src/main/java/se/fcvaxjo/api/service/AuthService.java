@@ -102,6 +102,8 @@ public class AuthService {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
+        // The JWT filter already stops inactive accounts. This stays so refresh
+        // cannot succeed if it is ever called without that filter.
         if (!user.isActive()) {
             throw new BadRequestException("This account is inactive");
         }
