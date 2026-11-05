@@ -19,6 +19,7 @@ import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.repository.RoleRepository;
+import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TeamRepository;
 import se.fcvaxjo.api.repository.UserRepository;
 
@@ -29,9 +30,23 @@ public class UserService {
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int TEMP_PASSWORD_LENGTH = 10;
 
+    private static final String MANAGE_PLAYERS_DENIED =
+            "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players";
+
+    /**
+     * A parent with no child is not on a team, so team_coaches cannot limit a coach.
+     * Admin and chairman may still create that parent. They look after every team.
+     */
+    private static final String STANDALONE_PARENT_DENIED =
+            "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
+
+    private static final String CREATE_DENIED =
+            "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER";
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TeamRepository teamRepository;
+    private final TeamCoachRepository teamCoachRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -39,16 +54,22 @@ public class UserService {
             UserRepository userRepository,
             RoleRepository roleRepository,
             TeamRepository teamRepository,
+            TeamCoachRepository teamCoachRepository,
             PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
+        this.teamCoachRepository = teamCoachRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     /**
      * Creates a user with a generated temporary password.
-     * ADMIN may create any role. COACH may only create PLAYER (and linked new parent).
+     * ADMIN may create any role, including a parent with no child.
+     * CHAIRMAN may create PLAYER and PARENT on any team, including a parent with no child.
+     * Creating a coach or another admin stays with ADMIN.
+     * COACH may create a PLAYER on a team they train. A new parent is allowed only
+     * inside that same request, after the team check, so the parent is tied to that child.
      */
     @Transactional
     public CreatedUserResult createUser(String name, String email, String roleName, Integer playerNumber,
@@ -62,6 +83,13 @@ public class UserService {
         Long resolvedParentId = null;
         Long resolvedTeamId = null;
         if ("PLAYER".equals(roleName)) {
+            // A player always belongs to one team. Missing team is a bad request, not a permission error.
+            if (teamId == null) {
+                throw new BadRequestException("A PLAYER needs a teamId");
+            }
+            // Refuse before any insert. A coach who does not train this team must not
+            // get a new parent row as a side effect of a call we are about to deny.
+            assertCanManageTeam(teamId);
             ParentLink parentLink = resolveParentIdForPlayer(parentId, newParent);
             resolvedParentId = parentLink.parentId();
             parentTemporaryPassword = parentLink.temporaryPassword();
@@ -77,10 +105,81 @@ public class UserService {
         if (hasRole("ADMIN")) {
             return;
         }
-        if (hasRole("COACH") && "PLAYER".equals(roleName)) {
+        if (hasRole("CHAIRMAN") && chairmanMayCreateThisRole(roleName)) {
             return;
         }
-        throw new AccessDeniedException("Only ADMIN or COACH can create users; COACH may only create PLAYER");
+        if (hasRole("COACH") && coachMayCreateThisRole(roleName)) {
+            return;
+        }
+        throw new AccessDeniedException(deniedCreateMessage(roleName));
+    }
+
+    /**
+     * The chairman looks after the whole club, so a parent does not have to belong to one child.
+     * Creating a coach or an admin is still only ADMIN. ADR 0006 leaves that question open.
+     */
+    private boolean chairmanMayCreateThisRole(String roleName) {
+        return "PLAYER".equals(roleName) || "PARENT".equals(roleName);
+    }
+
+    /**
+     * A coach's parent must belong to a child on one of the coach's teams.
+     * That only happens via newParent on a PLAYER. A PARENT row on its own has no team to check.
+     */
+    private boolean coachMayCreateThisRole(String roleName) {
+        return "PLAYER".equals(roleName);
+    }
+
+    private String deniedCreateMessage(String roleName) {
+        if (hasRole("COACH") && "PARENT".equals(roleName)) {
+            return STANDALONE_PARENT_DENIED;
+        }
+        return CREATE_DENIED;
+    }
+
+    /**
+     * Admin and chairman may manage players on any team.
+     * A coach is allowed only for teams they train.
+     * Called before we check that the team row exists, for the same reason as trainings:
+     * a coach should get 403 for someone else's team id, not 400 "Team not found",
+     * so the error does not reveal which ids exist.
+     */
+    private void assertCanManageTeam(Long teamId) {
+        if (callerLooksAfterEveryTeam()) {
+            return;
+        }
+        if (coachTrainsTeam(teamId)) {
+            return;
+        }
+        throw new AccessDeniedException(MANAGE_PLAYERS_DENIED);
+    }
+
+    /**
+     * Admin and chairman are responsible for every team.
+     * A coach is not, so they still need a row in team_coaches.
+     */
+    private boolean callerLooksAfterEveryTeam() {
+        return hasRole("ADMIN") || hasRole("CHAIRMAN");
+    }
+
+    /**
+     * A coach is linked through team_coaches, not users.team_id,
+     * because the same coach can train more than one team.
+     * No team id means this player is not on a team the coach trains.
+     */
+    private boolean coachTrainsTeam(Long teamId) {
+        if (!hasRole("COACH") || teamId == null) {
+            return false;
+        }
+        return teamCoachRepository.existsByTeamIdAndUserId(teamId, currentUserId());
+    }
+
+    private Long currentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Long id)) {
+            throw new AccessDeniedException("Not logged in");
+        }
+        return id;
     }
 
     private boolean hasRole(String roleName) {
@@ -191,6 +290,9 @@ public class UserService {
             Integer playerNumber, Long teamId, Long parentId, String parentName, String parentEmail,
             String parentMobilePhoneNumber) {
         AppUser player = getUserById(id);
+        // Current team before other checks, so a coach of another team gets 403
+        // and not a 400 that describes this player's state.
+        assertCanManageTeam(player.getTeamId());
         if (!"PLAYER".equals(getRoleName(player.getRoleId()))) {
             throw new BadRequestException("Only a PLAYER can be updated with this endpoint");
         }
@@ -203,6 +305,8 @@ public class UserService {
         if (teamId == null) {
             throw new BadRequestException("teamId is required (change team, do not clear it)");
         }
+        // The new team too. A coach must not move a player onto a team they do not train.
+        assertCanManageTeam(teamId);
         resolveTeamIdForPlayer(teamId);
 
         assertEmailAvailable(email, player.getId());
@@ -255,6 +359,8 @@ public class UserService {
     @Transactional
     public AppUser softDeletePlayer(Long id) {
         AppUser player = getUserById(id);
+        // Same team rule as create and update. A player with no team is not "on my team".
+        assertCanManageTeam(player.getTeamId());
         if (!"PLAYER".equals(getRoleName(player.getRoleId()))) {
             throw new BadRequestException("Only a PLAYER can be removed this way");
         }

@@ -393,6 +393,24 @@ Refresh is unchanged. `POST /api/auth/refresh` still sends the access token and 
 
 The JWT payload itself still contains the email. That is the API, not this storage change.
 
+# Coach only on own teams (5/11-2026)
+
+Story S1-3. A coach could create, edit and remove players on any team, because the API only checked the role.
+
+Decision: keep the role check on the controller (`@PreAuthorize`). Check the team in `UserService`, the same way trainings already do. The link is `team_coaches`, not `users.team_id`, because one coach can train several teams.
+
+What shipped:
+
+- COACH may create `PLAYER` only when they train that `teamId`. Otherwise 403. The check runs before any insert, so a refused call does not leave a new parent behind.
+- COACH may not create a standalone `PARENT`. A parent has no team, so there is no `team_coaches` row to check. The coach creates the parent only as `newParent` on a player in their own team. ADMIN and CHAIRMAN may create a parent with no child.
+- COACH may soft-delete a player only on their own team. ADMIN still can on every team.
+- COACH may edit a player only when they train both the current team and the new team. That closes the same hole: a coach could otherwise rewrite another parent's phone number.
+- Unknown team ids return 403 for a coach (not 400 "Team not found"), so the error does not reveal which teams exist. Same order as trainings.
+- No schema change. `existsByTeamIdAndUserId` is a parameterized Spring Data query.
+- CHAIRMAN may create, edit and remove players on every team, same as ADMIN. A chairman may not create a coach or an admin.
+
+Tests: `UserServiceTest` (mocked) and `CoachOwnTeamIntegrationTest` (HTTP + H2). The test profile uses an in-memory database so the suite does not need local Postgres or a real password.
+
 # Sprint 1, story S1-1 — role check on read endpoints (5/11-2026)
 
 Decision: close the personal-data reads that gap #2 named. ADR 0006 says role checks use `@PreAuthorize`, and anything that is not a plain role check lives in the service as a normal if.
@@ -454,7 +472,11 @@ After the role matrix (PR #31) was merged in, `chairman_canAddCoach` and `chairm
 
 # S1-1 follow-up — chairman may read personal data (5/11-2026)
 
-Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams. That remains S1-3. Creating users is still admin and coach only.
+Decision: after `CHAIRMAN` landed on master, the same read rules include the chairman. `ClubRole.canReadPersonalData()` is the rule (admin, chairman, coach). The list and search annotations repeat those three names, same style as `canCreateTeam`. The chairman is not checked against `team_coaches`, because the chairman looks after every team. A coach is still not limited to their own teams on reads. That remains outside this story. Creating a coach or an admin is still ADMIN only. Creating a player is not: the chairman may do that on every team.
+
+# Chairman uses the same player rules as admin (5/11-2026)
+
+After master and the read-access branch were merged in, CHAIRMAN is real. For creating, editing and removing players the chairman is club-wide staff, same as ADMIN. A coach is still limited to `team_coaches`. A chairman may create a parent with no child. A chairman may not create a coach or an admin. That question in ADR 0006 stays open. Read rules from S1-1 are unchanged: chairman, admin and coach may read personal data for every team.
 
 # S1-1 follow-up — known-gap tags that now pass (5/11-2026)
 
@@ -465,3 +487,7 @@ These tests still have the tag, because this story does not make them pass:
 - A coach can still read every team (S1-3).
 - A player's own row still includes the parent's phone.
 - A missing phone number is still echoed in the 404 text (gap 6, story S1-12).
+
+# Known-gap tags after S1-3 (5/11-2026)
+
+The role matrix arrived from master (PR #31) after this branch already limited coaches to their own teams and let the chairman manage players. `KnownCoachScopeTest` and the three chairman player tests now run with the normal suite. The inactive-token checks and the chairman coach-link checks run in the normal suite too, because those branches are merged in here. The tag stays on chairman role change, a coach reading another team, the parent's phone on a player's own row, GET of an inactive user, and the phone number in a 404.

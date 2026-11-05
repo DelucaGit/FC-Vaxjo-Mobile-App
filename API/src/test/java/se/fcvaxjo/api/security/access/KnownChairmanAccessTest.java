@@ -14,13 +14,13 @@ import se.fcvaxjo.api.support.SampleRequests;
 /**
  * ADR 0006 writes for the chairman.
  * Creating a team is already allowed and is tested in {@link TeamAccessTest}.
- * Adding and removing a coach is allowed too (S1-7), so those two tests run in the normal build.
- * The other methods still get 403. They keep the {@code known-gap} tag.
+ * Creating, editing, and removing a player pass here, and so do linking and
+ * unlinking a coach. Those tests run in the normal suite.
+ * Changing a role still gets 403, so that one test keeps the {@code known-gap} tag.
  */
 class KnownChairmanAccessTest extends ClubApiTest {
 
     @Test
-    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna skapa en spelare")
     void chairman_canCreatePlayer() throws Exception {
         post(Actor.CHAIRMAN, "/api/users",
@@ -30,7 +30,6 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ändra en spelare")
     void chairman_canUpdatePlayer() throws Exception {
         put(Actor.CHAIRMAN, "/api/users/" + world.playerAlfaId() + "/player",
@@ -44,7 +43,6 @@ class KnownChairmanAccessTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
     @DisplayName("ADR 0006: ordförande ska kunna ta bort en spelare ur laget")
     void chairman_canRemovePlayer() throws Exception {
         delete(Actor.CHAIRMAN, "/api/users/" + world.extraPlayerId())

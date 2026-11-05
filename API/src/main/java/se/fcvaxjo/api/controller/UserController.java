@@ -115,8 +115,12 @@ public class UserController {
         return toFetchResponse(userService.getUserById(id));
     }
 
+    /**
+     * Chairman is included because they look after every team, not because they may create any role.
+     * The service still refuses a chairman who tries to create a coach or an admin.
+     */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public ResponseEntity<CreateUserResponse> createUser(@RequestBody CreateUserRequest request) {
         CreatedUserResult created = userService.createUser(
                 request.getName(),
@@ -150,7 +154,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/player")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public FetchUserResponse updatePlayer(
             @PathVariable Long id,
             @RequestBody UpdatePlayerRequest request) {
@@ -170,7 +174,7 @@ public class UserController {
 
     /** Soft-delete: sets active=false. Player disappears from team lists. */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public ResponseEntity<Void> softDeletePlayer(@PathVariable Long id) {
         userService.softDeletePlayer(id);
         return ResponseEntity.noContent().build();

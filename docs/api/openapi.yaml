@@ -163,21 +163,33 @@ paths:
       operationId: createUser
       summary: Skapa användare med temporärt lösenord
       x-roles-planned: [ADMIN, CHAIRMAN, COACH]
-      x-scope-planned: ADMIN och CHAIRMAN får skapa alla roller utom ADMIN (öppen fråga om CHAIRMAN får skapa COACH). COACH får skapa PLAYER och PARENT, men bara spelare i egna lag (`team_coaches`).
+      x-scope-planned: Öppen fråga om CHAIRMAN får skapa COACH. I dag får CHAIRMAN skapa PLAYER och PARENT, inte COACH eller ADMIN.
       description: |
-        ADMIN får skapa alla roller. COACH får bara skapa `PLAYER` (och ny förälder via `newParent`);
-        annars 403 "Only ADMIN or COACH can create users; COACH may only create PLAYER".
+        ADMIN får skapa alla roller, inklusive en fristående `PARENT` (en förälder utan barn).
+        CHAIRMAN får skapa `PLAYER` och `PARENT` i vilket lag som helst, inklusive en fristående förälder.
+        CHAIRMAN som skapar `COACH` eller `ADMIN` får 403.
+        COACH får bara skapa `PLAYER` i ett lag hen tränar.
+        En förälder som COACH skapar måste skickas som `newParent` på den spelaren, så föräldern kopplas till barnet.
+        `roleName=PARENT` från en COACH ger 403
+        "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train".
+        Annan otillåten roll ger 403
+        "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER and PARENT. A COACH may only create PLAYER".
 
         För `roleName=PLAYER` gäller:
+        - `teamId` krävs (400 "A PLAYER needs a teamId"),
+        - COACH måste träna det laget (rad i `team_coaches`). Annars 403
+          "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players".
+          Kontrollen sker före kontrollen att laget finns, så en coach får 403 även för ett okänt lag-id,
+        - ADMIN och CHAIRMAN: laget måste finnas (400 "Team not found"),
         - exakt en av `parentId` eller `newParent` (annars 400),
-        - `parentId` måste peka på en användare med roll PARENT,
-        - `teamId` krävs och laget måste finnas.
+        - `parentId` måste peka på en användare med roll PARENT.
+        `newParent` sparas bara om lagkontrollen redan har gått igenom. Då pekar spelarens `parentId` på den nya föräldern.
         För andra roller ignoreras `parentId`, `newParent` och `teamId`.
 
         Övriga regler: `email` krävs och måste vara unik ("User already exists"); `mobilePhoneNumber` unik om satt.
         Ett temporärt lösenord (10 tecken) genereras och returneras **en gång** i svaret; `mustChangePassword=true`.
-      x-roles: [ADMIN, COACH]
-      x-scope: COACH får endast skapa PLAYER. Ingen kontroll av att COACH tränar laget i `teamId`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: COACH får skapa PLAYER bara i lag där hen finns i `team_coaches`, och PARENT bara som `newParent` på den spelaren. ADMIN och CHAIRMAN får skapa fristående PARENT och spelare i alla lag.
       x-source: UserController.createUser → UserService.createUser
       requestBody:
         required: true
@@ -278,14 +290,16 @@ paths:
       tags: [Users]
       operationId: softDeletePlayer
       summary: Mjukradera en spelare (active=false)
-      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
-      x-scope-planned: COACH får bara ta bort spelare i egna lag.
       description: |
         Sätter `active=false` på en PLAYER. Raden och all data ligger kvar i databasen (ingen hård radering).
+        Spelaren försvinner från laglistorna.
+        COACH får bara göra det när spelaren ligger i ett lag coachen tränar. ADMIN och CHAIRMAN får göra det i alla lag.
+        Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players" (även om `team_id` saknas).
+        Okänd användare är 404. Den kontrollen sker före 403. Övriga fel är 400:
+        "Only a PLAYER can be removed this way", "Player is already inactive".
         Spelarens redan utfärdade JWT nekas med 401 från och med nästa anrop, så länge kontot är inaktivt.
-        Fel: "Only a PLAYER can be removed this way", "Player is already inactive" (400); "User not found" (404).
-      x-roles: [ADMIN, COACH]
-      x-scope: Ingen kontroll av att COACH tränar spelarens lag.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: COACH endast spelare i lag där hen finns i `team_coaches`. ADMIN och CHAIRMAN alla lag.
       x-source: UserController.softDeletePlayer → UserService.softDeletePlayer
       responses:
         '204':
@@ -334,21 +348,24 @@ paths:
       tags: [Users]
       operationId: updatePlayer
       summary: Uppdatera en spelare (och kopplad förälder)
-      x-roles-planned: [ADMIN, CHAIRMAN, COACH]
-      x-scope-planned: COACH får bara ändra spelare i egna lag (både nuvarande och nytt lag).
       description: |
         Bara för aktiv PLAYER. `name`, `email` och `teamId` krävs (laget måste finnas). E-post, telefon och
         tröjnummer måste vara unika. `parentId` byter förälder (måste vara aktiv PARENT).
         `parentName`/`parentEmail`/`parentMobilePhoneNumber` uppdaterar den kopplade förälderns rad
         (null = lämna orört; tom `parentMobilePhoneNumber` rensar telefonnumret; tom `parentEmail` → 400).
         Tom `mobilePhoneNumber` rensar spelarens nummer.
+        COACH måste träna både spelarens nuvarande lag och `teamId` i kroppen. ADMIN och CHAIRMAN har ingen laggräns.
+        Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players".
+        Nuvarande lag kontrolleras före övriga fel, så en coach för ett annat lag får 403 i stället för 400
+        som beskriver spelaren. Nytt lag kontrolleras före "Team not found", så ett okänt lag-id ger 403 för COACH.
+        Okänt lag för ADMIN eller CHAIRMAN är 400 "Team not found".
         Fel: "Only a PLAYER can be updated with this endpoint", "Cannot edit an inactive player",
         "Name is required", "Email is required", "teamId is required (change team, do not clear it)",
         "Team not found", "Email already in use", "Phone number already in use", "Shirt number already in use",
         "Parent user not found", "parentId must point to a user with role PARENT", "Cannot link an inactive parent",
         "Parent email is required" (400); "User not found" (404).
-      x-roles: [ADMIN, COACH]
-      x-scope: Ingen kontroll av att COACH tränar spelarens nuvarande eller nya lag.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: COACH bara om hen tränar både nuvarande lag och det nya `teamId`. ADMIN och CHAIRMAN alla lag.
       x-source: UserController.updatePlayer → UserService.updatePlayer
       requestBody:
         required: true
@@ -1209,8 +1226,6 @@ components:
 x-open-questions:
   - Felformat för fel som inte går via ApiExceptionHandler (felaktig JSON, typfel i path/query, saknad query-parameter, DB-constraint, 500). Spring Boot 4:s standardsvar och om /error-dispatch kräver autentisering i SecurityConfig är inte verifierat.
   - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
-  - PROGRESS.md (Users and roles) säger att COACH får skapa PLAYER och PARENT; koden tillåter bara PLAYER (+ ny förälder via newParent). Vilket gäller?
-  - Ska COACH vara begränsad till sina egna lag även vid createUser, updatePlayer och softDeletePlayer (som för träningar)? PROGRESS nämner "team-scoped coach limits" som nästa steg.
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
   - Ska fel inloggning ge 401 i stället för 400? Och ska "This account is inactive" särskiljas från "Invalid email or password" (avslöjar att kontot finns)?
   - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?

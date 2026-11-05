@@ -27,6 +27,8 @@ import se.fcvaxjo.api.security.JwtService;
 /**
  * The login filter loads the user. The token is accepted only when that
  * person is active and the role in the token is still their role.
+ * A made-up id would then look like "not logged in", so this test saves a
+ * real active user first.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
