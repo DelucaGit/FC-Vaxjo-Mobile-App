@@ -411,3 +411,20 @@ What is on branch `test/s1-6-rollmatris` (not pushed):
 Story ids follow the numbering in `docs/gap-analys.md` top 5. The gap file itself does not write S1-1..S1-4. S1-1 is point 1 (seed passwords, already fixed). S1-2 is point 2, S1-3 is point 3, S1-4 is point 4.
 
 Next: product owner approves before any push. Do not merge. The known-gap tests should start passing only when those stories change production code.
+
+# S1-4: old JWT stops when the account changes (5/11-2026)
+
+Decision: on every request, look up the user in the database. Do not add a token version column.
+
+Why: a token lasts 120 minutes. After a soft delete (`active=false`) or a role change, the old token must get 401 on the next call. A database read does that for tokens that are already out in the app, and it needs no schema change. A version number would also work, but it needs a new column, a migration, and a rule for tokens that have no version yet. Traffic for one club is small, so one read by primary key per request is enough.
+
+What shipped:
+
+- `AccountAccessService` answers "is this user still active, and is the role in the token still their role?"
+- `JwtAuthFilter` logs the request in only when that answer is yes. It does not write the 401 itself, so login stays public.
+- Same 401 body as before: `{ "message": "Login required" }`. We do not say "inactive" here, because that would tell a caller the account exists.
+- Turning the account back on, or changing the role back, makes the same token work again. After a role change the person can also log in again and get a token with the new role. Refresh cannot upgrade an old role.
+- Tests: `AccountAccessServiceTest`, `JwtAuthFilterTest`, `JwtAuthFilterIntegrationTest` (H2, so `mvn test` does not need local Postgres).
+- `docs/api/openapi.yaml` describes the new 401 cases. The open question about role change waiting for expiry is closed.
+- After master gained `CHAIRMAN`, the same check covers that role. A CHAIRMAN token is rejected once the role in the database is no longer CHAIRMAN. `CreateTeamAuthorizationTest` now creates a real user, because a token for a missing user is 401.
+- After PR #31, the inactive-token tests in `KnownInactiveUserTest` run in the normal suite. GET of an inactive row stays tagged `known-gap`, because this story does not hide that row.

@@ -76,10 +76,11 @@ class LoginAccessTest extends ClubApiTest {
 
     @Test
     void inactiveUser_cannotRefresh() throws Exception {
-        // Refresh reads the row and rejects active=false. Other URLs still accept the old token (S1-4).
+        // The filter rejects the inactive account before refresh runs.
+        // The body stays "Login required", same as any other protected call.
         post(Actor.INACTIVE_PLAYER, "/api/auth/refresh", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("inactive")));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Login required"));
     }
 
     private void assertOwnLogin(String email, String roleName) throws Exception {
