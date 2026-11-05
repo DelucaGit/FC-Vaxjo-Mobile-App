@@ -64,11 +64,11 @@ class AuthServiceTest {
         user.setMustChangePassword(true);
 
         when(userRepository.findByEmail("admin@fcvaxjo.se")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("TempAdmin1!", "hashed")).thenReturn(true);
+        when(passwordEncoder.matches("test-current-password", "hashed")).thenReturn(true);
         when(userService.getRoleName(1L)).thenReturn("ADMIN");
         when(jwtService.createToken(5L, "admin@fcvaxjo.se", "ADMIN")).thenReturn("jwt-token");
 
-        LoginResponse response = authService.login("admin@fcvaxjo.se", "TempAdmin1!");
+        LoginResponse response = authService.login("admin@fcvaxjo.se", "test-current-password");
 
         assertEquals("jwt-token", response.getToken());
         assertEquals(5L, response.getUserId());
@@ -107,13 +107,13 @@ class AuthServiceTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         when(userRepository.findById(5L)).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("TempAdmin1!", "old-hash")).thenReturn(true);
-        when(passwordEncoder.encode("NewSecure1!")).thenReturn("new-hash");
+        when(passwordEncoder.matches("test-current-password", "old-hash")).thenReturn(true);
+        when(passwordEncoder.encode("test-new-password")).thenReturn("new-hash");
         when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(userService.getRoleName(1L)).thenReturn("ADMIN");
         when(jwtService.createToken(eq(5L), anyString(), eq("ADMIN"))).thenReturn("new-jwt");
 
-        LoginResponse response = authService.changePassword("TempAdmin1!", "NewSecure1!");
+        LoginResponse response = authService.changePassword("test-current-password", "test-new-password");
 
         assertFalse(response.isMustChangePassword());
         assertFalse(user.isMustChangePassword());

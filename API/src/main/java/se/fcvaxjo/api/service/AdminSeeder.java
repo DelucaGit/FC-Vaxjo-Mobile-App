@@ -1,5 +1,8 @@
 package se.fcvaxjo.api.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,32 +15,41 @@ import se.fcvaxjo.api.repository.UserRepository;
 
 /**
  * Ensures one bootstrap ADMIN exists so you can log in after enabling security.
- * Default password is temporary — change it after first login.
- * Documented in PROGRESS.md.
+ * The temporary password comes from BOOTSTRAP_ADMIN_PASSWORD (API/.env or Railway variables),
+ * never from code. If it is not set, no admin is created. Change it after first login.
  */
 @Component
 @Order(2)
 public class AdminSeeder implements CommandLineRunner {
 
-    public static final String BOOTSTRAP_EMAIL = "admin@fcvaxjo.se";
-    public static final String BOOTSTRAP_TEMP_PASSWORD = "TempAdmin1!";
+    private static final Logger log = LoggerFactory.getLogger(AdminSeeder.class);
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final String bootstrapEmail;
+    private final String bootstrapPassword;
 
     public AdminSeeder(
             UserRepository userRepository,
             RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            @Value("${app.seed.admin-email}") String bootstrapEmail,
+            @Value("${app.seed.admin-password:}") String bootstrapPassword) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.bootstrapEmail = bootstrapEmail;
+        this.bootstrapPassword = bootstrapPassword;
     }
 
     @Override
     public void run(String... args) {
-        if (userRepository.findByEmail(BOOTSTRAP_EMAIL).isPresent()) {
+        if (userRepository.findByEmail(bootstrapEmail).isPresent()) {
+            return;
+        }
+        if (bootstrapPassword == null || bootstrapPassword.isBlank()) {
+            log.warn("BOOTSTRAP_ADMIN_PASSWORD is not set: skipping bootstrap admin creation.");
             return;
         }
 
@@ -46,10 +58,10 @@ public class AdminSeeder implements CommandLineRunner {
 
         AppUser admin = new AppUser();
         admin.setName("Club Admin");
-        admin.setEmail(BOOTSTRAP_EMAIL);
+        admin.setEmail(bootstrapEmail);
         admin.setRoleId(adminRole.getId());
         admin.setActive(true);
-        admin.setPasswordHash(passwordEncoder.encode(BOOTSTRAP_TEMP_PASSWORD));
+        admin.setPasswordHash(passwordEncoder.encode(bootstrapPassword));
         admin.setMustChangePassword(true);
         userRepository.save(admin);
     }

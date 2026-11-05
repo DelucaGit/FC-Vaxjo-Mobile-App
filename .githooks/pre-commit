@@ -1,0 +1,35 @@
+#!/bin/sh
+# Stops a commit if the staged changes look like they contain a password or secret.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Uses gitleaks if installed (https://github.com/gitleaks/gitleaks), otherwise a simple pattern check.
+
+if git diff --cached --name-only --diff-filter=ACMR | grep -Eq '(^|/)\.env$'; then
+  echo "pre-commit: a .env file is staged. Remove it with: git restore --staged <file>"
+  exit 1
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact --no-banner --config .gitleaks.toml; then
+    echo "pre-commit: gitleaks found possible secrets. Commit stopped."
+    exit 1
+  fi
+  exit 0
+fi
+
+# Fallback without gitleaks: check only added lines, skip this hook and the gitleaks config.
+PATTERN='\$\{[A-Z_]*(SECRET|PASSWORD|TOKEN|KEY)[A-Z_]*:[^}]{6,}\}'
+PATTERN="$PATTERN"'|(password|passwd|secret)[a-z_]*["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"'${<[:space:]][^"'"'"'[:space:]]{3,}["'"'"']'
+PATTERN="$PATTERN"'|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}'
+PATTERN="$PATTERN"'|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+PATTERN="$PATTERN"'|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36}'
+
+HITS=$(git diff --cached -U0 --diff-filter=ACMR -- . ':(exclude).githooks/*' ':(exclude).gitleaks.toml' \
+  | grep '^+' | grep -v '^+++' | grep -iE "$PATTERN" | grep -v 'test-only' | grep -v '{{[A-Za-z]*}}')
+
+if [ -n "$HITS" ]; then
+  echo "pre-commit: possible secret in staged changes (install gitleaks for a better check):"
+  echo "$HITS" | cut -c1-80 | sed 's/^/  /'
+  echo "Commit stopped. If this is a false positive, change the line or commit with --no-verify after review."
+  exit 1
+fi
+exit 0
