@@ -697,6 +697,33 @@ public class UserService {
         return fieldOnActiveParent(parentId, AppUser::getMobilePhoneNumber);
     }
 
+    /**
+     * Decision (c): a PLAYER sees none of the parent's fields.
+     * The check is the caller's role, so it covers the player's own row and
+     * any other read a player can reach. A coach, an admin and a chairman
+     * still see the fields when the parent is active.
+     */
+    public String parentNameForCaller(Long parentId) {
+        if (hasRole("PLAYER")) {
+            return null;
+        }
+        return getParentName(parentId);
+    }
+
+    public String parentEmailForCaller(Long parentId) {
+        if (hasRole("PLAYER")) {
+            return null;
+        }
+        return getParentEmail(parentId);
+    }
+
+    public String parentPhoneForCaller(Long parentId) {
+        if (hasRole("PLAYER")) {
+            return null;
+        }
+        return getParentMobilePhoneNumber(parentId);
+    }
+
     private String fieldOnActiveParent(Long parentId, Function<AppUser, String> field) {
         AppUser parent = activeParentOrNull(parentId);
         if (parent == null) {

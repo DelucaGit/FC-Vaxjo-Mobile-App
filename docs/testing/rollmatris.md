@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, F7. En tränare som skapar en dubblett av e-post eller telefon får 400 `Could not create the user`. ADMIN och CHAIRMAN behåller den exakta texten.
+Senast uppdaterad: 2026-11-05, F6. En spelare ser inte förälderns namn, e-post eller telefon. Inga `known-gap`-tester är kvar.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -30,7 +30,7 @@ Det kör bara mätstickan.
 | Story | Gap-analys | Vad testerna mäter | I `./mvnw test` |
 |---|---|---|---|
 | S1-1 | Topp 5, punkt 1 | Inga seed-lösenord och ingen demoklubb i testprofilen | Gröna (`TestProfileSafetyTest`) |
-| S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | Tränarens laggräns är grön (S1-10), även de två IDOR-bytena. Telefon i 404-texten är grön (S1-12). Kvar som `known-gap`: spelarens egen rad visar förälderns telefon |
+| S1-2 | Topp 5, punkt 2 | Läsningar läcker e-post och telefon till fel roll | Tränarens laggräns är grön (S1-10). Spelarens egen rad döljer förälderns namn, e-post och telefon (F6). Inga `known-gap`-tester är kvar |
 | S1-3 | Topp 5, punkt 3 | COACH kan skapa, ändra och mjukradera spelare i ett annat lag | `KnownCoachScopeTest` är grön och körs i vanliga bygget |
 | S1-4 | Topp 5, punkt 4 | Inaktiv token ska nekas. GET av den inaktiva raden är 404 för ADMIN och CHAIRMAN, och 403 för PLAYER, PARENT och COACH (F3) | Token-testerna är gröna. GET-testerna är gröna efter F3. Taggen `known-gap` är borta |
 | ADR 0006 | Inte en egen topp-punkt. `x-roles-planned` | CHAIRMAN får skapa lag (PR #26), koppla eller ta bort en tränare (S1-7), skapa/ändra/ta bort spelare (S1-3) och byta en spelare till tränare (S1-8) | De testerna är gröna i `KnownChairmanAccessTest` och `TeamAccessTest` |
@@ -86,7 +86,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT eget barn | PARENT annat barn | Kod idag |
 |---|---|---|---|---|---|---|---|---|
 | `GET /api/users` | 200, all PII | 200, all PII | 403 (hela klubben) | 403 | 403 | 403 | 403 | 200 för ADMIN och CHAIRMAN. 403 för COACH, PLAYER och PARENT. **S1-10** |
-| `GET /api/users/{id}` | 200 för aktiv. 404 för inaktiv och för saknat id | 200 för aktiv. 404 för inaktiv och för saknat id | 200 i eget lag, 403 annars. 403 för inaktiv och för saknat id | 403 för aktiv. 403 för inaktiv | 200 bara sig själv, utan förälderns telefon. 403 för andra. 403 för inaktiv | 403. 403 för inaktiv | 403 för aktiv. 403 för inaktiv | COACH är begränsad till egna lag. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiv rad är 404 för ADMIN och CHAIRMAN, och 403 för de andra tre (F3). **S1-10**, **S1-13**, **F3** |
+| `GET /api/users/{id}` | 200 för aktiv. 404 för inaktiv och för saknat id | 200 för aktiv. 404 för inaktiv och för saknat id | 200 i eget lag, 403 annars. 403 för inaktiv och för saknat id | 403 för aktiv. 403 för inaktiv | 200 bara sig själv, utan förälderns namn, e-post och telefon. 403 för andra. 403 för inaktiv | 403. 403 för inaktiv | 403 för aktiv. 403 för inaktiv | COACH är begränsad till egna lag och ser förälderns fält. Spelaren ser inget av de tre fälten (F6). Inaktiv rad är 404 för ADMIN och CHAIRMAN, och 403 för de andra tre (F3). **S1-10**, **S1-13**, **F3**, **F6** |
 | `GET /api/users/search` | 200 | 200 | 200 bara eget lag | tomt | 403 | 403 | 403 | COACH ser bara egna lag. Saknat telefonnummer ger 404 "User not found". **S1-10**, **S1-12** |
 | `POST /api/users` | 201 | 201 spelare, förälder eller tränare. Inte ADMIN | 201 PLAYER i eget lag, och förälder bara som `newParent` på den spelaren | 403 | 403 | 403 | 403 | Beslut (b) är stängt. En tränare som skapar en fristående förälder får 400. ADMIN och CHAIRMAN får skapa förälder fritt. |
 | `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
@@ -178,7 +178,7 @@ Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger 
 
 **COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 403 (S1-10). Skapa, ändra och mjukradera i det andra laget är 403 (S1-3). Ett id som saknas är samma 403 på ändra och mjukradera (F8). Träningar med ett annat lag-id är 403, även om laget inte finns. `/api/my/teams` är redan spärrat.
 
-**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden gör det fortfarande (S1-2). En inaktiv rad ger samma 403 som ett saknat id (F3).
+**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden döljer `parentName`, `parentEmail` och `parentMobilePhoneNumber` (F6, beslut c). En inaktiv rad ger samma 403 som ett saknat id (F3).
 
 **PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Katalogen är 403.
 

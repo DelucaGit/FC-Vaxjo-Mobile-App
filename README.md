@@ -43,7 +43,7 @@ Run the tests from the `API` folder. You do not need local PostgreSQL or `API/.e
 
 Each Spring test turns on the `test` profile with `@ActiveProfiles("test")`. That loads `API/src/test/resources/application-test.properties`: an in-memory H2 database and a test-only JWT secret. GitHub Actions runs the same two commands (`.github/workflows/backend-ci.yml`).
 
-The normal build skips tests tagged `known-gap`. That tag marks rules the code still breaks. `API/pom.xml` sets `excludedGroups` to `known-gap`, so `./mvnw test` stays green. The known-gap run is the measuring stick. Those tests fail until the story is fixed.
+The normal build skips tests tagged `known-gap`. That tag marks rules the code still breaks. `API/pom.xml` sets `excludedGroups` to `known-gap`, so `./mvnw test` stays green. After F6 no test carries that tag. The known-gap command is still there for the next rule that needs a measuring stick.
 
 Normal build, Git Bash on Windows and Linux or Mac:
 

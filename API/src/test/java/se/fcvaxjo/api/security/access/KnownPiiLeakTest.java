@@ -1,10 +1,10 @@
 package se.fcvaxjo.api.security.access;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import se.fcvaxjo.api.support.Actor;
@@ -16,10 +16,8 @@ import se.fcvaxjo.api.support.ClubFixture;
  *
  * PLAYER and PARENT are refused on the lists, the search, and someone else's row.
  * A coach is limited to teams they are linked to in team_coaches (S1-10).
- * Those tests run in the normal suite.
- *
- * Tests that still fail stay tagged {@code known-gap}, so Maven skips them.
- * A player's own row still includes the parent's phone.
+ * A player's own row hides the parent's name, email and phone (F6, decision c).
+ * Those tests run in the normal suite. No test is tagged {@code known-gap}.
  * A missing phone number is not repeated in the 404 text (gap 6, story S1-12).
  */
 class KnownPiiLeakTest extends ClubApiTest {
@@ -67,17 +65,31 @@ class KnownPiiLeakTest extends ClubApiTest {
     }
 
     @Test
-    @Tag("known-gap")
-    @DisplayName("S1-2: spelare får se sin egen rad men inte förälderns telefon")
+    @DisplayName("F6: spelare får se sin egen rad men inte förälderns fält")
     void player_ownRowHidesParentPhoneNumber() throws Exception {
-        // The parent is another person. The shared response still includes that phone, so this stays a known gap.
+        // Decision (c): name, email and phone are all hidden. The coach still sees them.
         var response = get(Actor.PLAYER_ALFA, "/api/users/" + world.playerAlfaId())
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(ClubFixture.NAME_PLAYER_ALFA))
+                .andExpect(jsonPath("$.email").value(ClubFixture.EMAIL_PLAYER_ALFA))
+                .andExpect(jsonPath("$.parentName").value(nullValue()))
+                .andExpect(jsonPath("$.parentEmail").value(nullValue()))
+                .andExpect(jsonPath("$.parentMobilePhoneNumber").value(nullValue()));
 
         assertBodyHides(response,
                 ClubFixture.PHONE_PARENT_ALFA,
                 ClubFixture.EMAIL_PARENT_ALFA,
                 ClubFixture.NAME_PARENT_ALFA);
+    }
+
+    @Test
+    @DisplayName("F6: tränare i laget ser fortfarande förälderns telefon")
+    void coach_ownTeamStillSeesParentPhone() throws Exception {
+        get(Actor.COACH_ALFA, "/api/users/" + world.playerAlfaId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.parentMobilePhoneNumber").value(ClubFixture.PHONE_PARENT_ALFA))
+                .andExpect(jsonPath("$.parentEmail").value(ClubFixture.EMAIL_PARENT_ALFA))
+                .andExpect(jsonPath("$.parentName").value(ClubFixture.NAME_PARENT_ALFA));
     }
 
     @Test
