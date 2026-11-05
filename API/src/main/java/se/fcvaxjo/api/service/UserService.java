@@ -330,7 +330,8 @@ public class UserService {
     public AppUser updatePlayer(Long id, String name, String email, String mobilePhoneNumber,
             Integer playerNumber, Long teamId, Long parentId, String parentName, String parentEmail,
             String parentMobilePhoneNumber) {
-        AppUser player = getUserById(id);
+        // Missing id and another team are both 403 for a coach (F8).
+        AppUser player = loadPlayerTheCallerMayManage(id);
         // Current team before other checks, so a coach of another team gets 403
         // and not a 400 that describes this player's state.
         assertCanManageTeam(player.getTeamId());
@@ -399,7 +400,8 @@ public class UserService {
     /** Soft-delete a PLAYER (active = false). Row stays in the database. */
     @Transactional
     public AppUser softDeletePlayer(Long id) {
-        AppUser player = getUserById(id);
+        // Missing id and another team are both 403 for a coach (F8).
+        AppUser player = loadPlayerTheCallerMayManage(id);
         // Same team rule as create and update. A player with no team is not "on my team".
         assertCanManageTeam(player.getTeamId());
         if (!"PLAYER".equals(getRoleName(player.getRoleId()))) {
@@ -552,26 +554,63 @@ public class UserService {
     /**
      * The person returned by GET /api/users/{id}.
      *
-     * active=false is a soft delete. Every role, including ADMIN, gets 404.
-     * The sentence is "User not found", the same words as a missing id (S1-12).
-     * "This account is inactive" would tell the caller that the row exists (ADR 0004).
+     * ADMIN and CHAIRMAN may see every team. For them a missing id and an
+     * inactive row are both 404 "User not found" (S1-13). The sentence does
+     * not say "inactive", because that would show the account exists (ADR 0004).
+     *
+     * PLAYER, PARENT and COACH already get 403 for a missing id. An inactive
+     * row uses that same 403, including when the caller could read the row if
+     * it were active (the coach of that team, or the person's own id). The
+     * Architect decided this in F3 so the status code does not reveal the row.
      * A later endpoint will turn the account back on. This GET does not.
      *
-     * The inactive check runs first. A player, a parent, or a coach on another
-     * team gets 403 for an id they may not read, including an id that is missing
-     * (S1-10). This story still wants 404 for an inactive row, for those roles too.
-     * Writes keep using {@link #getUserById(Long)}, which can see the inactive row.
+     * Writes use {@link #loadPlayerTheCallerMayManage(Long)} or
+     * {@link #getUserById(Long)}, which can still see the inactive row.
      */
     public AppUser readActiveUser(Long id) {
         AppUser stored = userRepository.findById(id).orElse(null);
-        if (stored != null && !stored.isActive()) {
-            throw userNotFound();
+        if (callerReadsEveryTeam()) {
+            if (stored == null || !stored.isActive()) {
+                throw userNotFound();
+            }
+            return stored;
+        }
+        if (stored == null || !stored.isActive()) {
+            denyReadAsIfTheIdWasMissing();
         }
         assertCallerMayReadUser(id);
-        if (stored == null) {
-            throw userNotFound();
-        }
         return stored;
+    }
+
+    /**
+     * ADMIN and CHAIRMAN still get 404 when the id is missing.
+     * A coach gets 403 for a missing id and for a player on another team.
+     * The two answers share one sentence, so a coach cannot scan for ids (F8).
+     * The body has no email and no phone, because we throw before any response row.
+     */
+    private AppUser loadPlayerTheCallerMayManage(Long id) {
+        AppUser player = userRepository.findById(id).orElse(null);
+        if (callerLooksAfterEveryTeam()) {
+            if (player == null) {
+                throw userNotFound();
+            }
+            return player;
+        }
+        if (player == null || !coachTrainsTeam(player.getTeamId())) {
+            throw new AccessDeniedException(MANAGE_PLAYERS_DENIED);
+        }
+        return player;
+    }
+
+    /**
+     * The 403 a PLAYER, PARENT or COACH already gets when the id is not in
+     * the database. An inactive row uses the same answer (F3).
+     */
+    private void denyReadAsIfTheIdWasMissing() {
+        if (hasRole("COACH")) {
+            throw new AccessDeniedException(READ_OWN_TEAMS_ONLY);
+        }
+        throw new AccessDeniedException(READ_OWN_RECORD);
     }
 
     /**
