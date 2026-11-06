@@ -82,6 +82,7 @@ public class UserController {
      * Returns one user because shirt numbers are unique.
      * Players and parents are refused, same as name search: the hit contains contact details.
      * A coach only finds a shirt number on a team they train. Another team is the same 404 as a missing number.
+     * The text is "User not found". The number is not repeated (F2).
      *
      * @param number the shirt number (exact match)
      */

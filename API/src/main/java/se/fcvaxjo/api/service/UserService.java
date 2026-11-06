@@ -844,7 +844,8 @@ public class UserService {
      * Exact shirt-number search. Returns one user because the number is unique.
      * Null is rejected. Missing number throws, same idea as getUserById.
      * A coach who does not train that player's team gets the same 404 as a
-     * number that is not in the club. The sentence is unchanged on purpose.
+     * number that is not in the club. The sentence is "User not found" (F2).
+     * The number is not repeated. The caller already sent it.
      */
     public AppUser searchByPlayerNumber(Integer playerNumber) {
         if (playerNumber == null) {
@@ -890,9 +891,9 @@ public class UserService {
 
     private AppUser findActiveUserByPlayerNumber(Integer playerNumber) {
         AppUser user = userRepository.findByPlayerNumber(playerNumber)
-                .orElseThrow(() -> missingShirt(playerNumber));
+                .orElseThrow(this::missingShirt);
         if (!user.isActive()) {
-            throw missingShirt(playerNumber);
+            throw missingShirt();
         }
         return user;
     }
@@ -913,10 +914,10 @@ public class UserService {
     private AppUser findShirtOnOwnTeams(Integer playerNumber) {
         List<Long> teamIds = teamIdsThisCoachTrains();
         if (teamIds.isEmpty()) {
-            throw missingShirt(playerNumber);
+            throw missingShirt();
         }
         return userRepository.findByPlayerNumberAndActiveTrueAndTeamIdIn(playerNumber, teamIds)
-                .orElseThrow(() -> missingShirt(playerNumber));
+                .orElseThrow(this::missingShirt);
     }
 
     /**
@@ -1011,11 +1012,12 @@ public class UserService {
     }
 
     /**
-     * Same sentence the club-wide search already used.
-     * Story S1-12 owns changing this text. This story only chooses when it is thrown.
+     * Same sentence as a missing phone and as GET of a missing user (F2).
+     * The shirt number stays out of the body. The caller already sent it,
+     * and a log of the error would store it again (ADR 0004).
      */
-    private NotFoundException missingShirt(Integer playerNumber) {
-        return new NotFoundException("No user found with player number " + playerNumber);
+    private NotFoundException missingShirt() {
+        return userNotFound();
     }
 
     /**

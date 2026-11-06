@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, F6. En spelare ser inte förälderns namn, e-post eller telefon. Inga `known-gap`-tester är kvar.
+Senast uppdaterad: 2026-11-05, F2 och F11. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -79,7 +79,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 |---|---|---|
 | `POST /api/auth/login` | Publik. 200 för aktiv användare. Fel lösenord, okänd e-post och inaktiv ger samma 401 | Stämmer (S1-9). Saknad e-post eller lösenord är fortfarande 400 |
 | `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
-| `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 400 | Inaktiv token får 401 i filtret, inte 400 |
+| `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 401 | Inaktiv token får 401. Texten är "Login required", samma som övriga nekade token (F11) |
 
 ### Användare
 
@@ -87,7 +87,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 |---|---|---|---|---|---|---|---|---|
 | `GET /api/users` | 200, all PII | 200, all PII | 403 (hela klubben) | 403 | 403 | 403 | 403 | 200 för ADMIN och CHAIRMAN. 403 för COACH, PLAYER och PARENT. **S1-10** |
 | `GET /api/users/{id}` | 200 för aktiv. 404 för inaktiv och för saknat id | 200 för aktiv. 404 för inaktiv och för saknat id | 200 i eget lag, 403 annars. 403 för inaktiv och för saknat id | 403 för aktiv. 403 för inaktiv | 200 bara sig själv, utan förälderns namn, e-post och telefon. 403 för andra. 403 för inaktiv | 403. 403 för inaktiv | 403 för aktiv. 403 för inaktiv | COACH är begränsad till egna lag och ser förälderns fält. Spelaren ser inget av de tre fälten (F6). Inaktiv rad är 404 för ADMIN och CHAIRMAN, och 403 för de andra tre (F3). **S1-10**, **S1-13**, **F3**, **F6** |
-| `GET /api/users/search` | 200 | 200 | 200 bara eget lag | tomt | 403 | 403 | 403 | COACH ser bara egna lag. Saknat telefonnummer ger 404 "User not found". **S1-10**, **S1-12** |
+| `GET /api/users/search` | 200 | 200 | 200 bara eget lag | tomt | 403 | 403 | 403 | COACH ser bara egna lag. Saknat telefonnummer och saknat tröjnummer ger 404 "User not found". Numret upprepas inte. **S1-10**, **S1-12**, **F2** |
 | `POST /api/users` | 201 | 201 spelare, förälder eller tränare. Inte ADMIN | 201 PLAYER i eget lag, och förälder bara som `newParent` på den spelaren | 403 | 403 | 403 | 403 | Beslut (b) är stängt. En tränare som skapar en fristående förälder får 400. ADMIN och CHAIRMAN får skapa förälder fritt. |
 | `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `DELETE /api/users/{id}` | 204 | 204 | 204 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
