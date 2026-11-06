@@ -110,9 +110,10 @@ public class UserController {
      * ADMIN and CHAIRMAN may read any active user. A coach may read an active person
      * on a team they train, and their own id. A player or parent may read only their
      * own id, because the home screen loads their name from this URL.
-     * An inactive account is hidden from every role, including ADMIN (ADR 0004).
-     * The answer is 404 "User not found", the same words as a missing id.
-     * Who may call, and the 403 for a forbidden active id, stays in {@code readActiveUser}.
+     * ADMIN and CHAIRMAN get 404 "User not found" for a missing id and for an
+     * inactive account (ADR 0004, S1-13). PLAYER, PARENT and COACH get 403 for
+     * both, the same answer as a missing id (F3). Who may call stays in
+     * {@code readActiveUser}.
      */
     @GetMapping("/{id}")
     public FetchUserResponse getUserById(@PathVariable Long id) {

@@ -608,3 +608,13 @@ Branch: `cursor/s1-9-harda-inloggning-761e`. The branch also contains S1-13, so 
 Decision: the password check stays a strict `>` on whole seconds. `>=` would reject the token from a login in the same second as the password change, because that token and `passwordChangedAt` share a second.
 
 Gap analysis: S1-10, S1-12 and S1-13 are marked closed. The phone number is no longer repeated in the 404 text (S1-12). The phone number is still a query parameter, so it can still show up in access logs. That part stays open.
+
+# F3 and F8: same answer for a missing id and a hidden row (5/11-2026)
+
+Decision: PLAYER, PARENT and COACH get 403 for `GET /api/users/{id}` both when the id is missing and when the row is inactive. ADMIN and CHAIRMAN keep 404 "User not found" in both cases. A coach who updates or soft-deletes a missing id gets the same 403 as a player on another team. ADMIN and CHAIRMAN still get 404 when that id is missing.
+
+Why: S1-13 answered 404 for every role. That let a player, a parent, or a coach tell a missing id (403) from an inactive row (404). ADR 0004 says the answer must not show that the account exists. The Architect decided F3: for a role that may read the row, an inactive row uses the same answer as a missing id. For these three roles that answer is 403, including the coach of the player's own team. The body does not say "inactive" and does not include the email or the phone.
+
+The old tests in `KnownInactiveUserTest` required 404 for the coach, the player and the parent. Those tests conflict with F3, so they now require 403. ADMIN and CHAIRMAN stay on 404. No `known-gap` tag was removed. The remaining known-gap test is still the parent's phone on a player's own row.
+
+A coach's write checks the team before it describes the player. A missing id never reaches "User not found" for that role. An inactive player on the coach's own team is still 400 "Cannot edit an inactive player" or "Player is already inactive", because the coach may manage that team and the row is there to edit.

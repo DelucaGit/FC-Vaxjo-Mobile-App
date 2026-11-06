@@ -12,14 +12,20 @@ import se.fcvaxjo.api.support.ClubFixture;
 import se.fcvaxjo.api.support.SampleRequests;
 
 /**
- * Story S1-4, gap analysis point 4, and story S1-13.
+ * Story S1-4, gap analysis point 4, and story S1-13, updated by F3.
  * The JWT filter reads the database, so an old token for an inactive account
- * is rejected. GET of that row is 404 "User not found" for every role.
- * Those GET tests pass, so the known-gap tag is off, including the chairman
- * case from the extended role matrix. The callers are real active users
- * from {@link ClubFixture}.
+ * is rejected. ADMIN and CHAIRMAN still get 404 "User not found" for that row.
+ * PLAYER, PARENT and COACH get the same 403 as a missing id, so the status
+ * code does not say the row exists. The Architect decided that in F3.
+ * The callers are real active users from {@link ClubFixture}.
  */
 class KnownInactiveUserTest extends ClubApiTest {
+
+    private static final long MISSING_USER_ID = 9_000_000L;
+    private static final String COACH_CANNOT_READ =
+            "You can only read users on a team you train";
+    private static final String OWN_RECORD_ONLY =
+            "You can only read your own user record";
 
     @Test
     @DisplayName("S1-4: inaktiv token ska inte lista lag")
@@ -58,23 +64,49 @@ class KnownInactiveUserTest extends ClubApiTest {
     }
 
     @Test
-    @DisplayName("S1-4: tränare ska få 404 för en inaktiv spelare")
-    void coach_cannotReadInactivePlayer() throws Exception {
-        // Alfa's coach trains the inactive player's team. The row is still hidden.
-        expectInactiveHidden(Actor.COACH_ALFA);
+    @DisplayName("F3: tränare i laget ska få 403 för en inaktiv spelare")
+    void coachOnTheTeam_cannotTellAnInactivePlayerFromAMissingId() throws Exception {
+        // Alfa's coach trains this team, so an active row would be 200.
+        // An inactive row must look like a missing id: 403, not 404.
+        expectHiddenLikeAMissingId(Actor.COACH_ALFA, COACH_CANNOT_READ);
     }
 
     @Test
-    @DisplayName("S1-4: spelare ska få 404 för en inaktiv spelare")
-    void player_cannotReadInactivePlayer() throws Exception {
-        // A player normally gets 403 for someone else's id. An inactive row is 404 first.
-        expectInactiveHidden(Actor.PLAYER_ALFA);
+    @DisplayName("F3: tränare i ett annat lag ska få 403 för en inaktiv spelare")
+    void coachOnAnotherTeam_cannotTellAnInactivePlayerFromAMissingId() throws Exception {
+        expectHiddenLikeAMissingId(Actor.COACH_BETA, COACH_CANNOT_READ);
     }
 
     @Test
-    @DisplayName("S1-4: förälder ska få 404 för en inaktiv spelare")
-    void parent_cannotReadInactivePlayer() throws Exception {
-        expectInactiveHidden(Actor.PARENT_ALFA);
+    @DisplayName("F3: spelare ska få 403 för en inaktiv spelare")
+    void player_cannotTellAnInactivePlayerFromAMissingId() throws Exception {
+        expectHiddenLikeAMissingId(Actor.PLAYER_ALFA, OWN_RECORD_ONLY);
+    }
+
+    @Test
+    @DisplayName("F3: förälder ska få 403 för en inaktiv spelare")
+    void parent_cannotTellAnInactivePlayerFromAMissingId() throws Exception {
+        expectHiddenLikeAMissingId(Actor.PARENT_ALFA, OWN_RECORD_ONLY);
+    }
+
+    @Test
+    @DisplayName("F3: förälder ska få 403 för ett id som inte finns")
+    void parent_missingUser_isForbidden() throws Exception {
+        expectMissingId(Actor.PARENT_ALFA, OWN_RECORD_ONLY);
+    }
+
+    @Test
+    @DisplayName("F3: tränare ska få 403 för ett id som inte finns")
+    void coach_missingUser_isForbidden() throws Exception {
+        expectMissingId(Actor.COACH_ALFA, COACH_CANNOT_READ);
+    }
+
+    @Test
+    @DisplayName("F3: ordförande ska få 404 för ett id som inte finns")
+    void chairman_missingUser_isNotFound() throws Exception {
+        get(Actor.CHAIRMAN, "/api/users/" + MISSING_USER_ID)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User not found"));
     }
 
     @Test
@@ -104,5 +136,19 @@ class KnownInactiveUserTest extends ClubApiTest {
         get(actor, "/api/users/" + world.inactivePlayerId())
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("User not found"));
+    }
+
+    private void expectHiddenLikeAMissingId(Actor actor, String message) throws Exception {
+        var response = get(actor, "/api/users/" + world.inactivePlayerId())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(message));
+        assertBodyHides(response, "inactive", "Inactive",
+                ClubFixture.EMAIL_INACTIVE, ClubFixture.PHONE_INACTIVE);
+    }
+
+    private void expectMissingId(Actor actor, String message) throws Exception {
+        get(actor, "/api/users/" + MISSING_USER_ID)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(message));
     }
 }

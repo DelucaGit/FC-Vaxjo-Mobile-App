@@ -294,18 +294,18 @@ paths:
       operationId: getUserById
       summary: Hämta en användare
       description: |
-        Bara aktiva användare (`active=true`). En inaktiv rad (`active=false`, mjukt borttagen)
-        ger 404 med texten "User not found" för alla roller, även ADMIN (ADR 0004, S1-13).
-        Samma text som när id saknas, så svaret inte säger att kontot finns.
+        Bara aktiva användare (`active=true`).
+        ADMIN och CHAIRMAN får 404 "User not found" både när id saknas och när raden är inaktiv (S1-13).
+        PLAYER, PARENT och COACH får 403 i båda fallen (F3, Arkitekten). Samma text som för ett id de inte får läsa,
+        så statuskoden inte säger att kontot finns. Det gäller också en rad de skulle få se om den var aktiv,
+        till exempel tränaren i spelarens eget lag.
         Att slå på kontot igen blir en egen endpoint senare. Den finns inte här.
         ADMIN och CHAIRMAN får hämta vem som helst som är aktiv. De är inte begränsade till ett lag.
         COACH får hämta en aktiv person på ett lag hen tränar (spelarens `teamId`, en tränare i `team_coaches`,
         eller en förälder till en aktiv spelare där), och sitt eget id.
-        Annat id som inte är en inaktiv rad ger 403 "You can only read users on a team you train",
-        även när användaren inte finns.
+        Annat id, ett id som saknas, eller en inaktiv rad ger 403 "You can only read users on a team you train".
         PLAYER och PARENT får bara hämta sitt eget id (samma id som i JWT).
-        Annat id som inte är en inaktiv rad ger 403 med meddelandet "You can only read your own user record",
-        även när användaren inte finns. Vi svarar 403 före 404 så att man inte kan testa om ett id finns.
+        Annat id, ett id som saknas, eller en inaktiv rad ger 403 "You can only read your own user record".
         ADMIN eller CHAIRMAN som frågar efter ett okänt id får "User not found" (404).
 
         En spelare som hämtar sig själv får fortfarande hela `FetchUserResponse`,
@@ -313,8 +313,9 @@ paths:
         är dataminimering (ADR 0004) och ingår inte i den här ändringen.
       x-roles: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
       x-scope: |
-        ADMIN och CHAIRMAN alla lag, bara aktiva användare. COACH endast aktiva personer på lag i `team_coaches`, plus eget id.
-        PLAYER och PARENT endast eget användar-id. Inaktiv användare är 404 för alla roller.
+        ADMIN och CHAIRMAN alla lag, bara aktiva användare. Saknad och inaktiv är 404.
+        COACH endast aktiva personer på lag i `team_coaches`, plus eget id. Saknad och inaktiv är 403.
+        PLAYER och PARENT endast eget användar-id. Saknad och inaktiv är 403.
       x-source: UserController.getUserById → UserService.readActiveUser
       responses:
         '200':
@@ -326,8 +327,9 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404':
           description: |
-            Okänt id, eller en inaktiv användare (`active=false`). Texten är "User not found" i båda fallen,
-            för alla roller inklusive ADMIN.
+            Okänt id, eller en inaktiv användare (`active=false`), för ADMIN och CHAIRMAN.
+            Texten är "User not found" i båda fallen.
+            PLAYER, PARENT och COACH får 403 i stället, samma som för ett id de inte får läsa (F3).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -340,7 +342,8 @@ paths:
         Spelaren försvinner från laglistorna.
         COACH får bara göra det när spelaren ligger i ett lag coachen tränar. ADMIN och CHAIRMAN får göra det i alla lag.
         Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players" (även om `team_id` saknas).
-        Okänd användare är 404. Den kontrollen sker före 403. Övriga fel är 400:
+        För en tränare är ett id som saknas samma 403 (F8). ADMIN och CHAIRMAN får 404 "User not found" när id saknas.
+        Övriga fel är 400:
         "Only a PLAYER can be removed this way", "Player is already inactive".
         Spelarens redan utfärdade JWT nekas med 401 från och med nästa anrop, så länge kontot är inaktivt.
       x-roles: [ADMIN, CHAIRMAN, COACH]
@@ -421,7 +424,9 @@ paths:
         COACH måste träna både spelarens nuvarande lag och `teamId` i kroppen. ADMIN och CHAIRMAN har ingen laggräns.
         Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players".
         Nuvarande lag kontrolleras före övriga fel, så en coach för ett annat lag får 403 i stället för 400
-        som beskriver spelaren. Nytt lag kontrolleras före "Team not found", så ett okänt lag-id ger 403 för COACH.
+        som beskriver spelaren. Ett id som saknas är samma 403 för tränaren (F8).
+        ADMIN och CHAIRMAN får 404 "User not found" när id saknas.
+        Nytt lag kontrolleras före "Team not found", så ett okänt lag-id ger 403 för COACH.
         Okänt lag för ADMIN eller CHAIRMAN är 400 "Team not found".
         Fel: "Only a PLAYER can be updated with this endpoint", "Cannot edit an inactive player",
         "Name is required", "Email is required", "teamId is required (change team, do not clear it)",
@@ -1318,7 +1323,7 @@ x-open-questions:
   - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
   - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?
-  - "GET /api/users/{id} för en inaktiv användare är avgjort (S1-13): 404 \"User not found\" för alla roller. Återaktivering är en senare endpoint."
+  - "GET /api/users/{id} för en inaktiv användare: ADMIN och CHAIRMAN får 404 \"User not found\" (S1-13). PLAYER, PARENT och COACH får 403, samma som för ett saknat id (F3). Återaktivering är en senare endpoint."
   - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"
   - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?
   - "CHAIRMAN (ADR 0006, S1-8): ordföranden får skapa PLAYER, PARENT och COACH, och byta en annan användares PLAYER till COACH. Ordföranden får inte sätta ADMIN eller CHAIRMAN och får inte byta sin egen roll. Öppet: ska ordföranden se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"

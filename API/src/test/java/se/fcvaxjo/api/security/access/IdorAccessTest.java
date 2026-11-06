@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.security.access;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -98,6 +99,36 @@ class IdorAccessTest extends ClubApiTest {
     void coach_cannotRemoveAPlayerByIdOnAnotherTeam() throws Exception {
         delete(Actor.COACH_BETA, "/api/users/" + world.extraPlayerId())
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("F8: tränare som ändrar ett id som inte finns ska få 403")
+    void coach_cannotUpdateAMissingPlayer() throws Exception {
+        // 404 would tell the coach the id is free. Another team is already 403.
+        var response = put(Actor.COACH_ALFA, "/api/users/" + UNKNOWN_ID + "/player",
+                SampleRequests.keepPlayer("Test Saknad", "saknad@example.test", "070-0000-8888", 77,
+                        world.teamAlfaId()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message")
+                        .value("Only ADMIN, CHAIRMAN, or a coach of this team can manage its players"));
+        assertBodyHides(response, ClubFixture.EMAIL_PLAYER_BETA, ClubFixture.PHONE_PLAYER_BETA);
+    }
+
+    @Test
+    @DisplayName("F8: tränare som tar bort ett id som inte finns ska få 403")
+    void coach_cannotDeleteAMissingPlayer() throws Exception {
+        delete(Actor.COACH_ALFA, "/api/users/" + UNKNOWN_ID)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message")
+                        .value("Only ADMIN, CHAIRMAN, or a coach of this team can manage its players"));
+    }
+
+    @Test
+    @DisplayName("F8: admin ska fortfarande få 404 när id saknas")
+    void admin_missingPlayerOnDelete_isNotFound() throws Exception {
+        delete(Actor.ADMIN, "/api/users/" + UNKNOWN_ID)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User not found"));
     }
 
     @Test
