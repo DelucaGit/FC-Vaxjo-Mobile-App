@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.security.access;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -45,5 +46,61 @@ class KnownCoachScopeTest extends ClubApiTest {
         // extra player is on Lag Alfa. The Beta coach must not soft-delete them.
         delete(Actor.COACH_BETA, "/api/users/" + world.extraPlayerId())
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("F7: tränare ska inte få veta att e-posten finns i ett annat lag")
+    void coach_duplicateEmailOutsideTheTeam_usesAGenericMessage() throws Exception {
+        var response = post(Actor.COACH_ALFA, "/api/users",
+                SampleRequests.newPlayer(ClubFixture.EMAIL_PLAYER_BETA, "070-0000-0281", 81,
+                        world.parentAlfaId(), world.teamAlfaId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Could not create the user"));
+        assertBodyHides(response, "User already exists", "Phone number already in use",
+                ClubFixture.NAME_PLAYER_BETA);
+    }
+
+    @Test
+    @DisplayName("F7: tränare ska inte få veta att telefonen finns i ett annat lag")
+    void coach_duplicatePhoneOutsideTheTeam_usesAGenericMessage() throws Exception {
+        var response = post(Actor.COACH_ALFA, "/api/users",
+                SampleRequests.newPlayer("ny.telefon@example.test", ClubFixture.PHONE_PLAYER_BETA, 82,
+                        world.parentAlfaId(), world.teamAlfaId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Could not create the user"));
+        assertBodyHides(response, "User already exists", "Phone number already in use",
+                ClubFixture.NAME_PLAYER_BETA);
+    }
+
+    @Test
+    @DisplayName("F7: samma text när dubbletten ligger i tränarens eget lag")
+    void coach_duplicateOnOwnTeam_usesTheSameGenericMessage() throws Exception {
+        // A different sentence for "own team" would still show that the other answer means "outside".
+        post(Actor.COACH_ALFA, "/api/users",
+                SampleRequests.newPlayer(ClubFixture.EMAIL_PLAYER_ALFA, "070-0000-0283", 83,
+                        world.parentAlfaId(), world.teamAlfaId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Could not create the user"));
+    }
+
+    @Test
+    @DisplayName("F10: tränare ska inte få veta att tröjnumret finns i ett annat lag")
+    void coach_duplicateShirtOutsideTheTeam_usesTheGenericMessage() throws Exception {
+        var response = post(Actor.COACH_ALFA, "/api/users",
+                SampleRequests.newPlayer("ny.troja.tranare@example.test", "070-0000-0285",
+                        ClubFixture.SHIRT_BETA, world.parentAlfaId(), world.teamAlfaId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Could not create the user"));
+        assertBodyHides(response, "Shirt number already in use", ClubFixture.NAME_PLAYER_BETA);
+    }
+
+    @Test
+    @DisplayName("F7: admin får fortfarande den exakta dubbletttexten")
+    void admin_duplicateEmail_keepsTheExactMessage() throws Exception {
+        post(Actor.ADMIN, "/api/users",
+                SampleRequests.newPlayer(ClubFixture.EMAIL_PLAYER_BETA, "070-0000-0284", 84,
+                        world.parentBetaId(), world.teamBetaId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("User already exists"));
     }
 }

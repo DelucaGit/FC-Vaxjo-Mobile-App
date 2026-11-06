@@ -608,3 +608,82 @@ Branch: `cursor/s1-9-harda-inloggning-761e`. The branch also contains S1-13, so 
 Decision: the password check stays a strict `>` on whole seconds. `>=` would reject the token from a login in the same second as the password change, because that token and `passwordChangedAt` share a second.
 
 Gap analysis: S1-10, S1-12 and S1-13 are marked closed. The phone number is no longer repeated in the 404 text (S1-12). The phone number is still a query parameter, so it can still show up in access logs. That part stays open.
+
+# F3 and F8: same answer for a missing id and a hidden row (5/11-2026)
+
+Decision: PLAYER, PARENT and COACH get 403 for `GET /api/users/{id}` both when the id is missing and when the row is inactive. ADMIN and CHAIRMAN keep 404 "User not found" in both cases. A coach who updates or soft-deletes a missing id gets the same 403 as a player on another team. ADMIN and CHAIRMAN still get 404 when that id is missing.
+
+Why: S1-13 answered 404 for every role. That let a player, a parent, or a coach tell a missing id (403) from an inactive row (404). ADR 0004 says the answer must not show that the account exists. The Architect decided F3: for a role that may read the row, an inactive row uses the same answer as a missing id. For these three roles that answer is 403, including the coach of the player's own team. The body does not say "inactive" and does not include the email or the phone.
+
+The old tests in `KnownInactiveUserTest` required 404 for the coach, the player and the parent. Those tests conflict with F3, so they now require 403. ADMIN and CHAIRMAN stay on 404. No `known-gap` tag was removed. The remaining known-gap test is still the parent's phone on a player's own row.
+
+A coach's write checks the team before it describes the player. A missing id never reaches "User not found" for that role. An inactive player on the coach's own team is still 400 "Cannot edit an inactive player" or "Player is already inactive", because the coach may manage that team and the row is there to edit.
+
+# F4: hide an inactive parent, and close how a coach creates one (5/11-2026)
+
+Decision (b): a coach may create a parent only together with an active player on a team they train. A standalone parent is 400. ADMIN and CHAIRMAN may still create a parent with no child. Linking a player to a parentId that is inactive, or that is not a PARENT, is 400 for every role. The three parent contact fields are null when that parent is inactive.
+
+Why 400 and not 403: the coach is allowed to create users. The mistake is that this parent is not tied to a player on their team. 403 stays for a role they may not create at all, and for a team they do not train. That team check still runs first, so a parent is not saved as a side effect of a player on another team.
+
+The open question in the role matrix is closed. Gap analysis point 12 is closed.
+
+# F5: stamp the time on every new password hash (5/11-2026)
+
+Decision: `PasswordChange.storeHash` is the only production write of a password hash. It sets `passwordChangedAt` to now. That covers `saveNewUser`, `AuthService.changePassword`, `AdminSeeder`, and every hash write in `DemoClubSeeder`, including `resetDemoLogin`.
+
+Why the first login still works: S1-9 keeps the strict `>` on whole seconds. The token is rejected only when the hash was written in a later second than `iat`. Creating the user, then logging in, is the same second or a later one, so the first token is accepted. A token from before a rewrite, such as the demo seeder resetting a password, is 401.
+
+# F7: a coach duplicate does not name the field (5/11-2026)
+
+Decision: a coach who creates a user with an email or phone that is already stored gets 400 `Could not create the user`. ADMIN and CHAIRMAN still get `User already exists` and `Phone number already in use`.
+
+Why one sentence for every coach duplicate: a precise text on the coach's own team, and a vague text for everyone else, would still show that the vague answer means "this person is outside my team". The same 400 also hides whether the clash was the email or the phone. 409 would be a new status that still means the value is taken. 400 is the status create already uses for a bad request.
+
+# F6: a player does not see the parent's fields (5/11-2026)
+
+Decision (c): a PLAYER sees none of `parentName`, `parentEmail` or `parentMobilePhoneNumber`. That is the player's own row and every other read a player can reach. The check is the caller's role. A coach on the team, an admin and a chairman still see the fields when the parent is active.
+
+`player_ownRowHidesParentPhoneNumber` was the last test tagged `known-gap`. The tag is removed. No test keeps that tag.
+
+# F2 and F11: shirt 404 and inactive refresh (5/11-2026)
+
+Decision: a missing, inactive, or out-of-team shirt number is 404 `User not found`. The number is not in the body. The old test required `No user found with player number 22`. That text repeated the number, so the test now requires `User not found`.
+
+Refresh of an inactive account stays a check inside `AuthService.refresh`, but the answer is 401 `Login required`. The old 400 said "This account is inactive", which tells the caller the account exists. The filter already sends 401 on the HTTP path. The service now sends the same answer if it is called without the filter. The role matrix target column says 401.
+
+# F9: SQL logging is off unless the dev profile is on (5/11-2026)
+
+Decision: `spring.jpa.show-sql` is `false` in `application.properties` and in `application-prod.properties`. Only `application-dev.properties` sets it to `true`.
+
+Why the default is false: the app already starts in the `dev` profile locally, so a developer still sees SQL. If Railway forgets `SPRING_PROFILES_ACTIVE=prod`, the default file still keeps the log off. Putting `true` in the default file and hoping prod overrides it would print queries, including email and phone, whenever the profile is missing. The prod file has no secrets. Passwords stay in environment variables. Gap analysis point 7 is closed for the SQL log. `ddl-auto=update` and the database user are still open.
+
+# F10: reject a duplicate shirt before insert (5/11-2026)
+
+Decision: `saveNewUser` calls the same shirt check as an update, before the insert. ADMIN and CHAIRMAN get 400 `Shirt number already in use`. A coach gets `Could not create the user`, the same sentence as a duplicate email, so the text does not say the number is taken on another team. An update by a coach says `Could not update the player` instead of naming the shirt.
+
+A `DataIntegrityViolationException` that still escapes is 400 `Could not save the user`. The database message can contain SQL, so it is not copied into the response.
+
+# F1: search goes in the body (5/11-2026)
+
+Decision: `GET /api/users/search?name=&number=&phone=` is replaced by `POST /api/users/search`. The JSON body must contain exactly one of `name`, `playerNumber` and `phone`. Anything else is 400. The answers and the roles stay the same. GET on that URL is 405, so it is not a search.
+
+Why: ADR 0004 says personal data should not sit in the URL. An access log that stores the path would store the phone. The mobile app must switch to this POST before or at the same time as this change is merged. `UI/` is not changed here.
+
+# Matches: same writers as trainings (5/11-2026)
+
+Decision: a match belongs to one team and stores opponent, kickoff, venue, home or away, and an optional score. ADMIN and CHAIRMAN write every team. A coach writes only teams in `team_coaches`. A player and a parent do not use the staff URLs. They read `GET /api/my/matches` for their own team, or for their own child.
+
+Why the same 403 for a missing match and for another team: a 404 would tell a coach that the id is free, and a different text would tell them the match exists on a team they do not coach. ADMIN and CHAIRMAN still get 404 "Match not found", because they are allowed to see every team. The score is left empty at create and set later with `PUT /api/matches/{id}/result`. The row is not deleted. The table is `club_matches` because MATCH is a reserved SQL word. Hibernate adds it (`ddl-auto=update`, ADR 0002). No Flyway.
+
+The answer has no email and no phone. `UI/` is not changed here. Public match URLs stay closed until the consent work.
+
+# Public reads need the parent's consent (5/11-2026)
+
+Decision: `GET /api/public/**` is open. No other method on that path is open. The public pages are teams, upcoming matches, match history, and a squad. The squad is name and shirt number only. Email, phone, and parent contact are never in those answers.
+
+Why the parent, and not the child: creating a player already requires a linked parent, so every player in this app is treated as a child. Only that parent may set or revoke `publicConsentAt`. The player, the coach, the chairman, and the admin cannot. The default is null, which means no consent. A second yes keeps the first timestamp. A no clears it, and the name disappears from the public squad at once.
+
+An inactive player is never shown. If the parent is inactive, the child is hidden too, because that parent can no longer revoke. A missing id and someone else's child share one 403, so the answer does not say the row exists.
+
+Coach contact on the website, public trainings, rate limiting, and CORS for fcvaxjo.se are not in this change. ADR 0007 records the exception to the older "never publish a player" line. `UI/` is not changed.
+

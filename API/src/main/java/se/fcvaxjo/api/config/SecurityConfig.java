@@ -21,7 +21,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import se.fcvaxjo.api.security.JwtAuthFilter;
 
 /**
- * Stateless JWT security. Login is public; everything else needs a valid token.
+ * Stateless JWT security.
+ * Open without a token: POST /api/auth/login, and GET /api/public/** only.
+ * No other method under /api/public is open. Everything else needs a valid token.
  * Method-level @PreAuthorize decides who may create/delete/etc.
  */
 @Configuration
@@ -56,6 +58,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // Exact prefix, and only GET. A POST here stays locked.
+                        .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(unauthorizedEntryPoint())

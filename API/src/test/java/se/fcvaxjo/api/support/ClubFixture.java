@@ -6,10 +6,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.AttendanceStatus;
+import se.fcvaxjo.api.model.HomeAway;
+import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TeamRepository;
@@ -56,6 +59,11 @@ public final class ClubFixture {
     public static final String TEAM_ALFA = "Lag Alfa";
     public static final String TEAM_BETA = "Lag Beta";
 
+    public static final String OPPONENT_ALFA = "Motstandare Alfa";
+    public static final String OPPONENT_BETA = "Motstandare Beta";
+    public static final String VENUE_ALFA = "Tipshallen Alfa";
+    public static final String VENUE_BETA = "Bortaplan Beta";
+
     public static final int SHIRT_ALFA = 11;
     public static final int SHIRT_BETA = 22;
 
@@ -69,6 +77,7 @@ public final class ClubFixture {
             TeamCoachRepository links,
             TrainingRepository trainings,
             TrainingAttendanceRepository attendance,
+            MatchRepository matches,
             PasswordEncoder encoder,
             JwtService jwt,
             String sharedLogin) {
@@ -113,6 +122,11 @@ public final class ClubFixture {
         mark(attendance, trainingAlfa.getId(), playerAlfa.getId());
         mark(attendance, trainingBeta.getId(), playerBeta.getId());
 
+        Match matchAlfa = saveMatch(
+                matches, alfa.getId(), coachAlfa.getId(), OPPONENT_ALFA, VENUE_ALFA, HomeAway.HOME, null, null);
+        Match matchBeta = saveMatch(
+                matches, beta.getId(), coachBeta.getId(), OPPONENT_BETA, VENUE_BETA, HomeAway.AWAY, 1, 0);
+
         return new ClubWorld(
                 alfa.getId(),
                 beta.getId(),
@@ -127,6 +141,8 @@ public final class ClubFixture {
                 parentAlfa.getId(),
                 parentBeta.getId(),
                 trainingAlfa.getId(),
+                matchAlfa.getId(),
+                matchBeta.getId(),
                 jwt.createToken(admin.getId(), admin.getEmail(), "ADMIN"),
                 jwt.createToken(chairman.getId(), chairman.getEmail(), "CHAIRMAN"),
                 jwt.createToken(coachAlfa.getId(), coachAlfa.getEmail(), "COACH"),
@@ -164,6 +180,27 @@ public final class ClubFixture {
         training.setTitle(title);
         training.setCreatedByUserId(coachId);
         return trainings.save(training);
+    }
+
+    private static Match saveMatch(
+            MatchRepository matches,
+            Long teamId,
+            Long coachId,
+            String opponent,
+            String venue,
+            HomeAway homeAway,
+            Integer goalsFor,
+            Integer goalsAgainst) {
+        Match match = new Match();
+        match.setTeamId(teamId);
+        match.setOpponent(opponent);
+        match.setKickoffAt(LocalDateTime.of(2026, 12, 12, 14, 0));
+        match.setVenue(venue);
+        match.setHomeAway(homeAway);
+        match.setGoalsFor(goalsFor);
+        match.setGoalsAgainst(goalsAgainst);
+        match.setCreatedByUserId(coachId);
+        return matches.save(match);
     }
 
     private static void mark(TrainingAttendanceRepository attendance, Long trainingId, Long playerId) {

@@ -56,6 +56,18 @@ Efter bytet måste personen logga in igen för att få en token med rollen COACH
 
 Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 
+## Genomförande (matcher, sprint 2)
+
+Öppen fråga från beslutet: vem registrerar matcher? Samma personer som skapar träningar.
+
+- ADMIN och CHAIRMAN får skapa en match, läsa den och sätta resultat för vilket lag som helst. De behöver ingen rad i `team_coaches`.
+- COACH får göra samma sak bara för lag där hen finns i `team_coaches`.
+- PLAYER och PARENT skriver inte matcher. De läser sitt eget lag, eller sitt barns lag, via `GET /api/my/matches`.
+- `ClubRole.canManageAllMatches()` är en egen metod. Den säger samma sak som träningarna idag, men en senare ändring av träningar ska inte tyst ändra matcher.
+- En tränare som frågar efter ett annat lags match, eller efter ett id som inte finns, får samma 403. Texten är "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches". ADMIN och CHAIRMAN får 404 "Match not found" när id saknas, för de får se alla lag.
+- Resultatet är valfritt vid skapande och sätts i efterhand med `PUT /api/matches/{id}/result`. Matchen raderas inte.
+- Svaret har motståndare, tid, plats, hemma eller borta, och resultat. Ingen e-post och ingen telefon.
+
 ## Genomförande (S1-11)
 - `ClubRole.canManageAllTrainings()` är sant för ADMIN och CHAIRMAN. COACH, PLAYER och PARENT är falskt. Lagkontrollen för en tränare ligger kvar i `TrainingService`, eftersom rollen inte vet vilka rader som finns i `team_coaches`.
 - CHAIRMAN får skapa träning och markera närvaro på vilket lag som helst, utan att vara kopplad som tränare. Samma sak gäller att lista och hämta träningen, så ordföranden kan se det hen just ändrade.
@@ -70,8 +82,18 @@ Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 - Sök på namn ger bara träffar i tränarens lag. Ett annat lag ger en tom lista. Sök på tröjnummer eller telefon som inte ligger där ger samma 404-text som när personen saknas. Texten ändras inte här.
 - `GET /api/teams/{id}/players` och `.../coaches`: COACH bara egna lag. Kontrollen sker före "Team not found", så ett okänt lag-id ger 403 för en tränare. ADMIN och CHAIRMAN ser alla lag, även lag de inte är kopplade till.
 
-## Genomförande (S1-13)
+## Genomförande (S1-13, uppdaterat i F3)
 - Läsningen i S1-10 gäller aktiva användare. En rad med `active=false` är dold för alla roller, även ADMIN, CHAIRMAN och tränaren i spelarens eget lag.
-- `GET /api/users/{id}` svarar 404 "User not found". Samma text som när id saknas (S1-12), så svaret inte säger att kontot finns. Det är dataminimering (ADR 0004).
+- ADMIN och CHAIRMAN får 404 "User not found" både när id saknas och när raden är inaktiv.
+- PLAYER, PARENT och COACH får 403 i båda fallen. S1-13 sa 404 för alla. Arkitekten beslutade F3: svaret ska vara detsamma som för ett saknat id för den rollen, så statuskoden inte säger att kontot finns (ADR 0004).
 - Listor och sök (`GET /api/users`, namn, tröjnummer, telefon, lagets spelare och tränare) visade redan bara `active=true`. Det är oförändrat.
-- Att slå på kontot igen blir en egen endpoint senare. Den byggs inte här. Ändra, mjukradera och byt roll använder fortfarande den inaktiva raden, så de kan säga till exempel "Player is already inactive".
+- Att slå på kontot igen blir en egen endpoint senare. Den byggs inte här. Ändra och mjukradera ser fortfarande den inaktiva raden när anroparen får hantera laget, så de kan säga "Player is already inactive". En tränare som skickar ett id som saknas, eller en spelare i ett annat lag, får 403 (F8). ADMIN och CHAIRMAN får 404 när id saknas.
+
+## Genomförande (F4, beslut b)
+- En tränare får skapa en förälder bara som `newParent` på en aktiv spelare i ett lag hen tränar. En fristående `PARENT` är 400, inte 403. ADMIN och CHAIRMAN får fortfarande skapa en förälder utan barn.
+- `parentId` som är inaktiv, eller som inte har rollen PARENT, är 400 när spelaren skapas. Samma regel fanns redan vid uppdatering.
+- `getParentName`, `getParentEmail` och `getParentMobilePhoneNumber` ger null när föräldern är inaktiv, så namn, e-post och telefon inte följer med i svaret.
+
+## Genomförande (F6, beslut c)
+- En spelare ser inget av `parentName`, `parentEmail` och `parentMobilePhoneNumber`. Det gäller den egna raden och varje svar spelaren kan läsa. Kontrollen sitter på anroparens roll.
+- Tränaren i laget, ADMIN och CHAIRMAN ser fälten när föräldern är aktiv.

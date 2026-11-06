@@ -122,9 +122,9 @@ public class TeamController {
                 user.getPlayerNumber(),
                 user.getMobilePhoneNumber(),
                 user.getParentId(),
-                userService.getParentName(user.getParentId()),
-                userService.getParentEmail(user.getParentId()),
-                userService.getParentMobilePhoneNumber(user.getParentId()),
+                userService.parentNameForCaller(user.getParentId()),
+                userService.parentEmailForCaller(user.getParentId()),
+                userService.parentPhoneForCaller(user.getParentId()),
                 user.getTeamId(),
                 teamService.getTeamName(user.getTeamId()),
                 user.isActive());

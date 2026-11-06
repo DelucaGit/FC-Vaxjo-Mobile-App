@@ -136,7 +136,7 @@ class CoachOwnTeamIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(coach))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(body)))
-                .andExpect(status().isForbidden())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(STANDALONE_PARENT_DENIED));
 
         assertTrue(userRepository.findByEmail("new-parent@fcvaxjo.se").isEmpty());

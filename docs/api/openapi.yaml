@@ -7,7 +7,8 @@ info:
     Beskriver **nuvarande** endpoints i `API/src/main/java/se/fcvaxjo/api/controller/`.
     Grundläget lästes 2026-11-05 på grenen `feature/player-parent-trainings-view` (commit d21b180).
     Implementerade delar är dokumenterade i efterhand ("as-is").
-    Publika `/api/public/**`-endpoints är markerade med `x-status: planned`.
+    `GET /api/public/**` är öppet utan token (ADR 0007). Andra metoder under den sökvägen är det inte.
+    Träningsschema och tränarkontakt är kvar som `x-status: planned`.
     `CHAIRMAN` finns som roll (ADR 0006). Behörigheter som ännu inte matchar ADR:n
     är markerade med `x-roles-planned`.
 
@@ -59,12 +60,17 @@ tags:
     description: Lag och lagets tränare/spelare.
   - name: Trainings
     description: Träningar och närvaro (personal-vy).
+  - name: Matches
+    description: Matcher och resultat (personal-vy). Spelare och föräldrar läser via `/api/my/matches`.
   - name: MySchedule
     description: Den inloggades egna vy (`/api/my`).
   - name: Public
     description: |
-      **Planerat (x-status: planned).** Publika read-only endpoints för hemsidan fcvaxjo.se (ADR 0003).
-      Ingen inloggning. Svaren innehåller aldrig persondata om spelare eller föräldrar.
+      Publika GET-anrop för hemsidan (ADR 0003 och ADR 0007). Ingen inloggning.
+      Lag, kommande matcher, matchhistorik och en trupp med bara namn och tröjnummer
+      för spelare vars förälder har samtyckt. Aldrig kontaktuppgifter.
+      Träningsschema och tränarkontakt är kvar som `x-status: planned`.
+      Bara GET under `/api/public/**` är öppet. Andra metoder kräver inloggning.
 
 paths:
   /api/auth/login:
@@ -108,10 +114,12 @@ paths:
       operationId: changePassword
       summary: Byt eget lösenord
       description: |
-        Kräver giltig JWT. Sätter `mustChangePassword=false`, sparar `passwordChangedAt`
-        och returnerar en ny token. En token som utfärdades före det bytet får 401
-        på nästa anrop (`{"message":"Login required"}`). `iat` har bara sekundprecision,
-        så ett byte i samma sekund som token släpper den token igenom.
+        Kräver giltig JWT. Sätter `mustChangePassword=false` och skriver en ny hash.
+        Varje ny hash, även när en användare skapas eller demo-lösenordet skrivs om,
+        sätter `passwordChangedAt` (F5). En token som utfärdades i en tidigare sekund
+        får 401 på nästa anrop (`{"message":"Login required"}`). `iat` har bara
+        sekundprecision, så ett byte i samma sekund som token släpper den token igenom.
+        Den första inloggningen efter att kontot skapats fungerar därför.
         Fel: "Current password is required", "New password must be at least 8 characters",
         "Current password is wrong" (400); "User not found" (404).
       x-roles: [ANY_AUTHENTICATED]
@@ -187,9 +195,12 @@ paths:
         CHAIRMAN som sätter `ADMIN` eller `CHAIRMAN` får 403
         "CHAIRMAN cannot assign the role ADMIN or CHAIRMAN".
         COACH får bara skapa `PLAYER` i ett lag hen tränar.
-        En förälder som COACH skapar måste skickas som `newParent` på den spelaren, så föräldern kopplas till barnet.
-        `roleName=PARENT` från en COACH ger 403
+        En förälder som COACH skapar måste skickas som `newParent` på en aktiv spelare i det laget (beslut b).
+        `roleName=PARENT` från en COACH ger 400
         "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train".
+        En dubblett av e-post eller telefon ger tränaren 400 "Could not create the user",
+        oavsett om personen ligger i eget lag eller inte (F7). Texten säger inte vilket fält.
+        ADMIN och CHAIRMAN får fortfarande "User already exists" och "Phone number already in use".
         Annan otillåten roll ger 403
         "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER, PARENT and COACH. A COACH may only create PLAYER".
 
@@ -200,12 +211,17 @@ paths:
           Kontrollen sker före kontrollen att laget finns, så en coach får 403 även för ett okänt lag-id,
         - ADMIN och CHAIRMAN: laget måste finnas (400 "Team not found"),
         - exakt en av `parentId` eller `newParent` (annars 400),
-        - `parentId` måste peka på en användare med roll PARENT.
+        - `parentId` måste peka på en aktiv användare med roll PARENT.
+          Inaktiv förälder ger 400 "Cannot link an inactive parent".
+          Annan roll ger 400 "parentId must point to a user with role PARENT".
         `newParent` sparas bara om lagkontrollen redan har gått igenom. Då pekar spelarens `parentId` på den nya föräldern.
         För andra roller ignoreras `parentId`, `newParent` och `teamId`.
         När `roleName` är `COACH` sparas inte `playerNumber`, även om det skickas med. En tränare har inget tröjnummer.
         En ny COACH får alltså inget lag, ingen förälder och inget tröjnummer här. Att koppla tränaren till ett lag
         görs med `POST /api/teams/{id}/coaches` och ingår inte i det här anropet.
+        Ett tröjnummer som redan finns ger 400 "Shirt number already in use" för ADMIN och CHAIRMAN,
+        kontrollerat före insert (F10). En tränare får samma 400 som övriga dubbletter: "Could not create the user".
+        Kroppen har ingen stacktrace och ingen SQL.
 
         Övriga regler: `email` krävs och måste vara unik ("User already exists"); `mobilePhoneNumber` unik om satt.
         Ett temporärt lösenord (10 tecken) genereras och returneras **en gång** i svaret; `mustChangePassword=true`.
@@ -230,19 +246,22 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
 
   /api/users/search:
-    get:
+    post:
       tags: [Users]
       operationId: searchUsers
       summary: Sök användare på namn, tröjnummer eller telefon
       description: |
-        Tre olika controller-metoder delar samma URL; Spring väljer metod utifrån vilken query-parameter som skickas.
-        Skicka **exakt en** av `name`, `number`, `phone`.
-        - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
-        - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404.
+        Sökvärdet ligger i JSON-kroppen, inte i URL:en, så en access-logg inte sparar
+        namn, tröjnummer eller telefon (F1, ADR 0004).
+        Skicka **exakt ett** av fälten `name`, `playerNumber` och `phone`. Annars 400
+        "Send exactly one of name, playerNumber or phone".
+        - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn räknas inte som ifyllt.
+        - `playerNumber` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
+          med texten "User not found". Numret upprepas inte (F2).
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
           med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
-        Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
-        Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
+        `GET /api/users/search` är inte en sökning. Det finns ingen GET-metod, så svaret är 405.
+        Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403,
         eftersom träffen innehåller kontaktuppgifter.
         ADMIN och CHAIRMAN söker i hela klubben.
         COACH får bara träffar på lag där hen finns i `team_coaches`:
@@ -250,30 +269,19 @@ paths:
         Namnsök mot ett annat lag ger 200 och en tom lista.
         Tröjnummer eller telefon som inte ligger på de lagen ger samma 404 som om personen saknas.
         Telefonens 404-text är "User not found" och upprepar inte numret (S1-12).
-        Tröjnumrets 404-text är oförändrad.
+        Tröjnumrets 404-text är samma "User not found" och upprepar inte numret (F2).
+        Mobilappen måste byta från GET med query till den här POST-kroppen. UI/ rörs inte här.
       x-roles: [ADMIN, CHAIRMAN, COACH]
       x-scope: ADMIN och CHAIRMAN hela klubben. COACH endast egna lag (`team_coaches`).
-      x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
-      parameters:
-        - name: name
-          in: query
-          required: false
-          description: Del av namn (t.ex. `Er` hittar Erik).
-          schema: { type: string, minLength: 1 }
-        - name: number
-          in: query
-          required: false
-          description: Tröjnummer, exakt matchning.
-          schema: { type: integer, format: int32 }
-        - name: phone
-          in: query
-          required: false
-          description: Mobilnummer, exakt matchning. Personuppgift i URL (hamnar i access-loggar).
-          x-pii: true
-          schema: { type: string, minLength: 1 }
+      x-source: UserController.search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SearchUsersRequest' }
       responses:
         '200':
-          description: Array vid `name`, ett objekt vid `number`/`phone`.
+          description: Array vid `name`, ett objekt vid `playerNumber` eller `phone`.
           content:
             application/json:
               schema:
@@ -285,6 +293,8 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405':
+          description: GET är borttagen. Sökningen är POST.
 
   /api/users/{id}:
     parameters:
@@ -294,27 +304,28 @@ paths:
       operationId: getUserById
       summary: Hämta en användare
       description: |
-        Bara aktiva användare (`active=true`). En inaktiv rad (`active=false`, mjukt borttagen)
-        ger 404 med texten "User not found" för alla roller, även ADMIN (ADR 0004, S1-13).
-        Samma text som när id saknas, så svaret inte säger att kontot finns.
+        Bara aktiva användare (`active=true`).
+        ADMIN och CHAIRMAN får 404 "User not found" både när id saknas och när raden är inaktiv (S1-13).
+        PLAYER, PARENT och COACH får 403 i båda fallen (F3, Arkitekten). Samma text som för ett id de inte får läsa,
+        så statuskoden inte säger att kontot finns. Det gäller också en rad de skulle få se om den var aktiv,
+        till exempel tränaren i spelarens eget lag.
         Att slå på kontot igen blir en egen endpoint senare. Den finns inte här.
         ADMIN och CHAIRMAN får hämta vem som helst som är aktiv. De är inte begränsade till ett lag.
         COACH får hämta en aktiv person på ett lag hen tränar (spelarens `teamId`, en tränare i `team_coaches`,
         eller en förälder till en aktiv spelare där), och sitt eget id.
-        Annat id som inte är en inaktiv rad ger 403 "You can only read users on a team you train",
-        även när användaren inte finns.
+        Annat id, ett id som saknas, eller en inaktiv rad ger 403 "You can only read users on a team you train".
         PLAYER och PARENT får bara hämta sitt eget id (samma id som i JWT).
-        Annat id som inte är en inaktiv rad ger 403 med meddelandet "You can only read your own user record",
-        även när användaren inte finns. Vi svarar 403 före 404 så att man inte kan testa om ett id finns.
+        Annat id, ett id som saknas, eller en inaktiv rad ger 403 "You can only read your own user record".
         ADMIN eller CHAIRMAN som frågar efter ett okänt id får "User not found" (404).
 
-        En spelare som hämtar sig själv får fortfarande hela `FetchUserResponse`,
-        inklusive den kopplade förälderns kontaktuppgifter. Att plocka bort de fälten
-        är dataminimering (ADR 0004) och ingår inte i den här ändringen.
+        En spelare som hämtar sig själv får sina egna fält, men inte `parentName`,
+        `parentEmail` eller `parentMobilePhoneNumber` (F6, beslut c). Tränaren i laget,
+        ADMIN och CHAIRMAN ser de fälten när föräldern är aktiv.
       x-roles: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
       x-scope: |
-        ADMIN och CHAIRMAN alla lag, bara aktiva användare. COACH endast aktiva personer på lag i `team_coaches`, plus eget id.
-        PLAYER och PARENT endast eget användar-id. Inaktiv användare är 404 för alla roller.
+        ADMIN och CHAIRMAN alla lag, bara aktiva användare. Saknad och inaktiv är 404.
+        COACH endast aktiva personer på lag i `team_coaches`, plus eget id. Saknad och inaktiv är 403.
+        PLAYER och PARENT endast eget användar-id. Saknad och inaktiv är 403.
       x-source: UserController.getUserById → UserService.readActiveUser
       responses:
         '200':
@@ -326,8 +337,9 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404':
           description: |
-            Okänt id, eller en inaktiv användare (`active=false`). Texten är "User not found" i båda fallen,
-            för alla roller inklusive ADMIN.
+            Okänt id, eller en inaktiv användare (`active=false`), för ADMIN och CHAIRMAN.
+            Texten är "User not found" i båda fallen.
+            PLAYER, PARENT och COACH får 403 i stället, samma som för ett id de inte får läsa (F3).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -340,7 +352,8 @@ paths:
         Spelaren försvinner från laglistorna.
         COACH får bara göra det när spelaren ligger i ett lag coachen tränar. ADMIN och CHAIRMAN får göra det i alla lag.
         Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players" (även om `team_id` saknas).
-        Okänd användare är 404. Den kontrollen sker före 403. Övriga fel är 400:
+        För en tränare är ett id som saknas samma 403 (F8). ADMIN och CHAIRMAN får 404 "User not found" när id saknas.
+        Övriga fel är 400:
         "Only a PLAYER can be removed this way", "Player is already inactive".
         Spelarens redan utfärdade JWT nekas med 401 från och med nästa anrop, så länge kontot är inaktivt.
       x-roles: [ADMIN, CHAIRMAN, COACH]
@@ -353,6 +366,41 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}/public-consent:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    put:
+      tags: [Users]
+      operationId: setPublicConsent
+      summary: Ge eller ta tillbaka samtycke för publik trupp
+      description: |
+        Bara den länkade föräldern får sätta eller återkalla samtycket (ADR 0007).
+        Spelaren själv, tränaren, ordföranden och admin får 403.
+        En saknad spelare, en inaktiv spelare och någon annans barn ger samma 403,
+        så svaret inte säger att id:t finns.
+        Texten är "Only the linked parent can change this player's public consent".
+        `publicConsent: true` sätter tidsstämpeln första gången. Ett nytt ja behåller den.
+        `false` tömmer tidsstämpeln, och spelaren försvinner från publika svar direkt.
+        Standard är inget samtycke.
+        Svaret har inget namn, ingen e-post och ingen telefon.
+      x-roles: [PARENT]
+      x-scope: PARENT endast ett aktivt barn vars parentId är den inloggade.
+      x-source: UserController.setPublicConsent → PublicConsentService.setConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublicConsentRequest' }
+      responses:
+        '200':
+          description: Samtycket sparat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicConsentResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /api/users/{id}/role:
     parameters:
@@ -421,7 +469,9 @@ paths:
         COACH måste träna både spelarens nuvarande lag och `teamId` i kroppen. ADMIN och CHAIRMAN har ingen laggräns.
         Annars 403 "Only ADMIN, CHAIRMAN, or a coach of this team can manage its players".
         Nuvarande lag kontrolleras före övriga fel, så en coach för ett annat lag får 403 i stället för 400
-        som beskriver spelaren. Nytt lag kontrolleras före "Team not found", så ett okänt lag-id ger 403 för COACH.
+        som beskriver spelaren. Ett id som saknas är samma 403 för tränaren (F8).
+        ADMIN och CHAIRMAN får 404 "User not found" när id saknas.
+        Nytt lag kontrolleras före "Team not found", så ett okänt lag-id ger 403 för COACH.
         Okänt lag för ADMIN eller CHAIRMAN är 400 "Team not found".
         Fel: "Only a PLAYER can be updated with this endpoint", "Cannot edit an inactive player",
         "Name is required", "Email is required", "teamId is required (change team, do not clear it)",
@@ -797,6 +847,163 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/matches:
+    get:
+      tags: [Matches]
+      operationId: listMatchesByTeam
+      summary: Lista ett lags matcher (senaste avspark först)
+      description: |
+        ADMIN och CHAIRMAN får lista matcher för vilket lag som helst.
+        COACH bara lag där hen finns i `team_coaches`.
+        Fel: "teamId is required" (400; saknad parameter ger Springs standard-400);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403 från service);
+        PLAYER och PARENT får 403 från `@PreAuthorize` innan servicen körs;
+        "Team not found" (404).
+        Behörighet kontrolleras före existens, så en COACH får 403 även för ett lag som inte finns.
+        Svaret har ingen e-post och ingen telefon.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.listByTeam → MatchService.listByTeam
+      parameters:
+        - name: teamId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Matcher.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Matches]
+      operationId: createMatch
+      summary: Skapa match
+      description: |
+        Resultatet är valfritt. Båda måltalen utelämnas, eller båda skickas.
+        Ett ensamt måltal är 400. `createdByUserId` sätts till den inloggade.
+        ADMIN och CHAIRMAN får skapa matchen på vilket lag som helst.
+        Fel: "teamId is required", "opponent is required", "kickoffAt is required",
+        "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY",
+        "goalsFor and goalsAgainst must both be set, or both left empty",
+        "goalsFor and goalsAgainst cannot be negative" (400);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403 om COACH inte tränar laget, kontrolleras först);
+        PLAYER och PARENT får 403 från `@PreAuthorize`;
+        "Team not found" (404).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.create → MatchService.createMatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMatchRequest' }
+      responses:
+        '201':
+          description: Matchen skapad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    get:
+      tags: [Matches]
+      operationId: getMatchById
+      summary: Hämta en match
+      description: |
+        ADMIN och CHAIRMAN får hämta en match i vilket lag som helst.
+        En saknad match är 404 "Match not found" för ADMIN och CHAIRMAN.
+        För en COACH är en saknad match och en match i ett annat lag samma 403,
+        så svaret inte säger att id:t finns.
+        PLAYER och PARENT får 403 från `@PreAuthorize`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.getById → MatchService.getById
+      responses:
+        '200':
+          description: Matchen.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/result:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    put:
+      tags: [Matches]
+      operationId: setMatchResult
+      summary: Sätt resultat i efterhand
+      description: |
+        Båda måltalen krävs och får inte vara negativa. Matchen raderas inte.
+        Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.setResult → MatchService.setResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetMatchResultRequest' }
+      responses:
+        '200':
+          description: Matchen med resultat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/my/matches:
+    get:
+      tags: [MySchedule]
+      operationId: listMyMatches
+      summary: Mitt (eller mitt barns) matchschema
+      description: |
+        Samma personkontroll som `GET /api/my/trainings`.
+        - PLAYER: eget lags matcher. `childId` får inte skickas (403 "Players can only view their own schedule").
+        - PARENT: `childId` krävs om föräldern har barn (400 "childId is required for parents"); barnet måste vara
+          föräldrens, aktivt och PLAYER (403 "That child is not linked to you"). Förälder utan barn får tom lista.
+        Svaret har motståndare, tid, plats, hemma/borta och resultat. Ingen e-post, ingen telefon, inget `createdByUserId`.
+      x-roles: [PLAYER, PARENT]
+      x-scope: PARENT endast egna (länkade, aktiva) barn; PLAYER endast sig själv.
+      x-source: MyScheduleController.listMatches → MyScheduleService.listMyMatches
+      parameters:
+        - name: childId
+          in: query
+          required: false
+          description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Matcher (senaste avspark först).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MyMatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/my/teams:
     get:
       tags: [MySchedule]
@@ -871,11 +1078,13 @@ paths:
     get:
       tags: [Public]
       operationId: listPublicTeams
-      summary: Aktiva lag (publikt)
-      x-status: planned
+      summary: Lag (publikt)
       security: []
       x-roles: [PUBLIC]
-      description: Planerat. Returnerar klubbens aktiva lag. "Aktiv" finns inte på `Team` i dag (öppen fråga).
+      description: |
+        Alla lag. `Team` har inget aktivt-fält, så listan är hela tabellen.
+        Bara id och namn. Inga personer.
+      x-source: PublicController.listTeams → PublicClubService.listTeams
       responses:
         '200':
           description: Lag.
@@ -884,7 +1093,31 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/PublicTeamResponse' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /api/public/teams/{id}/players:
+    parameters:
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [Public]
+      operationId: listPublicSquad
+      summary: Publik trupp (namn och tröjnummer, bara med samtycke)
+      security: []
+      x-roles: [PUBLIC]
+      description: |
+        Bara aktiva spelare där `publicConsentAt` är satt, och bara när den länkade föräldern
+        fortfarande är aktiv. Övriga spelare utelämnas helt. Svaret har namn och tröjnummer.
+        Aldrig id, e-post, telefon eller förälderns uppgifter. Inaktiv användare syns inte.
+        Okänt lag är 404 "Team not found".
+      x-source: PublicController.listSquad → PublicClubService.publicSquad
+      responses:
+        '200':
+          description: Trupp. Kan vara tom.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicPlayerResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/public/teams/{id}/trainings:
     parameters:
@@ -944,10 +1177,13 @@ paths:
       tags: [Public]
       operationId: listUpcomingMatches
       summary: Kommande matcher (publikt)
-      x-status: planned
       security: []
       x-roles: [PUBLIC]
-      description: Planerat. Matcher finns inte i API:t ännu (ingen entitet, inga endpoints för att skapa dem).
+      description: |
+        Avspark nu eller senare, tidigast först. Ett valfritt `teamId` filtrerar.
+        Okänt lag är 404. Ingen persondata och inget `createdByUserId`.
+        `result` är null tills resultatet satts.
+      x-source: PublicController.upcoming → PublicClubService.upcomingMatches
       parameters:
         - $ref: '#/components/parameters/OptionalTeamIdQuery'
       responses:
@@ -958,17 +1194,19 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/PublicMatchResponse' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/public/matches/history:
     get:
       tags: [Public]
       operationId: listMatchHistory
       summary: Matchhistorik och resultat (publikt)
-      x-status: planned
       security: []
       x-roles: [PUBLIC]
-      description: Planerat. Spelade matcher med resultat, senaste först.
+      description: |
+        Avspark före nu, senaste först. En spelad match utan resultat ligger kvar, med `result` null.
+        Ingen persondata. Okänt `teamId` är 404.
+      x-source: PublicController.history → PublicClubService.matchHistory
       parameters:
         - $ref: '#/components/parameters/OptionalTeamIdQuery'
       responses:
@@ -979,7 +1217,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/PublicMatchResponse' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
 components:
   securitySchemes:
@@ -1018,6 +1256,12 @@ components:
       in: path
       required: true
       description: Tränings-id.
+      schema: { type: integer, format: int64 }
+    MatchId:
+      name: id
+      in: path
+      required: true
+      description: Match-id.
       schema: { type: integer, format: int64 }
 
   responses:
@@ -1124,6 +1368,24 @@ components:
         teamId: { type: [integer, 'null'], format: int64 }
         teamName: { type: [string, 'null'] }
         active: { type: boolean, description: false = mjukt raderad. }
+    SearchUsersRequest:
+      type: object
+      description: |
+        Exakt ett av fälten ska vara ifyllt. De andra utelämnas eller är null.
+        Värdet ligger i kroppen så det inte hamnar i en access-logg (F1).
+      properties:
+        name:
+          type: [string, 'null']
+          x-pii: true
+          description: Del av namn. Tom sträng räknas inte som ifylld.
+        playerNumber:
+          type: [integer, 'null']
+          format: int32
+          description: Tröjnummer, exakt matchning.
+        phone:
+          type: [string, 'null']
+          x-pii: true
+          description: Mobilnummer, exakt matchning. Tom sträng räknas inte som ifylld.
     CreateUserRequest:
       type: object
       required: [email, roleName]
@@ -1233,6 +1495,71 @@ components:
           description: PRESENT, ABSENT eller EXCUSED (skiftlägesokänsligt).
           examples: [PRESENT]
 
+    HomeAway:
+      type: string
+      description: Hemma eller borta för klubbens lag.
+      enum: [HOME, AWAY]
+    CreateMatchRequest:
+      type: object
+      required: [teamId, opponent, kickoffAt, venue, homeAway]
+      properties:
+        teamId: { type: integer, format: int64 }
+        opponent: { type: string, minLength: 1, description: Motståndarlag. Trimmas. }
+        kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        venue: { type: string, minLength: 1, description: Plats. Trimmas. }
+        homeAway: { $ref: '#/components/schemas/HomeAway' }
+        goalsFor:
+          type: [integer, 'null']
+          minimum: 0
+          description: Valfritt vid skapande. Måste skickas tillsammans med goalsAgainst.
+        goalsAgainst:
+          type: [integer, 'null']
+          minimum: 0
+          description: Valfritt vid skapande. Måste skickas tillsammans med goalsFor.
+    SetMatchResultRequest:
+      type: object
+      required: [goalsFor, goalsAgainst]
+      properties:
+        goalsFor: { type: integer, minimum: 0 }
+        goalsAgainst: { type: integer, minimum: 0 }
+    MatchResponse:
+      type: object
+      description: Personalens matchvy. Ingen e-post och ingen telefon. `result` är null tills resultatet satts.
+      required: [id, teamId, opponent, kickoffAt, venue, homeAway, createdByUserId]
+      properties:
+        id: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: [string, 'null'] }
+        opponent: { type: string }
+        kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        venue: { type: string }
+        homeAway: { $ref: '#/components/schemas/HomeAway' }
+        result:
+          description: null tills resultatet satts.
+          oneOf:
+            - $ref: '#/components/schemas/MatchResult'
+            - type: 'null'
+        createdByUserId: { type: integer, format: int64 }
+    MyMatchResponse:
+      type: object
+      description: |
+        Spelarens eller förälderns matchvy. Samma fakta som personalens, utan `createdByUserId`.
+        Ingen e-post och ingen telefon.
+      required: [id, teamId, opponent, kickoffAt, venue, homeAway]
+      properties:
+        id: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: [string, 'null'] }
+        opponent: { type: string }
+        kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        venue: { type: string }
+        homeAway: { $ref: '#/components/schemas/HomeAway' }
+        result:
+          description: null tills resultatet satts.
+          oneOf:
+            - $ref: '#/components/schemas/MatchResult'
+            - type: 'null'
+
     MyChildResponse:
       type: object
       required: [id, name]
@@ -1257,12 +1584,42 @@ components:
 
     PublicTeamResponse:
       type: object
-      x-status: planned
-      description: Publik lagvy. Ingen persondata.
+      description: Publik lagvy. Ingen persondata. Team har inget aktivt-fält, så alla lag ingår.
       required: [id, name]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string, examples: [P15] }
+    PublicPlayerResponse:
+      type: object
+      description: |
+        En spelare på den publika truppen. Bara namn och tröjnummer, och bara när föräldern
+        har samtyckt (ADR 0007). Inget id, ingen e-post, ingen telefon.
+      required: [name]
+      properties:
+        name: { type: string, x-pii: true, x-public-with-consent: true }
+        playerNumber:
+          type: [integer, 'null']
+          format: int32
+          x-pii: true
+          x-public-with-consent: true
+    PublicConsentRequest:
+      type: object
+      required: [publicConsent]
+      properties:
+        publicConsent:
+          type: boolean
+          description: true publicerar namn och tröjnummer. false tar bort det direkt.
+    PublicConsentResponse:
+      type: object
+      description: Inget namn och ingen kontaktuppgift. Tidsstämpeln är null när samtycket är av.
+      required: [userId, publicConsent]
+      properties:
+        userId: { type: integer, format: int64 }
+        publicConsent: { type: boolean }
+        publicConsentAt:
+          type: [string, 'null']
+          format: date-time
+          description: När föräldern sa ja. Null när samtycket är av.
     PublicTrainingResponse:
       type: object
       x-status: planned
@@ -1288,7 +1645,6 @@ components:
         mobilePhoneNumber: { type: string, x-pii: true, x-public-with-consent: true }
     MatchResult:
       type: object
-      x-status: planned
       description: Slutresultat sett från FC Växjö-lagets perspektiv.
       required: [goalsFor, goalsAgainst]
       properties:
@@ -1296,8 +1652,7 @@ components:
         goalsAgainst: { type: integer, minimum: 0 }
     PublicMatchResponse:
       type: object
-      x-status: planned
-      description: Publik matchvy (enkel modell). Ingen persondata, t.ex. ingen trupp eller målskyttar.
+      description: Publik matchvy. Ingen persondata, till exempel ingen trupp på den här vyn.
       required: [id, teamId, opponent, kickoffAt, venue, homeAway]
       properties:
         id: { type: integer, format: int64 }
@@ -1315,12 +1670,12 @@ components:
 
 x-open-questions:
   - Felformat för fel som inte går via ApiExceptionHandler (felaktig JSON, typfel i path/query, saknad query-parameter, DB-constraint, 500). Spring Boot 4:s standardsvar och om /error-dispatch kräver autentisering i SecurityConfig är inte verifierat.
-  - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
+  - "POST /api/users/search tar exakt ett av name, playerNumber och phone i JSON-kroppen (F1). GET /api/users/search är 405."
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
-  - Unikhet för playerNumber kontrolleras inte i createUser – dubblett ger DB-fel (troligen 500). Avsiktligt?
-  - "GET /api/users/{id} för en inaktiv användare är avgjort (S1-13): 404 \"User not found\" för alla roller. Återaktivering är en senare endpoint."
-  - "Publika endpoints (/api/public/**) är planerade (ADR 0003): lag, träningsschema, matcher (kommande/historik) och tränarkontakt med samtycke. Öppet: vad betyder \"aktivt lag\" (inget active-fält på Team), hur långt fram visas träningar, och ska inställda träningar visas?"
-  - Matcher saknas helt i API:t. Vem registrerar matcher och resultat (COACH för eget lag? CHAIRMAN?), och behövs serie/tävling?
+  - Unikhet för playerNumber kontrolleras före insert (F10). ADMIN och CHAIRMAN får 400 "Shirt number already in use". En tränare får "Could not create the user". En DataIntegrityViolation som ändå slinker igenom ger 400 "Could not save the user", utan SQL.
+  - "GET /api/users/{id} för en inaktiv användare: ADMIN och CHAIRMAN får 404 \"User not found\" (S1-13). PLAYER, PARENT och COACH får 403, samma som för ett saknat id (F3). Återaktivering är en senare endpoint."
+  - "Publika GET under /api/public: lag, kommande matcher, historik och trupp (namn och tröjnummer med förälderns samtycke, ADR 0007). Träningsschema och tränarkontakt är kvar som planerade. Rate limit (429) och CORS för fcvaxjo.se är inte byggda. Team har inget aktivt-fält."
+  - "Matcher finns för personal och för /api/my/matches. ADMIN och CHAIRMAN skriver alla lag. COACH bara egna lag. PLAYER och PARENT läser sitt lag via /api/my/matches. En COACH får samma 403 för en saknad match och för ett annat lag. Öppet: serie/tävling, och om ett resultat ska kunna nollställas."
   - "CHAIRMAN (ADR 0006, S1-8): ordföranden får skapa PLAYER, PARENT och COACH, och byta en annan användares PLAYER till COACH. Ordföranden får inte sätta ADMIN eller CHAIRMAN och får inte byta sin egen roll. Öppet: ska ordföranden se beteendeanteckningar? Ska ADMIN vara en teknisk roll (Marcel) och CHAIRMAN klubbens högsta verksamhetsroll?"
-  - Samtycke för tränarens publika kontaktuppgifter: hur lagras det (fält per uppgift + tidsstämpel), och vem kan ändra det (bara tränaren själv)?
+  - Samtycke för en spelares namn och tröjnummer är ADR 0007. Tränarens publika kontaktuppgifter är kvar: hur lagras det per fält, och vem ändrar det?
   - "Rollbyte sparas direkt. Personen måste logga in igen. Den gamla token får 401, för filtret jämför rollen med databasen (S1-4)."

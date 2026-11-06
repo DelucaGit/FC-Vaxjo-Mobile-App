@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -38,13 +39,25 @@ public class UserService {
 
     /**
      * A parent with no child is not on a team, so team_coaches cannot limit a coach.
-     * Admin and chairman may still create that parent. They look after every team.
+     * Decision (b): a coach may create a parent only together with an active player
+     * on a team they train. A parent on its own is 400, not 403. 403 is for a role
+     * the coach may not create at all. Admin and chairman may still create a parent
+     * with no child.
      */
     private static final String STANDALONE_PARENT_DENIED =
             "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
 
     private static final String CREATE_DENIED =
             "Only ADMIN, CHAIRMAN or COACH can create users. A CHAIRMAN may create PLAYER, PARENT and COACH. A COACH may only create PLAYER";
+
+    /**
+     * One 400 for every duplicate a coach hits, email or phone, own team or not.
+     * "User already exists" for one case and another sentence for the other
+     * would still tell the coach that the person sits outside their team (F7).
+     * 400 matches the other create errors. 409 would be a new status that
+     * still means "this value is taken". ADMIN and CHAIRMAN keep the exact text.
+     */
+    private static final String COACH_CREATE_REJECTED = "Could not create the user";
 
     /** Same text on create and on role change, so the 403 is easy to recognise. */
     private static final String CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD =
@@ -139,6 +152,11 @@ public class UserService {
         if (hasRole("COACH") && coachMayCreateThisRole(roleName)) {
             return;
         }
+        // Decision (b). A parent row is allowed only as newParent on a player
+        // the coach trains. Anything else about that parent is a bad request.
+        if (hasRole("COACH") && "PARENT".equals(roleName)) {
+            throw new BadRequestException(STANDALONE_PARENT_DENIED);
+        }
         throw new AccessDeniedException(deniedCreateMessage(roleName));
     }
 
@@ -160,9 +178,6 @@ public class UserService {
     }
 
     private String deniedCreateMessage(String roleName) {
-        if (hasRole("COACH") && "PARENT".equals(roleName)) {
-            return STANDALONE_PARENT_DENIED;
-        }
         if (hasRole("CHAIRMAN") && isClubLeadRole(roleName)) {
             return CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD;
         }
@@ -262,6 +277,9 @@ public class UserService {
             if (!"PARENT".equals(parentRoleName)) {
                 throw new BadRequestException("parentId must point to a user with role PARENT");
             }
+            if (!parent.isActive()) {
+                throw new BadRequestException("Cannot link an inactive parent");
+            }
             return new ParentLink(parent.getId(), null);
         }
 
@@ -289,12 +307,16 @@ public class UserService {
             throw new BadRequestException("Email is required");
         }
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new BadRequestException("User already exists");
+            throw duplicateOnCreate("User already exists");
         }
         if (mobilePhoneNumber != null && !mobilePhoneNumber.isBlank()
                 && userRepository.findByMobilePhoneNumber(mobilePhoneNumber).isPresent()) {
-            throw new BadRequestException("Phone number already in use");
+            throw duplicateOnCreate("Phone number already in use");
         }
+        // Same shirt check as an update, before the insert (F10).
+        // A coach gets the generic create sentence, so the text does not
+        // say the number is taken on another team (F7).
+        assertShirtAvailable(playerNumber, null);
 
         String temporaryPassword = generateTemporaryPassword();
 
@@ -307,7 +329,7 @@ public class UserService {
         user.setParentId(parentId);
         user.setTeamId(teamId);
         user.setActive(true);
-        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        PasswordChange.storeHash(user, passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(true);
         AppUser saved = userRepository.save(user);
         return new SavedUser(saved, temporaryPassword);
@@ -323,6 +345,16 @@ public class UserService {
     }
 
     /**
+     * ADMIN and CHAIRMAN may see which field is taken. A coach may not (F7).
+     */
+    private BadRequestException duplicateOnCreate(String staffMessage) {
+        if (hasRole("COACH") && !callerLooksAfterEveryTeam()) {
+            return new BadRequestException(COACH_CREATE_REJECTED);
+        }
+        return new BadRequestException(staffMessage);
+    }
+
+    /**
      * Update a PLAYER. Team can change but not become null.
      * Parent link can change; parent name/email/phone update the linked PARENT row.
      */
@@ -330,7 +362,8 @@ public class UserService {
     public AppUser updatePlayer(Long id, String name, String email, String mobilePhoneNumber,
             Integer playerNumber, Long teamId, Long parentId, String parentName, String parentEmail,
             String parentMobilePhoneNumber) {
-        AppUser player = getUserById(id);
+        // Missing id and another team are both 403 for a coach (F8).
+        AppUser player = loadPlayerTheCallerMayManage(id);
         // Current team before other checks, so a coach of another team gets 403
         // and not a 400 that describes this player's state.
         assertCanManageTeam(player.getTeamId());
@@ -399,7 +432,8 @@ public class UserService {
     /** Soft-delete a PLAYER (active = false). Row stays in the database. */
     @Transactional
     public AppUser softDeletePlayer(Long id) {
-        AppUser player = getUserById(id);
+        // Missing id and another team are both 403 for a coach (F8).
+        AppUser player = loadPlayerTheCallerMayManage(id);
         // Same team rule as create and update. A player with no team is not "on my team".
         assertCanManageTeam(player.getTeamId());
         if (!"PLAYER".equals(getRoleName(player.getRoleId()))) {
@@ -439,10 +473,26 @@ public class UserService {
             return;
         }
         userRepository.findByPlayerNumber(playerNumber).ifPresent(other -> {
-            if (!other.getId().equals(currentUserId)) {
-                throw new BadRequestException("Shirt number already in use");
+            if (currentUserId == null || !other.getId().equals(currentUserId)) {
+                throw shirtAlreadyUsed(currentUserId == null);
             }
         });
+    }
+
+    /**
+     * ADMIN and CHAIRMAN get the exact sentence. A coach does not, because
+     * "already in use" tells them the number exists somewhere in the club (F7).
+     * Create uses the same sentence as a duplicate email. Update uses its own
+     * sentence so the words still match the action, without naming the shirt.
+     */
+    private BadRequestException shirtAlreadyUsed(boolean creating) {
+        if (hasRole("COACH") && !callerLooksAfterEveryTeam()) {
+            if (creating) {
+                return new BadRequestException(COACH_CREATE_REJECTED);
+            }
+            return new BadRequestException("Could not update the player");
+        }
+        return new BadRequestException("Shirt number already in use");
     }
 
     private String blankToNull(String value) {
@@ -552,26 +602,63 @@ public class UserService {
     /**
      * The person returned by GET /api/users/{id}.
      *
-     * active=false is a soft delete. Every role, including ADMIN, gets 404.
-     * The sentence is "User not found", the same words as a missing id (S1-12).
-     * "This account is inactive" would tell the caller that the row exists (ADR 0004).
+     * ADMIN and CHAIRMAN may see every team. For them a missing id and an
+     * inactive row are both 404 "User not found" (S1-13). The sentence does
+     * not say "inactive", because that would show the account exists (ADR 0004).
+     *
+     * PLAYER, PARENT and COACH already get 403 for a missing id. An inactive
+     * row uses that same 403, including when the caller could read the row if
+     * it were active (the coach of that team, or the person's own id). The
+     * Architect decided this in F3 so the status code does not reveal the row.
      * A later endpoint will turn the account back on. This GET does not.
      *
-     * The inactive check runs first. A player, a parent, or a coach on another
-     * team gets 403 for an id they may not read, including an id that is missing
-     * (S1-10). This story still wants 404 for an inactive row, for those roles too.
-     * Writes keep using {@link #getUserById(Long)}, which can see the inactive row.
+     * Writes use {@link #loadPlayerTheCallerMayManage(Long)} or
+     * {@link #getUserById(Long)}, which can still see the inactive row.
      */
     public AppUser readActiveUser(Long id) {
         AppUser stored = userRepository.findById(id).orElse(null);
-        if (stored != null && !stored.isActive()) {
-            throw userNotFound();
+        if (callerReadsEveryTeam()) {
+            if (stored == null || !stored.isActive()) {
+                throw userNotFound();
+            }
+            return stored;
+        }
+        if (stored == null || !stored.isActive()) {
+            denyReadAsIfTheIdWasMissing();
         }
         assertCallerMayReadUser(id);
-        if (stored == null) {
-            throw userNotFound();
-        }
         return stored;
+    }
+
+    /**
+     * ADMIN and CHAIRMAN still get 404 when the id is missing.
+     * A coach gets 403 for a missing id and for a player on another team.
+     * The two answers share one sentence, so a coach cannot scan for ids (F8).
+     * The body has no email and no phone, because we throw before any response row.
+     */
+    private AppUser loadPlayerTheCallerMayManage(Long id) {
+        AppUser player = userRepository.findById(id).orElse(null);
+        if (callerLooksAfterEveryTeam()) {
+            if (player == null) {
+                throw userNotFound();
+            }
+            return player;
+        }
+        if (player == null || !coachTrainsTeam(player.getTeamId())) {
+            throw new AccessDeniedException(MANAGE_PLAYERS_DENIED);
+        }
+        return player;
+    }
+
+    /**
+     * The 403 a PLAYER, PARENT or COACH already gets when the id is not in
+     * the database. An inactive row uses the same answer (F3).
+     */
+    private void denyReadAsIfTheIdWasMissing() {
+        if (hasRole("COACH")) {
+            throw new AccessDeniedException(READ_OWN_TEAMS_ONLY);
+        }
+        throw new AccessDeniedException(READ_OWN_RECORD);
     }
 
     /**
@@ -612,34 +699,69 @@ public class UserService {
                 .getName();
     }
 
-    /** Parent display name for responses. Null if the user has no parent. */
+    /**
+     * Parent display name. Null when there is no parent, or the parent is inactive.
+     * An inactive parent must not leak a name, email or phone (F4).
+     */
     public String getParentName(Long parentId) {
-        if (parentId == null) {
-            return null;
-        }
-        return userRepository.findById(parentId)
-                .map(AppUser::getName)
-                .orElse(null);
+        return fieldOnActiveParent(parentId, AppUser::getName);
     }
 
-    /** Parent email for responses. Null if the user has no parent. */
+    /** Parent email. Null when there is no parent, or the parent is inactive. */
     public String getParentEmail(Long parentId) {
-        if (parentId == null) {
-            return null;
-        }
-        return userRepository.findById(parentId)
-                .map(AppUser::getEmail)
-                .orElse(null);
+        return fieldOnActiveParent(parentId, AppUser::getEmail);
     }
 
-    /** Parent phone for responses. Null if the user has no parent. */
+    /** Parent phone. Null when there is no parent, or the parent is inactive. */
     public String getParentMobilePhoneNumber(Long parentId) {
+        return fieldOnActiveParent(parentId, AppUser::getMobilePhoneNumber);
+    }
+
+    /**
+     * Decision (c): a PLAYER sees none of the parent's fields.
+     * The check is the caller's role, so it covers the player's own row and
+     * any other read a player can reach. A coach, an admin and a chairman
+     * still see the fields when the parent is active.
+     */
+    public String parentNameForCaller(Long parentId) {
+        if (hasRole("PLAYER")) {
+            return null;
+        }
+        return getParentName(parentId);
+    }
+
+    public String parentEmailForCaller(Long parentId) {
+        if (hasRole("PLAYER")) {
+            return null;
+        }
+        return getParentEmail(parentId);
+    }
+
+    public String parentPhoneForCaller(Long parentId) {
+        if (hasRole("PLAYER")) {
+            return null;
+        }
+        return getParentMobilePhoneNumber(parentId);
+    }
+
+    private String fieldOnActiveParent(Long parentId, Function<AppUser, String> field) {
+        AppUser parent = activeParentOrNull(parentId);
+        if (parent == null) {
+            return null;
+        }
+        return field.apply(parent);
+    }
+
+    /** A soft-deleted parent is treated as no parent for contact fields. */
+    private AppUser activeParentOrNull(Long parentId) {
         if (parentId == null) {
             return null;
         }
-        return userRepository.findById(parentId)
-                .map(AppUser::getMobilePhoneNumber)
-                .orElse(null);
+        AppUser parent = userRepository.findById(parentId).orElse(null);
+        if (parent == null || !parent.isActive()) {
+            return null;
+        }
+        return parent;
     }
 
     /** Team display name for responses. Null if the user has no team. */
@@ -742,7 +864,8 @@ public class UserService {
      * Exact shirt-number search. Returns one user because the number is unique.
      * Null is rejected. Missing number throws, same idea as getUserById.
      * A coach who does not train that player's team gets the same 404 as a
-     * number that is not in the club. The sentence is unchanged on purpose.
+     * number that is not in the club. The sentence is "User not found" (F2).
+     * The number is not repeated. The caller already sent it.
      */
     public AppUser searchByPlayerNumber(Integer playerNumber) {
         if (playerNumber == null) {
@@ -788,9 +911,9 @@ public class UserService {
 
     private AppUser findActiveUserByPlayerNumber(Integer playerNumber) {
         AppUser user = userRepository.findByPlayerNumber(playerNumber)
-                .orElseThrow(() -> missingShirt(playerNumber));
+                .orElseThrow(this::missingShirt);
         if (!user.isActive()) {
-            throw missingShirt(playerNumber);
+            throw missingShirt();
         }
         return user;
     }
@@ -811,10 +934,10 @@ public class UserService {
     private AppUser findShirtOnOwnTeams(Integer playerNumber) {
         List<Long> teamIds = teamIdsThisCoachTrains();
         if (teamIds.isEmpty()) {
-            throw missingShirt(playerNumber);
+            throw missingShirt();
         }
         return userRepository.findByPlayerNumberAndActiveTrueAndTeamIdIn(playerNumber, teamIds)
-                .orElseThrow(() -> missingShirt(playerNumber));
+                .orElseThrow(this::missingShirt);
     }
 
     /**
@@ -909,11 +1032,12 @@ public class UserService {
     }
 
     /**
-     * Same sentence the club-wide search already used.
-     * Story S1-12 owns changing this text. This story only chooses when it is thrown.
+     * Same sentence as a missing phone and as GET of a missing user (F2).
+     * The shirt number stays out of the body. The caller already sent it,
+     * and a log of the error would store it again (ADR 0004).
      */
-    private NotFoundException missingShirt(Integer playerNumber) {
-        return new NotFoundException("No user found with player number " + playerNumber);
+    private NotFoundException missingShirt() {
+        return userNotFound();
     }
 
     /**
