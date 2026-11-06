@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import se.fcvaxjo.api.DTO.ChangeRoleRequest;
@@ -21,7 +20,9 @@ import se.fcvaxjo.api.DTO.ChangeRoleResponse;
 import se.fcvaxjo.api.DTO.CreateUserRequest;
 import se.fcvaxjo.api.DTO.CreateUserResponse;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
+import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
+import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.service.CreatedUserResult;
 import se.fcvaxjo.api.service.UserService;
@@ -55,56 +56,54 @@ public class UserController {
     }
 
     /**
-     * Find users by part of the name. Same URL as number search;
-     * Spring picks this method because the query string contains {@code name}.
-     * Players and parents are refused: a name search returns other people's contact details.
-     * ADMIN and CHAIRMAN search the whole club. A coach only gets people on teams they train.
-     *
-     * @param name text to look for ({@code Er} finds Erik)
-     * @return matching users, may be empty
+     * The old search was a GET with the value in the URL.
+     * That search is gone. 405 tells the client to use POST.
+     * Without this method, {@code GET /api/users/{id}} would try to read
+     * the word "search" as an id and answer 400.
      */
-    @GetMapping(value = "/search", params = "name")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
-    public List<FetchUserResponse> searchByName(@RequestParam String name) {
-        List<AppUser> databaseUsers = userService.searchByName(name);
-        List<FetchUserResponse> responseUsers = new ArrayList<>();
+    @GetMapping("/search")
+    public ResponseEntity<Void> oldSearchIsGone() {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
 
+    /**
+     * Find users by name, shirt number, or phone.
+     * The value is in the JSON body, not the URL, so an access log does not
+     * store a name, a shirt number, or a phone (F1, ADR 0004).
+     * Exactly one field must be set. Name returns a list. Shirt and phone
+     * return one user. Players and parents are refused: a hit contains
+     * other people's contact details.
+     * GET on this URL answers 405 and does not search.
+     */
+    @PostMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public ResponseEntity<Object> search(@RequestBody SearchUsersRequest request) {
+        boolean hasName = hasText(request == null ? null : request.getName());
+        boolean hasShirt = request != null && request.getPlayerNumber() != null;
+        boolean hasPhone = hasText(request == null ? null : request.getPhone());
+        int filled = (hasName ? 1 : 0) + (hasShirt ? 1 : 0) + (hasPhone ? 1 : 0);
+        if (filled != 1) {
+            throw new BadRequestException("Send exactly one of name, playerNumber or phone");
+        }
+        if (hasName) {
+            return ResponseEntity.ok(toList(userService.searchByName(request.getName())));
+        }
+        if (hasShirt) {
+            return ResponseEntity.ok(toFetchResponse(userService.searchByPlayerNumber(request.getPlayerNumber())));
+        }
+        return ResponseEntity.ok(toFetchResponse(userService.searchByMobilePhoneNumber(request.getPhone())));
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private List<FetchUserResponse> toList(List<AppUser> databaseUsers) {
+        List<FetchUserResponse> responseUsers = new ArrayList<>();
         for (AppUser databaseUser : databaseUsers) {
             responseUsers.add(toFetchResponse(databaseUser));
         }
-
         return responseUsers;
-    }
-
-    /**
-     * Find one user by shirt number. Same URL as name search;
-     * Spring picks this method because the query string contains {@code number}.
-     * Returns one user because shirt numbers are unique.
-     * Players and parents are refused, same as name search: the hit contains contact details.
-     * A coach only finds a shirt number on a team they train. Another team is the same 404 as a missing number.
-     * The text is "User not found". The number is not repeated (F2).
-     *
-     * @param number the shirt number (exact match)
-     */
-    @GetMapping(value = "/search", params = "number")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
-    public FetchUserResponse searchByPlayerNumber(@RequestParam Integer number) {
-        return toFetchResponse(userService.searchByPlayerNumber(number));
-    }
-
-    /**
-     * Find one user by mobile phone. Same URL as name/number search;
-     * Spring picks this method because the query string contains {@code phone}.
-     * Returns one user because phone numbers are unique when set.
-     * Players and parents are refused, same as name search: the hit contains contact details.
-     * A coach only finds a phone number on a team they train. Another team is the same 404 as a missing number.
-     *
-     * @param phone the mobile number (exact match)
-     */
-    @GetMapping(value = "/search", params = "phone")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
-    public FetchUserResponse searchByMobilePhoneNumber(@RequestParam String phone) {
-        return toFetchResponse(userService.searchByMobilePhoneNumber(phone));
     }
 
     /**

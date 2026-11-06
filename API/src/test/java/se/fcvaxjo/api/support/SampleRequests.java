@@ -9,6 +9,7 @@ import se.fcvaxjo.api.DTO.CreateTeamRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateUserRequest;
 import se.fcvaxjo.api.DTO.LoginRequest;
+import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 
@@ -95,6 +96,24 @@ public final class SampleRequests {
     public static UpdateAttendanceRequest present() {
         UpdateAttendanceRequest request = new UpdateAttendanceRequest();
         request.setStatus("PRESENT");
+        return request;
+    }
+
+    public static SearchUsersRequest searchByName(String name) {
+        SearchUsersRequest request = new SearchUsersRequest();
+        request.setName(name);
+        return request;
+    }
+
+    public static SearchUsersRequest searchByShirt(int playerNumber) {
+        SearchUsersRequest request = new SearchUsersRequest();
+        request.setPlayerNumber(playerNumber);
+        return request;
+    }
+
+    public static SearchUsersRequest searchByPhone(String phone) {
+        SearchUsersRequest request = new SearchUsersRequest();
+        request.setPhone(phone);
         return request;
     }
 }

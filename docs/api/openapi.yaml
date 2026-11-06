@@ -240,20 +240,22 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
 
   /api/users/search:
-    get:
+    post:
       tags: [Users]
       operationId: searchUsers
       summary: Sök användare på namn, tröjnummer eller telefon
       description: |
-        Tre olika controller-metoder delar samma URL; Spring väljer metod utifrån vilken query-parameter som skickas.
-        Skicka **exakt en** av `name`, `number`, `phone`.
-        - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn → 400.
-        - `number` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
+        Sökvärdet ligger i JSON-kroppen, inte i URL:en, så en access-logg inte sparar
+        namn, tröjnummer eller telefon (F1, ADR 0004).
+        Skicka **exakt ett** av fälten `name`, `playerNumber` och `phone`. Annars 400
+        "Send exactly one of name, playerNumber or phone".
+        - `name` → delsträng, skiftlägesokänslig, bara aktiva. Returnerar **array** (kan vara tom). Tomt namn räknas inte som ifyllt.
+        - `playerNumber` → exakt tröjnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
           med texten "User not found". Numret upprepas inte (F2).
         - `phone` → exakt mobilnummer. Returnerar **ett objekt**. Saknas/inaktiv → 404
           med texten "User not found". Numret upprepas inte i feltexten (ADR 0004).
-        Ingen parameter → ingen metod matchar (Spring-standard 400, ej verifierat).
-        Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403 på alla tre sökningarna,
+        `GET /api/users/search` finns, men svarar 405 och söker inte. Använd POST.
+        Bara ADMIN, CHAIRMAN och COACH. PLAYER och PARENT får 403,
         eftersom träffen innehåller kontaktuppgifter.
         ADMIN och CHAIRMAN söker i hela klubben.
         COACH får bara träffar på lag där hen finns i `team_coaches`:
@@ -262,29 +264,18 @@ paths:
         Tröjnummer eller telefon som inte ligger på de lagen ger samma 404 som om personen saknas.
         Telefonens 404-text är "User not found" och upprepar inte numret (S1-12).
         Tröjnumrets 404-text är samma "User not found" och upprepar inte numret (F2).
+        Mobilappen måste byta från GET med query till den här POST-kroppen. UI/ rörs inte här.
       x-roles: [ADMIN, CHAIRMAN, COACH]
       x-scope: ADMIN och CHAIRMAN hela klubben. COACH endast egna lag (`team_coaches`).
-      x-source: UserController.searchByName / searchByPlayerNumber / searchByMobilePhoneNumber
-      parameters:
-        - name: name
-          in: query
-          required: false
-          description: Del av namn (t.ex. `Er` hittar Erik).
-          schema: { type: string, minLength: 1 }
-        - name: number
-          in: query
-          required: false
-          description: Tröjnummer, exakt matchning.
-          schema: { type: integer, format: int32 }
-        - name: phone
-          in: query
-          required: false
-          description: Mobilnummer, exakt matchning. Personuppgift i URL (hamnar i access-loggar).
-          x-pii: true
-          schema: { type: string, minLength: 1 }
+      x-source: UserController.search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SearchUsersRequest' }
       responses:
         '200':
-          description: Array vid `name`, ett objekt vid `number`/`phone`.
+          description: Array vid `name`, ett objekt vid `playerNumber` eller `phone`.
           content:
             application/json:
               schema:
@@ -296,6 +287,8 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '405':
+          description: GET /api/users/search finns men svarar 405. Sökningen är POST.
 
   /api/users/{id}:
     parameters:
@@ -1140,6 +1133,24 @@ components:
         teamId: { type: [integer, 'null'], format: int64 }
         teamName: { type: [string, 'null'] }
         active: { type: boolean, description: false = mjukt raderad. }
+    SearchUsersRequest:
+      type: object
+      description: |
+        Exakt ett av fälten ska vara ifyllt. De andra utelämnas eller är null.
+        Värdet ligger i kroppen så det inte hamnar i en access-logg (F1).
+      properties:
+        name:
+          type: [string, 'null']
+          x-pii: true
+          description: Del av namn. Tom sträng räknas inte som ifylld.
+        playerNumber:
+          type: [integer, 'null']
+          format: int32
+          description: Tröjnummer, exakt matchning.
+        phone:
+          type: [string, 'null']
+          x-pii: true
+          description: Mobilnummer, exakt matchning. Tom sträng räknas inte som ifylld.
     CreateUserRequest:
       type: object
       required: [email, roleName]
@@ -1331,7 +1342,7 @@ components:
 
 x-open-questions:
   - Felformat för fel som inte går via ApiExceptionHandler (felaktig JSON, typfel i path/query, saknad query-parameter, DB-constraint, 500). Spring Boot 4:s standardsvar och om /error-dispatch kräver autentisering i SecurityConfig är inte verifierat.
-  - "/api/users/search med flera parametrar samtidigt (t.ex. name och number): Spring kan välja tvetydigt (risk för 500). Ingen parameter: förmodligen 400. Ej testat."
+  - "POST /api/users/search tar exakt ett av name, playerNumber och phone i JSON-kroppen (F1). GET /api/users/search är 405."
   - Vilken tidszon gäller för startsAt/endsAt (LocalDateTime utan offset)? Förmodligen Europe/Stockholm, men det står ingenstans.
   - Unikhet för playerNumber kontrolleras före insert (F10). ADMIN och CHAIRMAN får 400 "Shirt number already in use". En tränare får "Could not create the user". En DataIntegrityViolation som ändå slinker igenom ger 400 "Could not save the user", utan SQL.
   - "GET /api/users/{id} för en inaktiv användare: ADMIN och CHAIRMAN får 404 \"User not found\" (S1-13). PLAYER, PARENT och COACH får 403, samma som för ett saknat id (F3). Återaktivering är en senare endpoint."

@@ -90,9 +90,6 @@ class AnonymousAccessTest extends ClubApiTest {
         if ("/api/trainings".equals(template)) {
             path = path + "?teamId=" + world.teamAlfaId();
         }
-        if ("/api/users/search".equals(template)) {
-            path = path + "?name=Alfa";
-        }
         if (path.contains("{")) {
             throw new IllegalStateException("Path still has a placeholder: " + path);
         }
