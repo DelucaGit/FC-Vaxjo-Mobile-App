@@ -254,10 +254,11 @@ class UserServiceTest {
     }
 
     @Test
-    void createStandaloneParent_asCoach_isForbidden() {
+    void createStandaloneParent_asCoach_isBadRequest() {
+        // Decision (b): a coach parent that is not tied to a player on their team is 400, not 403.
         login(2L, "COACH");
 
-        AccessDeniedException error = assertThrows(AccessDeniedException.class,
+        BadRequestException error = assertThrows(BadRequestException.class,
                 () -> userService.createUser(
                         "Parent", "parent@fcvaxjo.se", "PARENT", null, "0701111111", null, null, null));
 

@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, F3 och F8. PLAYER, PARENT och COACH får 403 för saknat id och för en inaktiv rad. ADMIN och CHAIRMAN får 404. En tränare får 403 när hen ändrar eller tar bort ett id som saknas.
+Senast uppdaterad: 2026-11-05, F4. En tränare skapar en förälder bara tillsammans med en aktiv spelare i eget lag. En fristående förälder är 400. En inaktiv förälder syns inte i kontaktfälten.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -88,12 +88,12 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | `GET /api/users` | 200, all PII | 200, all PII | 403 (hela klubben) | 403 | 403 | 403 | 403 | 200 för ADMIN och CHAIRMAN. 403 för COACH, PLAYER och PARENT. **S1-10** |
 | `GET /api/users/{id}` | 200 för aktiv. 404 för inaktiv och för saknat id | 200 för aktiv. 404 för inaktiv och för saknat id | 200 i eget lag, 403 annars. 403 för inaktiv och för saknat id | 403 för aktiv. 403 för inaktiv | 200 bara sig själv, utan förälderns telefon. 403 för andra. 403 för inaktiv | 403. 403 för inaktiv | 403 för aktiv. 403 för inaktiv | COACH är begränsad till egna lag. Egen rad för spelare visar fortfarande förälderns telefon. Inaktiv rad är 404 för ADMIN och CHAIRMAN, och 403 för de andra tre (F3). **S1-10**, **S1-13**, **F3** |
 | `GET /api/users/search` | 200 | 200 | 200 bara eget lag | tomt | 403 | 403 | 403 | COACH ser bara egna lag. Saknat telefonnummer ger 404 "User not found". **S1-10**, **S1-12** |
-| `POST /api/users` | 201 | 201 spelare, förälder eller tränare. Inte ADMIN | 201 PLAYER i eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 och S1-8 |
+| `POST /api/users` | 201 | 201 spelare, förälder eller tränare. Inte ADMIN | 201 PLAYER i eget lag, och förälder bara som `newParent` på den spelaren | 403 | 403 | 403 | 403 | Beslut (b) är stängt. En tränare som skapar en fristående förälder får 400. ADMIN och CHAIRMAN får skapa förälder fritt. |
 | `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `DELETE /api/users/{id}` | 204 | 204 | 204 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `PUT /api/users/{id}/role` | 200 vilken roll som helst | 200 bara PLAYER till COACH, inte egen roll, inte ADMIN/CHAIRMAN | 403 | 403 | 403 | 403 | 403 | Stämmer efter S1-8 |
 
-COACH får i koden inte skapa en fristående PARENT (bara PLAYER, plus ny förälder via `newParent`). ADR 0006 säger att tränaren ska kunna skapa förälder. Det är en öppen fråga i kontraktet, inte en S1-test.
+Beslut (b), stängt: en tränare får skapa en förälder bara tillsammans med en aktiv spelare i ett lag hen tränar (`newParent` på den spelaren). Allt annat om den föräldern är 400, inklusive en fristående `PARENT`. ADMIN och CHAIRMAN får skapa en förälder utan barn. En inaktiv förälder syns inte i `parentName`, `parentEmail` eller `parentMobilePhoneNumber`. Att koppla en spelare till en inaktiv förälder, eller till någon som inte är PARENT, är 400.
 
 ### Lag
 

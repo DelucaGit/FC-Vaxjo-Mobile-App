@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -38,7 +39,10 @@ public class UserService {
 
     /**
      * A parent with no child is not on a team, so team_coaches cannot limit a coach.
-     * Admin and chairman may still create that parent. They look after every team.
+     * Decision (b): a coach may create a parent only together with an active player
+     * on a team they train. A parent on its own is 400, not 403. 403 is for a role
+     * the coach may not create at all. Admin and chairman may still create a parent
+     * with no child.
      */
     private static final String STANDALONE_PARENT_DENIED =
             "A COACH cannot create a standalone parent. Create the parent together with a player on a team you train";
@@ -139,6 +143,11 @@ public class UserService {
         if (hasRole("COACH") && coachMayCreateThisRole(roleName)) {
             return;
         }
+        // Decision (b). A parent row is allowed only as newParent on a player
+        // the coach trains. Anything else about that parent is a bad request.
+        if (hasRole("COACH") && "PARENT".equals(roleName)) {
+            throw new BadRequestException(STANDALONE_PARENT_DENIED);
+        }
         throw new AccessDeniedException(deniedCreateMessage(roleName));
     }
 
@@ -160,9 +169,6 @@ public class UserService {
     }
 
     private String deniedCreateMessage(String roleName) {
-        if (hasRole("COACH") && "PARENT".equals(roleName)) {
-            return STANDALONE_PARENT_DENIED;
-        }
         if (hasRole("CHAIRMAN") && isClubLeadRole(roleName)) {
             return CHAIRMAN_CANNOT_ASSIGN_CLUB_LEAD;
         }
@@ -261,6 +267,9 @@ public class UserService {
             String parentRoleName = getRoleName(parent.getRoleId());
             if (!"PARENT".equals(parentRoleName)) {
                 throw new BadRequestException("parentId must point to a user with role PARENT");
+            }
+            if (!parent.isActive()) {
+                throw new BadRequestException("Cannot link an inactive parent");
             }
             return new ParentLink(parent.getId(), null);
         }
@@ -651,34 +660,42 @@ public class UserService {
                 .getName();
     }
 
-    /** Parent display name for responses. Null if the user has no parent. */
+    /**
+     * Parent display name. Null when there is no parent, or the parent is inactive.
+     * An inactive parent must not leak a name, email or phone (F4).
+     */
     public String getParentName(Long parentId) {
-        if (parentId == null) {
-            return null;
-        }
-        return userRepository.findById(parentId)
-                .map(AppUser::getName)
-                .orElse(null);
+        return fieldOnActiveParent(parentId, AppUser::getName);
     }
 
-    /** Parent email for responses. Null if the user has no parent. */
+    /** Parent email. Null when there is no parent, or the parent is inactive. */
     public String getParentEmail(Long parentId) {
-        if (parentId == null) {
-            return null;
-        }
-        return userRepository.findById(parentId)
-                .map(AppUser::getEmail)
-                .orElse(null);
+        return fieldOnActiveParent(parentId, AppUser::getEmail);
     }
 
-    /** Parent phone for responses. Null if the user has no parent. */
+    /** Parent phone. Null when there is no parent, or the parent is inactive. */
     public String getParentMobilePhoneNumber(Long parentId) {
+        return fieldOnActiveParent(parentId, AppUser::getMobilePhoneNumber);
+    }
+
+    private String fieldOnActiveParent(Long parentId, Function<AppUser, String> field) {
+        AppUser parent = activeParentOrNull(parentId);
+        if (parent == null) {
+            return null;
+        }
+        return field.apply(parent);
+    }
+
+    /** A soft-deleted parent is treated as no parent for contact fields. */
+    private AppUser activeParentOrNull(Long parentId) {
         if (parentId == null) {
             return null;
         }
-        return userRepository.findById(parentId)
-                .map(AppUser::getMobilePhoneNumber)
-                .orElse(null);
+        AppUser parent = userRepository.findById(parentId).orElse(null);
+        if (parent == null || !parent.isActive()) {
+            return null;
+        }
+        return parent;
     }
 
     /** Team display name for responses. Null if the user has no team. */
