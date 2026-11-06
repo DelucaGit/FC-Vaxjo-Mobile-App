@@ -638,3 +638,9 @@ Why the first login still works: S1-9 keeps the strict `>` on whole seconds. The
 Decision: a coach who creates a user with an email or phone that is already stored gets 400 `Could not create the user`. ADMIN and CHAIRMAN still get `User already exists` and `Phone number already in use`.
 
 Why one sentence for every coach duplicate: a precise text on the coach's own team, and a vague text for everyone else, would still show that the vague answer means "this person is outside my team". The same 400 also hides whether the clash was the email or the phone. 409 would be a new status that still means the value is taken. 400 is the status create already uses for a bad request.
+
+# F6: a player does not see the parent's fields (5/11-2026)
+
+Decision (c): a PLAYER sees none of `parentName`, `parentEmail` or `parentMobilePhoneNumber`. That is the player's own row and every other read a player can reach. The check is the caller's role. A coach on the team, an admin and a chairman still see the fields when the parent is active.
+
+`player_ownRowHidesParentPhoneNumber` was the last test tagged `known-gap`. The tag is removed. No test keeps that tag.

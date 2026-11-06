@@ -315,9 +315,9 @@ paths:
         Annat id, ett id som saknas, eller en inaktiv rad ger 403 "You can only read your own user record".
         ADMIN eller CHAIRMAN som frågar efter ett okänt id får "User not found" (404).
 
-        En spelare som hämtar sig själv får fortfarande hela `FetchUserResponse`,
-        inklusive den kopplade förälderns kontaktuppgifter. Att plocka bort de fälten
-        är dataminimering (ADR 0004) och ingår inte i den här ändringen.
+        En spelare som hämtar sig själv får sina egna fält, men inte `parentName`,
+        `parentEmail` eller `parentMobilePhoneNumber` (F6, beslut c). Tränaren i laget,
+        ADMIN och CHAIRMAN ser de fälten när föräldern är aktiv.
       x-roles: [ADMIN, CHAIRMAN, COACH, PLAYER, PARENT]
       x-scope: |
         ADMIN och CHAIRMAN alla lag, bara aktiva användare. Saknad och inaktiv är 404.

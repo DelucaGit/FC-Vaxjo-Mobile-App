@@ -81,3 +81,7 @@ Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 - En tränare får skapa en förälder bara som `newParent` på en aktiv spelare i ett lag hen tränar. En fristående `PARENT` är 400, inte 403. ADMIN och CHAIRMAN får fortfarande skapa en förälder utan barn.
 - `parentId` som är inaktiv, eller som inte har rollen PARENT, är 400 när spelaren skapas. Samma regel fanns redan vid uppdatering.
 - `getParentName`, `getParentEmail` och `getParentMobilePhoneNumber` ger null när föräldern är inaktiv, så namn, e-post och telefon inte följer med i svaret.
+
+## Genomförande (F6, beslut c)
+- En spelare ser inget av `parentName`, `parentEmail` och `parentMobilePhoneNumber`. Det gäller den egna raden och varje svar spelaren kan läsa. Kontrollen sitter på anroparens roll.
+- Tränaren i laget, ADMIN och CHAIRMAN ser fälten när föräldern är aktiv.
