@@ -670,3 +670,9 @@ A `DataIntegrityViolationException` that still escapes is 400 `Could not save th
 Decision: `GET /api/users/search?name=&number=&phone=` is replaced by `POST /api/users/search`. The JSON body must contain exactly one of `name`, `playerNumber` and `phone`. Anything else is 400. The answers and the roles stay the same. GET on that URL is 405, so it is not a search.
 
 Why: ADR 0004 says personal data should not sit in the URL. An access log that stores the path would store the phone. The mobile app must switch to this POST before or at the same time as this change is merged. `UI/` is not changed here.
+
+# F1 UI: the app searches with POST (5/11-2026)
+
+Decision: `searchByName`, `searchByShirtNumber` and `searchByPhone` in `UI/src/api/users.ts` call `POST /api/users/search`. The JSON body has exactly one of `name`, `playerNumber` and `phone`. The function names and arguments stay the same, so the screens do not change. The shirt field in the body is `playerNumber`. The old query key was `number`.
+
+Why: ADR 0004. A phone number in the URL can be stored in an access log. This follows `docs/api/openapi.yaml` from the backend change (PR #51). GET on that URL is 405. A non-ok answer still goes through `readErrorMessage`, so 400 and 404 keep the server text and a bare 403 stays the role sentence.

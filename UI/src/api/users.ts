@@ -92,10 +92,30 @@ export async function getUserById(id: number): Promise<ClubUser> {
   return response.json();
 }
 
+/**
+ * One search field. The server rejects a body that has more than one of these.
+ * Shirt search uses playerNumber. The old query key was number.
+ */
+type UserSearchBody =
+  | { name: string }
+  | { playerNumber: number }
+  | { phone: string };
+
+/**
+ * Search is POST with a JSON body, not a query string (F1, ADR 0004).
+ * The phone number stays out of the URL, so an access log does not store it.
+ * GET /api/users/search is 405.
+ */
+function postUserSearch(body: UserSearchBody): Promise<Response> {
+  return apiFetch(`${API_BASE_URL}/users/search`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Name search returns a list. No match is an empty list, not an error. */
 export async function searchByName(name: string): Promise<ClubUser[]> {
-  const response = await apiFetch(
-    `${API_BASE_URL}/users/search?name=${encodeURIComponent(name)}`,
-  );
+  const response = await postUserSearch({ name });
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -104,10 +124,9 @@ export async function searchByName(name: string): Promise<ClubUser[]> {
   return response.json();
 }
 
+/** Shirt search returns one user. A miss is 404 "User not found". */
 export async function searchByShirtNumber(number: number): Promise<ClubUser> {
-  const response = await apiFetch(
-    `${API_BASE_URL}/users/search?number=${encodeURIComponent(String(number))}`,
-  );
+  const response = await postUserSearch({ playerNumber: number });
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -116,10 +135,9 @@ export async function searchByShirtNumber(number: number): Promise<ClubUser> {
   return response.json();
 }
 
+/** Phone search returns one user. A miss is 404 "User not found". */
 export async function searchByPhone(phone: string): Promise<ClubUser> {
-  const response = await apiFetch(
-    `${API_BASE_URL}/users/search?phone=${encodeURIComponent(phone)}`,
-  );
+  const response = await postUserSearch({ phone });
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
