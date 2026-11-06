@@ -109,7 +109,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             return;
         }
         userRepository.findByEmail(adminEmail).ifPresent(admin -> {
-            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+            PasswordChange.storeHash(admin, passwordEncoder.encode(adminPassword));
             admin.setMustChangePassword(true);
             userRepository.save(admin);
         });
@@ -232,7 +232,7 @@ public class DemoClubSeeder implements CommandLineRunner {
         if (user.getEmail() == null || !user.getEmail().endsWith("@demo.fcvaxjo.se")) {
             return;
         }
-        user.setPasswordHash(passwordEncoder.encode(demoPassword));
+        PasswordChange.storeHash(user, passwordEncoder.encode(demoPassword));
         user.setMustChangePassword(true);
         userRepository.save(user);
     }
@@ -247,7 +247,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             Long teamId) {
         return userRepository.findByEmail(email).map(existing -> {
             // Keep demo logins working across restarts (password may have been changed).
-            existing.setPasswordHash(passwordEncoder.encode(demoPassword));
+            PasswordChange.storeHash(existing, passwordEncoder.encode(demoPassword));
             existing.setMustChangePassword(true);
             existing.setActive(true);
             if (teamId != null) {
@@ -267,7 +267,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             user.setParentId(parentId);
             user.setTeamId(teamId);
             user.setActive(true);
-            user.setPasswordHash(passwordEncoder.encode(demoPassword));
+            PasswordChange.storeHash(user, passwordEncoder.encode(demoPassword));
             user.setMustChangePassword(true);
             return userRepository.save(user);
         });

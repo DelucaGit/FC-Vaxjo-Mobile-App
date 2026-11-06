@@ -108,10 +108,12 @@ paths:
       operationId: changePassword
       summary: Byt eget lösenord
       description: |
-        Kräver giltig JWT. Sätter `mustChangePassword=false`, sparar `passwordChangedAt`
-        och returnerar en ny token. En token som utfärdades före det bytet får 401
-        på nästa anrop (`{"message":"Login required"}`). `iat` har bara sekundprecision,
-        så ett byte i samma sekund som token släpper den token igenom.
+        Kräver giltig JWT. Sätter `mustChangePassword=false` och skriver en ny hash.
+        Varje ny hash, även när en användare skapas eller demo-lösenordet skrivs om,
+        sätter `passwordChangedAt` (F5). En token som utfärdades i en tidigare sekund
+        får 401 på nästa anrop (`{"message":"Login required"}`). `iat` har bara
+        sekundprecision, så ett byte i samma sekund som token släpper den token igenom.
+        Den första inloggningen efter att kontot skapats fungerar därför.
         Fel: "Current password is required", "New password must be at least 8 characters",
         "Current password is wrong" (400); "User not found" (404).
       x-roles: [ANY_AUTHENTICATED]

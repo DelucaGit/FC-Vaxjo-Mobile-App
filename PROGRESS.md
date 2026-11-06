@@ -626,3 +626,9 @@ Decision (b): a coach may create a parent only together with an active player on
 Why 400 and not 403: the coach is allowed to create users. The mistake is that this parent is not tied to a player on their team. 403 stays for a role they may not create at all, and for a team they do not train. That team check still runs first, so a parent is not saved as a side effect of a player on another team.
 
 The open question in the role matrix is closed. Gap analysis point 12 is closed.
+
+# F5: stamp the time on every new password hash (5/11-2026)
+
+Decision: `PasswordChange.storeHash` is the only production write of a password hash. It sets `passwordChangedAt` to now. That covers `saveNewUser`, `AuthService.changePassword`, `AdminSeeder`, and every hash write in `DemoClubSeeder`, including `resetDemoLogin`.
+
+Why the first login still works: S1-9 keeps the strict `>` on whole seconds. The token is rejected only when the hash was written in a later second than `iat`. Creating the user, then logging in, is the same second or a later one, so the first token is accepted. A token from before a rewrite, such as the demo seeder resetting a password, is 401.

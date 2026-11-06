@@ -61,7 +61,7 @@ public class AdminSeeder implements CommandLineRunner {
         admin.setEmail(bootstrapEmail);
         admin.setRoleId(adminRole.getId());
         admin.setActive(true);
-        admin.setPasswordHash(passwordEncoder.encode(bootstrapPassword));
+        PasswordChange.storeHash(admin, passwordEncoder.encode(bootstrapPassword));
         admin.setMustChangePassword(true);
         userRepository.save(admin);
     }
