@@ -658,3 +658,9 @@ Decision: `spring.jpa.show-sql` is `false` in `application.properties` and in `a
 There is no default profile. `application.properties` does not set `spring.profiles.active`. If `SPRING_PROFILES_ACTIVE` is missing, no profile is active, SQL logging stays off, and `DemoClubSeeder` is not created (`@Profile("dev")`). A local run turns demo data and SQL logging on with `SPRING_PROFILES_ACTIVE=dev` in the start command (bash or PowerShell). `API/.env` does not select the profile: `springboot4-dotenv` loads that file after Spring has already chosen profiles. Production sets `SPRING_PROFILES_ACTIVE=prod`.
 
 Why there is no fallback to `dev`: a forgotten variable on Railway must not print queries (email and phone can be in the SQL) and must not plant demo users. The prod file has no secrets. Passwords stay in environment variables. Gap analysis point 7 is closed for the SQL log. `ddl-auto=update` and the database user are still open.
+
+# F10: reject a duplicate shirt before insert (5/11-2026)
+
+Decision: `saveNewUser` calls the same shirt check as an update, before the insert. ADMIN and CHAIRMAN get 400 `Shirt number already in use`. A coach gets `Could not create the user`, the same sentence as a duplicate email, so the text does not say the number is taken on another team. An update by a coach says `Could not update the player` instead of naming the shirt.
+
+A `DataIntegrityViolationException` that still escapes is 400 `Could not save the user`. The database message can contain SQL, so it is not copied into the response.

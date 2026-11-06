@@ -313,6 +313,10 @@ public class UserService {
                 && userRepository.findByMobilePhoneNumber(mobilePhoneNumber).isPresent()) {
             throw duplicateOnCreate("Phone number already in use");
         }
+        // Same shirt check as an update, before the insert (F10).
+        // A coach gets the generic create sentence, so the text does not
+        // say the number is taken on another team (F7).
+        assertShirtAvailable(playerNumber, null);
 
         String temporaryPassword = generateTemporaryPassword();
 
@@ -469,10 +473,26 @@ public class UserService {
             return;
         }
         userRepository.findByPlayerNumber(playerNumber).ifPresent(other -> {
-            if (!other.getId().equals(currentUserId)) {
-                throw new BadRequestException("Shirt number already in use");
+            if (currentUserId == null || !other.getId().equals(currentUserId)) {
+                throw shirtAlreadyUsed(currentUserId == null);
             }
         });
+    }
+
+    /**
+     * ADMIN and CHAIRMAN get the exact sentence. A coach does not, because
+     * "already in use" tells them the number exists somewhere in the club (F7).
+     * Create uses the same sentence as a duplicate email. Update uses its own
+     * sentence so the words still match the action, without naming the shirt.
+     */
+    private BadRequestException shirtAlreadyUsed(boolean creating) {
+        if (hasRole("COACH") && !callerLooksAfterEveryTeam()) {
+            if (creating) {
+                return new BadRequestException(COACH_CREATE_REJECTED);
+            }
+            return new BadRequestException("Could not update the player");
+        }
+        return new BadRequestException("Shirt number already in use");
     }
 
     private String blankToNull(String value) {

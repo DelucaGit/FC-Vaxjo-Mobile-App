@@ -3,8 +3,10 @@ package se.fcvaxjo.api.security.access;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import se.fcvaxjo.api.DTO.CreateUserRequest;
@@ -146,6 +148,16 @@ class UserDirectoryAccessTest extends ClubApiTest {
     void parent_cannotChangeRole() throws Exception {
         put(Actor.PARENT_BETA, "/api/users/" + world.extraPlayerId() + "/role", SampleRequests.role("COACH"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("F10: dubblett av tröjnummer ger 400 utan stacktrace")
+    void admin_duplicateShirt_isBadRequestWithoutSql() throws Exception {
+        var response = post(Actor.ADMIN, "/api/users",
+                alfaPlayer("ny.troja@example.test", "070-0000-0193", ClubFixture.SHIRT_ALFA))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Shirt number already in use"));
+        assertBodyHides(response, "SQL", "constraint", "Exception", "stack");
     }
 
     private CreateUserRequest alfaPlayer(String email, String phone, int shirt) {

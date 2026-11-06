@@ -84,6 +84,17 @@ class KnownCoachScopeTest extends ClubApiTest {
     }
 
     @Test
+    @DisplayName("F10: tränare ska inte få veta att tröjnumret finns i ett annat lag")
+    void coach_duplicateShirtOutsideTheTeam_usesTheGenericMessage() throws Exception {
+        var response = post(Actor.COACH_ALFA, "/api/users",
+                SampleRequests.newPlayer("ny.troja.tranare@example.test", "070-0000-0285",
+                        ClubFixture.SHIRT_BETA, world.parentAlfaId(), world.teamAlfaId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Could not create the user"));
+        assertBodyHides(response, "Shirt number already in use", ClubFixture.NAME_PLAYER_BETA);
+    }
+
+    @Test
     @DisplayName("F7: admin får fortfarande den exakta dubbletttexten")
     void admin_duplicateEmail_keepsTheExactMessage() throws Exception {
         post(Actor.ADMIN, "/api/users",
