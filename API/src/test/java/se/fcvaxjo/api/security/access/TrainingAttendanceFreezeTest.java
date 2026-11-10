@@ -91,7 +91,44 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
     // ---- "Klar" ----
 
     @Test
+    void lock_withUnmarkedPlayer_isRejected_andListStaysOpen() throws Exception {
+        // extra is on the live list but not marked.
+        put(Actor.COACH_ALFA, lock(), null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "All players must be marked before the attendance list can be frozen"));
+
+        get(Actor.COACH_ALFA, oneTraining())
+                .andExpect(jsonPath("$.attendanceLockedAt").value(nullValue()));
+        put(Actor.COACH_ALFA, markExtra(), Map.of("status", "ABSENT"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void lock_afterEveryoneIsMarked_freezes() throws Exception {
+        markExtraFirst();
+
+        put(Actor.COACH_ALFA, lock(), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attendanceLockedAt").value(notNullValue()));
+    }
+
+    @Test
+    void lock_teamWithNoPlayers_freezes() throws Exception {
+        // Nobody to mark, so "Klar" is allowed straight away.
+        moveToTeam(world.playerAlfaId(), world.teamBetaId());
+        moveToTeam(world.extraPlayerId(), world.teamBetaId());
+
+        put(Actor.COACH_ALFA, lock(), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attendanceLockedAt").value(notNullValue()));
+        get(Actor.COACH_ALFA, attendance())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
     void lock_savesEveryoneOnTheList_andNewPlayerIsNotAddedAfterwards() throws Exception {
+        markExtraFirst();
         put(Actor.COACH_ALFA, lock(), null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.attendanceLockedAt").value(notNullValue()));
@@ -101,11 +138,12 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
         get(Actor.COACH_ALFA, attendance())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[?(@.playerUserId == " + world.extraPlayerId() + ")].status")
-                        .value(hasItem(nullValue())));
+                        .value(hasItem("ABSENT")));
     }
 
     @Test
     void playerWhoLeft_staysOnFrozenTraining() throws Exception {
+        markExtraFirst();
         put(Actor.COACH_ALFA, lock(), null).andExpect(status().isOk());
 
         moveToTeam(world.extraPlayerId(), world.teamBetaId());
@@ -123,6 +161,7 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
     void lock_dropsOldRowsForPlayersNoLongerOnTheTeam() throws Exception {
         // playerAlfa has a saved row. After moving team, "Klar" must not keep it.
         moveToTeam(world.playerAlfaId(), world.teamBetaId());
+        markExtraFirst();
 
         put(Actor.ADMIN, lock(), null).andExpect(status().isOk());
 
@@ -133,6 +172,7 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
 
     @Test
     void frozenTraining_rejectsMarking() throws Exception {
+        markExtraFirst();
         put(Actor.COACH_ALFA, lock(), null).andExpect(status().isOk());
 
         put(Actor.COACH_ALFA, markExtra(), Map.of("status", "PRESENT"))
@@ -143,6 +183,7 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
 
     @Test
     void lock_twice_isNoChange() throws Exception {
+        markExtraFirst();
         String first = put(Actor.COACH_ALFA, lock(), null)
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -155,11 +196,13 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
 
     @Test
     void admin_canLock() throws Exception {
+        markExtraFirst();
         put(Actor.ADMIN, lock(), null).andExpect(status().isOk());
     }
 
     @Test
     void chairman_canLock() throws Exception {
+        markExtraFirst();
         put(Actor.CHAIRMAN, lock(), null).andExpect(status().isOk());
     }
 
@@ -270,6 +313,12 @@ class TrainingAttendanceFreezeTest extends ClubApiTest {
 
     private String markExtra() {
         return attendance() + "/" + world.extraPlayerId();
+    }
+
+    /** playerAlfa is already PRESENT in the fixture; marking extra makes everyone marked. */
+    private void markExtraFirst() throws Exception {
+        put(Actor.COACH_ALFA, markExtra(), Map.of("status", "ABSENT"))
+                .andExpect(status().isOk());
     }
 
     private void moveClockTo(Instant target) {

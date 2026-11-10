@@ -85,8 +85,10 @@ public class TrainingAttendanceRoster {
     }
 
     /**
-     * "Klar": saves one row per player on the live list (unmarked = null status),
-     * removes rows for players who are no longer on the list, and freezes the training.
+     * "Klar": saves one row per player on the live list, removes rows for players
+     * who are no longer on the list, and freezes the training.
+     * TrainingService only calls this when every live player is marked, so in practice
+     * all rows already exist. The save below is a safety net, not the normal path.
      */
     @Transactional
     public Training freezeNow(Training training) {

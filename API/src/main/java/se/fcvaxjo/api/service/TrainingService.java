@@ -165,6 +165,8 @@ public class TrainingService {
 
     /**
      * "Klar": freezes the attendance list. Calling it again changes nothing (200).
+     * Every player on the live list must be marked first, otherwise 400.
+     * A team with no players can be frozen right away (nobody to mark).
      */
     @Transactional
     public Training lockAttendance(Long trainingId) {
@@ -174,6 +176,12 @@ public class TrainingService {
         }
         if (training.getAttendanceLockedAt() != null) {
             return training;
+        }
+        boolean someoneUnmarked = roster.currentList(training).stream()
+                .anyMatch(row -> row.getStatus() == null);
+        if (someoneUnmarked) {
+            throw new BadRequestException(
+                    "All players must be marked before the attendance list can be frozen");
         }
         return roster.freezeNow(training);
     }
