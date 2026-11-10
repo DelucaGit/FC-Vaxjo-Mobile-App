@@ -131,6 +131,31 @@ class MatchServiceTest {
         verify(matchRepository, never()).save(any());
     }
 
+    @Test
+    void setResult_withBothScoresEmpty_clearsTheResult() {
+        Match match = matchOnTeam(40L, 10L);
+        match.setGoalsFor(2);
+        match.setGoalsAgainst(1);
+        when(matchRepository.findById(40L)).thenReturn(Optional.of(match));
+        when(teamCoachRepository.existsByTeamIdAndUserId(10L, 5L)).thenReturn(true);
+        when(matchRepository.save(any(Match.class))).thenAnswer(call -> call.getArgument(0));
+
+        Match saved = matchService.setResult(40L, null, null);
+
+        assertNull(saved.getGoalsFor());
+        assertNull(saved.getGoalsAgainst());
+    }
+
+    @Test
+    void setResult_withOnlyOneScore_isRejected() {
+        Match match = matchOnTeam(40L, 10L);
+        when(matchRepository.findById(40L)).thenReturn(Optional.of(match));
+        when(teamCoachRepository.existsByTeamIdAndUserId(10L, 5L)).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> matchService.setResult(40L, null, 3));
+        verify(matchRepository, never()).save(any());
+    }
+
     private void setAuth(long userId, String roleName) {
         var auth = new UsernamePasswordAuthenticationToken(
                 userId,

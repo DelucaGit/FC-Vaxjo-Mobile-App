@@ -759,3 +759,9 @@ These are noted but not planned yet:
 - An active field on teams.
 - CORS.
 - Rate limiting for the rest of the API (phase 1 only limits login).
+
+## Clearing a match result (#60)
+
+Decision: `PUT /api/matches/{id}/result` with both goals `null` clears the result. Only one goal set is 400. The same roles and teams that may set a result may clear it.
+
+Why: a coach must be able to undo a wrongly typed score without a new endpoint.

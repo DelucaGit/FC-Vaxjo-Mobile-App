@@ -232,6 +232,73 @@ class MatchAccessTest extends ClubApiTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    // Clearing: the Beta match already has 1-0 in ClubFixture.
+    // Both goals null removes the score. Same roles and teams as setting it.
+
+    @Test
+    void coach_canClearResultOnOwnTeam() throws Exception {
+        put(Actor.COACH_BETA, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value(nullValue()));
+        get(Actor.COACH_BETA, oneBetaMatch())
+                .andExpect(jsonPath("$.result").value(nullValue()));
+    }
+
+    @Test
+    void admin_canClearResult() throws Exception {
+        put(Actor.ADMIN, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value(nullValue()));
+    }
+
+    @Test
+    void chairman_canClearResult() throws Exception {
+        put(Actor.CHAIRMAN, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value(nullValue()));
+    }
+
+    @Test
+    void coachFromOtherTeam_cannotClearResult() throws Exception {
+        put(Actor.COACH_ALFA, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(MatchService.MANAGE_DENIED));
+        get(Actor.COACH_BETA, oneBetaMatch())
+                .andExpect(jsonPath("$.result.goalsFor").value(1));
+    }
+
+    @Test
+    void player_cannotClearResult() throws Exception {
+        put(Actor.PLAYER_ALFA, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parent_cannotClearResult() throws Exception {
+        put(Actor.PARENT_BETA, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anonymous_cannotClearResult() throws Exception {
+        put(Actor.ANON, resultBeta(), SampleRequests.result(null, null))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void onlyGoalsFor_isBadRequest() throws Exception {
+        put(Actor.COACH_BETA, resultBeta(), SampleRequests.result(2, null))
+                .andExpect(status().isBadRequest());
+        get(Actor.COACH_BETA, oneBetaMatch())
+                .andExpect(jsonPath("$.result.goalsFor").value(1));
+    }
+
+    @Test
+    void onlyGoalsAgainst_isBadRequest() throws Exception {
+        put(Actor.ADMIN, resultBeta(), SampleRequests.result(null, 2))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void player_seesOwnTeamMatchesWithoutContactDetails() throws Exception {
         get(Actor.PLAYER_ALFA, "/api/my/matches")
@@ -311,5 +378,9 @@ class MatchAccessTest extends ClubApiTest {
 
     private String resultAlfa() {
         return oneAlfaMatch() + "/result";
+    }
+
+    private String resultBeta() {
+        return oneBetaMatch() + "/result";
     }
 }

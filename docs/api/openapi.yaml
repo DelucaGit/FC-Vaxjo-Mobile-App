@@ -1014,9 +1014,12 @@ paths:
     put:
       tags: [Matches]
       operationId: setMatchResult
-      summary: Sätt resultat i efterhand
+      summary: Sätt eller töm resultat i efterhand
       description: |
-        Båda måltalen krävs och får inte vara negativa. Matchen raderas inte.
+        Två måltal sätter resultatet. De får inte vara negativa.
+        Båda måltalen `null` tömmer resultatet (`result` blir null), t.ex. när fel resultat skrivits in.
+        Bara ett av måltalen satt ger 400. Matchen raderas inte.
+        Samma roller och lag får tömma som får sätta.
         Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
         ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
       x-roles: [ADMIN, CHAIRMAN, COACH]
@@ -1029,7 +1032,7 @@ paths:
             schema: { $ref: '#/components/schemas/SetMatchResultRequest' }
       responses:
         '200':
-          description: Matchen med resultat.
+          description: Matchen med resultat, eller med `result` null om det tömdes.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MatchResponse' }
@@ -1605,10 +1608,11 @@ components:
           description: Valfritt vid skapande. Måste skickas tillsammans med goalsFor.
     SetMatchResultRequest:
       type: object
+      description: Båda satta sätter resultatet. Båda null tömmer det. Bara ett satt ger 400.
       required: [goalsFor, goalsAgainst]
       properties:
-        goalsFor: { type: integer, minimum: 0 }
-        goalsAgainst: { type: integer, minimum: 0 }
+        goalsFor: { type: [integer, 'null'], minimum: 0 }
+        goalsAgainst: { type: [integer, 'null'], minimum: 0 }
     MatchResponse:
       type: object
       description: Personalens matchvy. Ingen e-post och ingen telefon. `result` är null tills resultatet satts.
