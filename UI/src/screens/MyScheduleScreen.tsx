@@ -8,6 +8,7 @@ import {
   listMyChildren,
   listMyTrainings,
 } from '../api/mySchedule';
+import CoachContacts from '../components/CoachContacts';
 import { colors, radius, spacing } from '../theme/colors';
 
 function formatWhen(iso: string): string {
@@ -168,6 +169,12 @@ export default function MyScheduleScreen() {
             <Text style={styles.status}>{statusLabel(training.status)}</Text>
           </View>
         ))
+      )}
+
+      {isParent ? (
+        selectedChild ? <CoachContacts childId={selectedChild.id} /> : null
+      ) : (
+        <CoachContacts />
       )}
     </ScrollView>
   );

@@ -807,3 +807,9 @@ Why: the API will be public on Railway, and nothing stopped password guessing. A
 Decision: `DemoClubSeeder` (dev only) sets a password and `mustChangePassword=true` only when it creates a user. Existing users, the bootstrap admin included, keep their password and flag on restart. `DEMO_RESET_PASSWORDS=true` in `API/.env` (`app.seed.reset-passwords`, default false) brings back the old reset of the admin and all demo passwords, with one info line in the log. `AdminSeeder` already only created the admin and is unchanged.
 
 Why: every restart threw away the developer's new password and forced a password change again.
+
+## Coach contact for players and parents (#79, 10/11-2026)
+
+Proposed decision (ADR 0009, waiting for Marcel): new `GET /api/my/coaches` for PLAYER and PARENT. It returns the active coaches (`team_coaches`) of the player's own team, or of the parent's child's team (`childId`, same rules as `/api/my/trainings`), with only `id`, `name`, `email` and `mobilePhoneNumber`. `GET /api/teams/{id}/coaches` is unchanged and still 403 for PLAYER and PARENT.
+
+Why: a parent must be able to reach the coach, for example when the child has not come home. Cost: everyone on the team sees the coach's private phone and email, so the coaches must be told before the pilot.

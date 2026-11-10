@@ -143,6 +143,7 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
 | `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post. `trainingStatus` visar CANCELLED när träningen är inställd | Stämmer |
 | `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
+| `GET /api/my/coaches` | PLAYER och PARENT, samma personregler som träningarna (okänt barn 404). Bara de aktiva tränarna i det egna (barnets) laget, med id, namn, e-post och telefon (ADR 0009). Inte andra lags tränare. ADMIN, CHAIRMAN och COACH 403 | Stämmer (`MyCoachesAccessTest`) |
 
 ### Planerade publika anrop
 
@@ -207,9 +208,9 @@ Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger 
 
 **COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 403 (S1-10). Skapa, ändra och mjukradera i det andra laget är 403 (S1-3). Ett id som saknas är samma 403 på ändra och mjukradera (F8). Träningar med ett annat lag-id är 403, även om laget inte finns. `/api/my/teams` är redan spärrat.
 
-**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden döljer `parentName`, `parentEmail` och `parentMobilePhoneNumber` (F6, beslut c). En inaktiv rad ger samma 403 som ett saknat id (F3).
+**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden döljer `parentName`, `parentEmail` och `parentMobilePhoneNumber` (F6, beslut c). En inaktiv rad ger samma 403 som ett saknat id (F3). `/api/my/coaches` visar namn, e-post och telefon till de aktiva tränarna i det egna laget, inga andra (ADR 0009). `/api/teams/{id}/coaches` är fortfarande 403.
 
-**PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Katalogen är 403.
+**PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Undantaget är `/api/my/coaches`, som visar namn, e-post och telefon till de aktiva tränarna i barnets lag (ADR 0009). Katalogen och `/api/teams/{id}/coaches` är 403.
 
 **PARENT, annat barn.** `childId` för det andra barnet är 403. Ett id som inte finns är 404, som kontraktet säger. Laglistan är 403.
 
