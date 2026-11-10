@@ -20,11 +20,11 @@ export default function ChangePasswordScreen() {
 
   async function onSubmit() {
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+      setError('Det nya lösenordet måste ha minst 8 tecken.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('New password and confirmation do not match.');
+      setError('Lösenorden matchar inte.');
       return;
     }
     setLoading(true);
@@ -32,7 +32,7 @@ export default function ChangePasswordScreen() {
     try {
       await changePassword(currentPassword, newPassword);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not change password.');
+      setError(err instanceof Error ? err.message : 'Kunde inte byta lösenord.');
     } finally {
       setLoading(false);
     }
@@ -40,12 +40,12 @@ export default function ChangePasswordScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Change password</Text>
+      <Text style={styles.title}>Byt lösenord</Text>
       <Text style={styles.subtitle}>
-        Signed in as {session?.email}. You must set a new password before continuing.
+        Inloggad som {session?.email}. Du måste välja ett nytt lösenord innan du kan fortsätta.
       </Text>
 
-      <Text style={styles.label}>Current (temporary) password</Text>
+      <Text style={styles.label}>Nuvarande (tillfälligt) lösenord</Text>
       <TextInput
         style={styles.input}
         secureTextEntry
@@ -53,7 +53,7 @@ export default function ChangePasswordScreen() {
         onChangeText={setCurrentPassword}
       />
 
-      <Text style={styles.label}>New password</Text>
+      <Text style={styles.label}>Nytt lösenord</Text>
       <TextInput
         style={styles.input}
         secureTextEntry
@@ -61,7 +61,7 @@ export default function ChangePasswordScreen() {
         onChangeText={setNewPassword}
       />
 
-      <Text style={styles.label}>Confirm new password</Text>
+      <Text style={styles.label}>Bekräfta nytt lösenord</Text>
       <TextInput
         style={styles.input}
         secureTextEntry
@@ -75,12 +75,12 @@ export default function ChangePasswordScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Save new password</Text>
+          <Text style={styles.buttonText}>Spara nytt lösenord</Text>
         )}
       </Pressable>
 
       <Pressable style={styles.linkButton} onPress={() => logout()}>
-        <Text style={styles.linkText}>Sign out</Text>
+        <Text style={styles.linkText}>Logga ut</Text>
       </Pressable>
     </View>
   );

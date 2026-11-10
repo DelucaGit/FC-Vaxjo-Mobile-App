@@ -85,7 +85,7 @@ export default function CreateUserScreen() {
 
   async function onCreate() {
     if (!name.trim() || !email.trim()) {
-      setError('Name and email are required.');
+      setError('Fyll i namn och e-post.');
       setMessage(null);
       return;
     }
@@ -94,7 +94,7 @@ export default function CreateUserScreen() {
     if (playerNumber.trim()) {
       shirt = Number(playerNumber.trim());
       if (Number.isNaN(shirt)) {
-        setError('Shirt number must be a number.');
+        setError('Tröjnumret måste vara ett tal.');
         setMessage(null);
         return;
       }
@@ -102,18 +102,18 @@ export default function CreateUserScreen() {
 
     if (roleName === 'PLAYER') {
       if (!selectedTeam) {
-        setError('Pick a team for this player.');
+        setError('Välj ett lag för spelaren.');
         setMessage(null);
         return;
       }
       if (createNewParent) {
         if (!newParentName.trim() || !newParentEmail.trim() || !newParentPhone.trim()) {
-          setError('New parent needs name, email, and phone.');
+          setError('Den nya föräldern behöver namn, e-post och telefon.');
           setMessage(null);
           return;
         }
       } else if (!selectedParent) {
-        setError('Pick an existing parent or create a new one.');
+        setError('Välj en befintlig förälder eller skapa en ny.');
         setMessage(null);
         return;
       }
@@ -164,7 +164,7 @@ export default function CreateUserScreen() {
       resetParentFields();
       listTeams().then(setTeams).catch(() => setTeams([]));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte skapa användaren.');
     } finally {
       setLoading(false);
     }
@@ -172,13 +172,13 @@ export default function CreateUserScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Create a user</Text>
-      <Text style={styles.hint}>Saves to the local Java API / PostgreSQL.</Text>
+      <Text style={styles.title}>Skapa en användare</Text>
+      <Text style={styles.hint}>Användaren sparas i klubbens databas.</Text>
 
-      <Text style={styles.label}>Name</Text>
+      <Text style={styles.label}>Namn</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="TESTMAN" />
 
-      <Text style={styles.label}>Email</Text>
+      <Text style={styles.label}>E-post</Text>
       <TextInput
         style={styles.input}
         value={email}
@@ -188,7 +188,7 @@ export default function CreateUserScreen() {
         keyboardType="email-address"
       />
 
-      <Text style={styles.label}>Role</Text>
+      <Text style={styles.label}>Roll</Text>
       <View style={styles.modeRow}>
         {roles.map((role) => (
           <Pressable
@@ -212,7 +212,7 @@ export default function CreateUserScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>Shirt number (optional)</Text>
+      <Text style={styles.label}>Tröjnummer (valfritt)</Text>
       <TextInput
         style={styles.input}
         value={playerNumber}
@@ -221,7 +221,7 @@ export default function CreateUserScreen() {
         keyboardType="number-pad"
       />
 
-      <Text style={styles.label}>Phone (optional)</Text>
+      <Text style={styles.label}>Telefon (valfritt)</Text>
       <TextInput
         style={styles.input}
         value={mobilePhoneNumber}
@@ -232,12 +232,12 @@ export default function CreateUserScreen() {
 
       {roleName === 'PLAYER' ? (
         <View style={styles.parentBox}>
-          <Text style={styles.parentTitle}>Team (required)</Text>
+          <Text style={styles.parentTitle}>Lag (måste väljas)</Text>
           <Text style={styles.hint}>
-            Create teams on the Teams tab if the list is empty.
+            Skapa lag under fliken Laget om listan är tom.
           </Text>
           {teams.length === 0 ? (
-            <Text style={styles.error}>No teams yet. Open the Teams tab first.</Text>
+            <Text style={styles.error}>Inga lag än. Öppna fliken Laget först.</Text>
           ) : (
             <View style={styles.modeRow}>
               {teams.map((team) => (
@@ -266,19 +266,19 @@ export default function CreateUserScreen() {
 
       {roleName === 'PLAYER' ? (
         <View style={styles.parentBox}>
-          <Text style={styles.parentTitle}>Parent (required)</Text>
+          <Text style={styles.parentTitle}>Förälder (måste väljas)</Text>
           <Text style={styles.hint}>
-            Search for an existing parent, or create a new one with this player.
+            Sök efter en befintlig förälder, eller skapa en ny tillsammans med spelaren.
           </Text>
 
           {!createNewParent && !selectedParent ? (
             <>
-              <Text style={styles.label}>Search parent by name</Text>
+              <Text style={styles.label}>Sök förälder på namn</Text>
               <TextInput
                 style={styles.input}
                 value={parentSearch}
                 onChangeText={setParentSearch}
-                placeholder="Type a parent name"
+                placeholder="Skriv förälderns namn"
               />
               {visibleParentMatches.map((parent) => (
                 <Pressable
@@ -303,7 +303,7 @@ export default function CreateUserScreen() {
                   setNewParentName(parentSearch.trim());
                 }}
               >
-                <Text style={styles.secondaryButtonText}>Create new parent instead</Text>
+                <Text style={styles.secondaryButtonText}>Skapa en ny förälder i stället</Text>
               </Pressable>
             </>
           ) : null}
@@ -314,30 +314,30 @@ export default function CreateUserScreen() {
                 Selected: {selectedParent.name} ({selectedParent.email})
               </Text>
               <Pressable onPress={resetParentFields}>
-                <Text style={styles.clearLink}>Clear</Text>
+                <Text style={styles.clearLink}>Rensa</Text>
               </Pressable>
             </View>
           ) : null}
 
           {createNewParent ? (
             <View>
-              <Text style={styles.label}>New parent name</Text>
+              <Text style={styles.label}>Ny förälders namn</Text>
               <TextInput
                 style={styles.input}
                 value={newParentName}
                 onChangeText={setNewParentName}
-                placeholder="Parent name"
+                placeholder="Förälderns namn"
               />
-              <Text style={styles.label}>New parent email</Text>
+              <Text style={styles.label}>Ny förälders e-post</Text>
               <TextInput
                 style={styles.input}
                 value={newParentEmail}
                 onChangeText={setNewParentEmail}
-                placeholder="parent@email.se"
+                placeholder="foralder@email.se"
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
-              <Text style={styles.label}>New parent phone</Text>
+              <Text style={styles.label}>Ny förälders telefon</Text>
               <TextInput
                 style={styles.input}
                 value={newParentPhone}
@@ -346,7 +346,7 @@ export default function CreateUserScreen() {
                 keyboardType="phone-pad"
               />
               <Pressable style={styles.secondaryButton} onPress={resetParentFields}>
-                <Text style={styles.secondaryButtonText}>Back to search</Text>
+                <Text style={styles.secondaryButtonText}>Tillbaka till sökningen</Text>
               </Pressable>
             </View>
           ) : null}
@@ -354,7 +354,7 @@ export default function CreateUserScreen() {
       ) : null}
 
       <Pressable style={styles.button} onPress={onCreate} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Saving…' : 'Create user'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'Sparar…' : 'Skapa användare'}</Text>
       </Pressable>
 
       {message ? <Text style={styles.success}>{message}</Text> : null}
