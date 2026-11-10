@@ -149,6 +149,21 @@ En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte 
 
 Kod idag: stämmer. Anonymt anrop är 401.
 
+#### Närvaro och frysta listor för matcher (issue #67, ADR 0010)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `GET /api/matches/{id}/attendance` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
+| `PUT /api/matches/{id}/attendance/{playerId}` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
+| `PUT /api/matches/{id}/attendance/lock` ("Klar") | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
+
+- Okänt match-id: ADMIN och CHAIRMAN 404, COACH 403 (samma som matchens andra anrop).
+- Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. Markera en spelare som inte står på listan ger 400. Raden skapas första gången spelaren markeras.
+- "Klar" kräver att alla på listan är markerade, annars 400 "All players must be marked before the attendance list can be frozen". Lag utan spelare kan frysas. Redan fryst: 200 och inget ändras.
+- Automatisk frysning när nu (Europe/Stockholm) är mer än 8 timmar efter `kickoffAt` (matcher saknar sluttid: cirka 2 timmars match + 6 timmar). Sker vid anrop på en enskild match, lagets matchlista och `GET /api/my/matches`. Bara sparade rader följer med.
+- Fryst lista: visar exakt de sparade raderna. Markera ger 400 "The attendance list for this match is frozen and can no longer be changed".
+- `attendanceLockedAt` (`null` = öppen) finns i `MatchResponse` och `MyMatchResponse`.
+
 ### Mitt schema
 
 | Anrop | Mål | Kod idag |
