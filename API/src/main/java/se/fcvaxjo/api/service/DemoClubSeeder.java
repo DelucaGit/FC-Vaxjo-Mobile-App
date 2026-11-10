@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -339,6 +340,11 @@ public class DemoClubSeeder implements CommandLineRunner {
             user.setActive(true);
             PasswordChange.storeHash(user, passwordEncoder.encode(demoPassword));
             user.setMustChangePassword(true);
+            if (email != null && email.startsWith("player1.")) {
+                // Dev only, and only on the first insert. One published child per team
+                // so the public squad is not empty. A later revoke is left alone.
+                user.setPublicConsentAt(Instant.now());
+            }
             return userRepository.save(user);
         });
     }

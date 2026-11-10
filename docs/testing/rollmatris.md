@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, matcher. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
+Senast uppdaterad: 2026-11-05, publika läsningar och samtycke. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -134,9 +134,17 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post | Stämmer |
 | `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
 
+### Planerade publika anrop
+
+`GET /api/public/teams`, `GET /api/public/matches/upcoming`, `GET /api/public/matches/history` och `GET /api/public/teams/{id}/players` är öppna utan token. Truppen har bara namn och tröjnummer, och bara efter förälderns samtycke. Ingen e-post och ingen telefon. Inaktiv spelare och inaktiv förälder döljer barnet.
+
+`GET /api/public/teams/{id}/trainings` och `GET /api/public/teams/{id}/coaches` är kvar som planerade. De har ingen handler, så svaret är 404, inte en lista.
+
+`PUT /api/users/{id}/public-consent` är bara den länkade föräldern. Övriga roller får 403. Anonymt anrop får 401. POST, PUT och DELETE under `/api/public` får 401 utan token, och 405 när någon är inloggad men metoden inte finns.
+
 ### Anonymt anrop
 
-Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` ska ge 401 utan token, inklusive de planerade `/api/public/**` (de är inte byggda och får inte vara öppna). Login med fel lösenord, okänd e-post eller inaktivt konto är 401 med texten "Invalid email or password" (S1-9). Saknad e-post eller lösenord är 400. `AnonymousAccessTest` läser filen, så en ny path kommer med av sig själv. Koden gör detta idag.
+Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` och `GET /api/public/**` ska ge 401 utan token. Login med fel lösenord, okänd e-post eller inaktivt konto är 401 med texten "Invalid email or password" (S1-9). Saknad e-post eller lösenord är 400. `AnonymousAccessTest` läser filen och hoppar över de publika GET-anropen. Övriga nya paths kommer med av sig själv.
 
 ### Trasig token
 
@@ -179,10 +187,6 @@ Beslut (F3, Arkitekten): `GET /api/users/{id}` på en inaktiv användare är **4
 
 Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger i ett annat lag, på `PUT /api/users/{id}/player` och `DELETE /api/users/{id}`. ADMIN och CHAIRMAN får fortfarande 404 när id saknas.
 
-### Planerade publika anrop
-
-`/api/public/**` är `x-status: planned` och finns inte i koden. Anonymt anrop får 401, inte en öppen lista. Ingen mätsticka för "ska vara 200", för de är inte byggda än.
-
 ## Vad som läcker idag, per roll
 
 **ADMIN.** Ser klubbens persondata, och det ska en admin. `GET /api/users/{id}` på en inaktiv spelare är 404 "User not found" (S1-13). Sök på ett nummer som inte finns säger "User not found" och upprepar inte numret (S1-12).
@@ -201,4 +205,4 @@ Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger 
 
 **Inaktiv spelare.** Login är 401 med samma text som fel lösenord, `Invalid email or password` (S1-9). En redan utfärdad token stoppas av filtret (S1-4). `GET /api/users/{id}` är 404 "User not found" för ADMIN och CHAIRMAN, och 403 för PLAYER, PARENT och COACH (F3). Listor och sök tar inte med raden.
 
-**Anonym och trasig token.** 401 utan persondata i svaret. Inget hål där i den här körningen.
+**Anonym och trasig token.** Skyddade URL:er är 401 utan persondata i svaret. `GET /api/public/**` är öppet och innehåller inte e-post eller telefon.

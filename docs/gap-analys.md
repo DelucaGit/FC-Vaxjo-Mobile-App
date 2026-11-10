@@ -37,7 +37,11 @@ Allvarlighet: **K** = kritisk (måste åtgärdas före produktion), **H** = hög
 
 ## Sprint 2, matcher
 
-Personalens matcher följer samma laggräns som träningar. ADMIN och CHAIRMAN skriver alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT läser via `GET /api/my/matches`. En tränare får samma 403 för ett annat lag och för ett id som inte finns. Svaret har ingen e-post och ingen telefon. Publika match-URL:er under `/api/public/**` är fortfarande planerade och stängda.
+Personalens matcher följer samma laggräns som träningar. ADMIN och CHAIRMAN skriver alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT läser via `GET /api/my/matches`. En tränare får samma 403 för ett annat lag och för ett id som inte finns. Svaret har ingen e-post och ingen telefon.
+
+## Sprint 2, publika läsningar
+
+`GET /api/public/**` är öppet. Andra metoder på den sökvägen är det inte. Truppen visar bara namn och tröjnummer, och bara när den länkade föräldern har satt `publicConsentAt` (ADR 0007). Inaktiva användare syns inte. En inaktiv förälder döljer barnet, för återkallelsen skulle annars inte gå att göra. Kontaktuppgifter finns inte i de publika svaren. Tränarkontakt och publikt träningsschema är kvar som planerade. Rate limit och CORS för fcvaxjo.se (punkt 8) är kvar.
 
 ## Det som redan fungerar bra
 - Lösenord hashas med BCrypt, och entiteter exponeras aldrig direkt (bara via DTO).
