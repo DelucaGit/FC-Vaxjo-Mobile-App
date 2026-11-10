@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -26,6 +27,7 @@ import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.security.JwtService;
+import se.fcvaxjo.api.service.LoginAttemptLimiter;
 
 /**
  * Shared setup for the role tests.
@@ -37,6 +39,7 @@ import se.fcvaxjo.api.security.JwtService;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+@Import(TestClockConfig.class)
 public abstract class ClubApiTest {
 
     @Autowired
@@ -80,8 +83,18 @@ public abstract class ClubApiTest {
 
     protected ClubWorld world;
 
+    @Autowired
+    private TestClock testClock;
+
+    @Autowired
+    private LoginAttemptLimiter loginLimiter;
+
     @BeforeEach
     void loadClub() {
+        // The database rolls back after each test, but memory does not.
+        // Without this, failed logins from one test could lock out the next.
+        testClock.reset();
+        loginLimiter.clear();
         world = ClubFixture.load(
                 roles, users, teams, links, trainings, attendance, matches, encoder, jwt, sharedLogin);
     }

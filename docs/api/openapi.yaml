@@ -85,6 +85,7 @@ paths:
         Fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger alla
         samma **401** "Invalid email or password". Svaret säger inte om kontot finns.
         När e-posten saknas körs ändå en BCrypt-jämförelse, så svaret inte blir tydligt snabbare än en vanlig kontroll.
+        Efter 5 misslyckade försök per e-post eller IP ger nya försök **429** i 15 minuter.
       security: []
       x-roles: [PUBLIC]
       x-source: AuthController.login → AuthService.login
@@ -108,6 +109,17 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
               example: { message: "Invalid email or password" }
+        '429':
+          description: |
+            För många misslyckade inloggningar (#64). Efter 5 misslyckade försök per e-post
+            eller per IP spärras nya försök i 15 minuter, även med rätt lösenord.
+            En lyckad inloggning nollställer räknaren för kontot. Okänd e-post räknas likadant,
+            så spärren avslöjar inte om kontot finns. Räknaren ligger i minnet.
+            IP tas från anslutningen (`getRemoteAddr`); `X-Forwarded-For` litas inte på ännu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: "För många inloggningsförsök. Försök igen om 15 minuter." }
 
   /api/auth/change-password:
     post:

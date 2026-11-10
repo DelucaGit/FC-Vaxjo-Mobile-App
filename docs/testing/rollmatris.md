@@ -78,6 +78,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | Mål | Kod idag |
 |---|---|---|
 | `POST /api/auth/login` | Publik. 200 för aktiv användare. Fel lösenord, okänd e-post och inaktiv ger samma 401 | Stämmer (S1-9). Saknad e-post eller lösenord är fortfarande 400 |
+| `POST /api/auth/login`, spärr (#64) | Efter 5 misslyckade försök per e-post eller IP ger nya försök 429 i 15 minuter, även med rätt lösenord. Annat konto från annan IP påverkas inte. Lyckad inloggning nollställer kontots räknare | Stämmer (`LoginRateLimitTest`, styrbar klocka). Okänd e-post räknas likadant |
 | `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
 | `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 401 | Inaktiv token får 401. Texten är "Login required", samma som övriga nekade token (F11) |
 

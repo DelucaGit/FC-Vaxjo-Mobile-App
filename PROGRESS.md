@@ -781,3 +781,11 @@ Why: the players are children. A consent can be forgotten or set by mistake, and
 `PublicLeakTest` seeds a player with a unique name, email, phone and shirt number, finds every GET under `/api/public/` through Spring's handler mappings, and checks that none of the values is in any answer. A new public endpoint is checked without editing the test. The test fails if an endpoint never answers 200, so nothing slips through unchecked.
 
 `ddl-auto=update` does not drop columns, so `public_consent_at` may stay in a database that already ran the old code. It is unused and harmless. `UI/` is not changed.
+
+# Login lockout (#64, 10/11-2026)
+
+Decision: after 5 failed logins per email or per IP, `POST /api/auth/login` answers 429 `{"message":"För många inloggningsförsök. Försök igen om 15 minuter."}` for 15 minutes, even with the right password. A failure is forgotten 15 minutes after the latest one. A successful login clears the email's count (not the IP's). Unknown emails are counted too, so the lockout does not reveal which emails exist. The counts live in memory (`LoginAttemptLimiter`, a `ConcurrentHashMap`, old entries pruned on each failure), so a restart clears them. Time comes from a `Clock` bean (`ClockConfig`, `systemUTC`); `ClubApiTest` swaps in `TestClock` and clears the limiter before each test. The app shows the Swedish text on any 429 from login.
+
+Why: the API will be public on Railway, and nothing stopped password guessing.
+
+Follow-up: the IP is `getRemoteAddr()`. `X-Forwarded-For` is not trusted, because anyone can fake it. Behind Railway's proxy all requests may share one IP, so the per-IP count must be set up with trusted forwarded headers when the API moves.

@@ -46,6 +46,9 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private LoginAttemptLimiter loginLimiter;
+
     @InjectMocks
     private AuthService authService;
 
@@ -69,7 +72,7 @@ class AuthServiceTest {
         when(userService.getRoleName(1L)).thenReturn("ADMIN");
         when(jwtService.createToken(5L, "admin@fcvaxjo.se", "ADMIN")).thenReturn("jwt-token");
 
-        LoginResponse response = authService.login("admin@fcvaxjo.se", "test-current-password");
+        LoginResponse response = authService.login("admin@fcvaxjo.se", "test-current-password", "198.51.100.1");
 
         assertEquals("jwt-token", response.getToken());
         assertEquals(5L, response.getUserId());
@@ -84,7 +87,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("bad", "hashed")).thenReturn(false);
 
         UnauthorizedException error = assertThrows(UnauthorizedException.class,
-                () -> authService.login("admin@fcvaxjo.se", "bad"));
+                () -> authService.login("admin@fcvaxjo.se", "bad", "198.51.100.1"));
 
         assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
     }
@@ -94,7 +97,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail("missing@example.test")).thenReturn(Optional.empty());
 
         UnauthorizedException error = assertThrows(UnauthorizedException.class,
-                () -> authService.login("missing@example.test", "bad"));
+                () -> authService.login("missing@example.test", "bad", "198.51.100.1"));
 
         assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
         // No stored hash exists. The dummy compare keeps this path from returning faster.
@@ -109,7 +112,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("right", "hashed")).thenReturn(true);
 
         UnauthorizedException error = assertThrows(UnauthorizedException.class,
-                () -> authService.login("off@example.test", "right"));
+                () -> authService.login("off@example.test", "right", "198.51.100.1"));
 
         assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
         verify(passwordEncoder).matches("right", "hashed");
@@ -121,7 +124,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail("new@example.test")).thenReturn(Optional.of(user));
 
         UnauthorizedException error = assertThrows(UnauthorizedException.class,
-                () -> authService.login("new@example.test", "anything"));
+                () -> authService.login("new@example.test", "anything", "198.51.100.1"));
 
         assertEquals(AuthService.INVALID_LOGIN_MESSAGE, error.getMessage());
         verify(passwordEncoder).matches("anything", AuthService.TIMING_BCRYPT_HASH);

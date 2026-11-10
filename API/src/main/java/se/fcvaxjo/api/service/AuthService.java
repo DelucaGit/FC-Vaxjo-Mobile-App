@@ -37,27 +37,38 @@ public class AuthService {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginAttemptLimiter loginLimiter;
 
     public AuthService(
             UserRepository userRepository,
             UserService userService,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            LoginAttemptLimiter loginLimiter) {
         this.userRepository = userRepository;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.loginLimiter = loginLimiter;
     }
 
-    public LoginResponse login(String email, String password) {
+    /**
+     * @param clientIp the caller's IP, used by the lockout after too many failures.
+     */
+    public LoginResponse login(String email, String password, String clientIp) {
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             throw new BadRequestException("Email and password are required");
         }
 
+        // Checked before the password, so a locked account gets 429 even with the right password.
+        loginLimiter.assertNotLocked(email, clientIp);
+
         AppUser user = userRepository.findByEmail(email.trim()).orElse(null);
         if (!passwordMatchesActiveAccount(user, password)) {
+            loginLimiter.recordFailure(email, clientIp);
             throw new UnauthorizedException(INVALID_LOGIN_MESSAGE);
         }
+        loginLimiter.recordSuccess(email);
 
         String roleName = userService.getRoleName(user.getRoleId());
         String token = jwtService.createToken(user.getId(), user.getEmail(), roleName);
