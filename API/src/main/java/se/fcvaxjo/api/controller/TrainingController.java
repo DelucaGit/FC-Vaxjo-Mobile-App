@@ -88,12 +88,15 @@ public class TrainingController {
     }
 
     /**
-     * Calls the training off. The row is not deleted.
-     * reason is optional.
+     * Calls the training off, or reactivates it with cancelled=false. The row is not deleted.
+     * A missing cancelled means true, so older clients keep working. reason is optional.
      */
     @PutMapping("/{id}/cancellation")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public TrainingResponse cancel(@PathVariable Long id, @RequestBody CancelTrainingRequest request) {
+        if (request != null && Boolean.FALSE.equals(request.getCancelled())) {
+            return toResponse(trainingService.reactivateTraining(id));
+        }
         String reason = request == null ? null : request.getReason();
         return toResponse(trainingService.cancelTraining(id, reason));
     }

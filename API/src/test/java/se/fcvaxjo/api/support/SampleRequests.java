@@ -107,6 +107,13 @@ public final class SampleRequests {
         return request;
     }
 
+    /** Body that reactivates a cancelled training: {"cancelled": false}. */
+    public static CancelTrainingRequest reactivation() {
+        CancelTrainingRequest request = new CancelTrainingRequest();
+        request.setCancelled(false);
+        return request;
+    }
+
     public static CancelTrainingRequest cancellation(String reason) {
         CancelTrainingRequest request = new CancelTrainingRequest();
         request.setReason(reason);
