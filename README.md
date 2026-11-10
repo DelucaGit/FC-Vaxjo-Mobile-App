@@ -29,21 +29,32 @@ Needs local PostgreSQL (database `fcvaxjo_db`) and `API/.env` (not in Git). Copy
 - `BOOTSTRAP_ADMIN_PASSWORD`: temporary password for `admin@fcvaxjo.se`. If it is empty, no admin is created.
 - `DEMO_PASSWORD`: temporary password for all demo users (dev only). If it is empty, there is no demo data.
 
-From the `API` folder:
+From the `API` folder, turn on the `dev` profile in the start command. Nothing else selects it. Without that variable the API still starts, but SQL logging stays off and `DemoClubSeeder` does not run.
+
+Bash:
+
+```bash
+SPRING_PROFILES_ACTIVE=dev bash mvnw spring-boot:run
+```
+
+PowerShell:
 
 ```powershell
+$env:SPRING_PROFILES_ACTIVE = "dev"
 .\mvnw.cmd spring-boot:run
 ```
 
+`API/.env` is loaded by `springboot4-dotenv` for `DB_PASSWORD`, `JWT_SECRET`, and the seed passwords. That library adds the file after Spring has already chosen the profile, so `SPRING_PROFILES_ACTIVE` inside `API/.env` does not turn `dev` on. Set the profile in the shell, as above.
+
 Base URL: `http://localhost:8080/api`
 
-Local runs use the Spring profile `dev` by default (`SPRING_PROFILES_ACTIVE` overrides it). In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings, and SQL logging is on. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`.
+In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings, and SQL logging is on. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`.
 
-Production turns SQL logging off. Set the environment variable `SPRING_PROFILES_ACTIVE=prod` (Railway variables, not a file in Git). That loads `application-prod.properties`. Do not set `dev` at the same time. The default file also has `spring.jpa.show-sql=false`, so a forgotten profile does not print SQL. Passwords and `JWT_SECRET` stay in environment variables. Nothing secret is written in the prod file.
+Production turns SQL logging off. Set the environment variable `SPRING_PROFILES_ACTIVE=prod` (Railway variables, not a file in Git). That loads `application-prod.properties`. Do not set `dev` at the same time. If the variable is missing, no profile is active. The base file has `spring.jpa.show-sql=false`, so a forgotten profile does not print SQL and does not plant demo users. Passwords and `JWT_SECRET` stay in environment variables. Nothing secret is written in the prod file.
 
 Run the tests from the `API` folder. You do not need local PostgreSQL or `API/.env`.
 
-Each Spring test turns on the `test` profile with `@ActiveProfiles("test")`. That loads `API/src/test/resources/application-test.properties`: an in-memory H2 database and a test-only JWT secret. GitHub Actions runs the same two commands (`.github/workflows/backend-ci.yml`).
+Most Spring tests turn on the `test` profile with `@ActiveProfiles("test")`. That loads `API/src/test/resources/application-test.properties`: an in-memory H2 database and a test-only JWT secret. Two profile checks do not use that file: one starts with no profile, and one uses `@ActiveProfiles("dev")` on its own H2 database. GitHub Actions runs the same two commands (`.github/workflows/backend-ci.yml`).
 
 The normal build skips tests tagged `known-gap`. That tag marks rules the code still breaks. `API/pom.xml` sets `excludedGroups` to `known-gap`, so `./mvnw test` stays green. After F6 no test carries that tag. The known-gap command is still there for the next rule that needs a measuring stick.
 
