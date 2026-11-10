@@ -1,0 +1,77 @@
+import type { ComponentProps } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { listTeamCoaches, listTeamPlayers, listTeams } from '../api/teams';
+import {
+  FORBIDDEN_TEXT,
+  forbiddenError,
+  makeNavigation,
+  makeUser,
+} from '../components/teams/testData';
+import TeamsScreen from './TeamsScreen';
+
+// The first render loads the icon and navigation code, which can pass 5 s on a busy machine.
+jest.setTimeout(20000);
+
+jest.mock('../api/teams');
+jest.mock('@react-navigation/native', () => {
+  const { useEffect } = jest.requireActual('react');
+  return {
+    ...jest.requireActual('@react-navigation/native'),
+    useFocusEffect: (effect: () => void) => useEffect(effect, [effect]),
+  };
+});
+
+type Props = ComponentProps<typeof TeamsScreen>;
+
+async function renderTeams() {
+  const navigation = makeNavigation();
+  const props = { navigation, route: { key: 'Teams', name: 'Teams' } } as unknown as Props;
+  await render(<TeamsScreen {...props} />);
+  return navigation;
+}
+
+describe('TeamsScreen', () => {
+  test('lists teams with player count and coach names', async () => {
+    jest.mocked(listTeams).mockResolvedValue([
+      { id: 1, name: 'P14' },
+      { id: 2, name: 'F12' },
+    ]);
+    jest.mocked(listTeamPlayers).mockImplementation(async (teamId) =>
+      teamId === 1
+        ? [makeUser({ id: 10, name: 'Elsa Ek' }), makeUser({ id: 11, name: 'Leo Ek' })]
+        : [],
+    );
+    jest.mocked(listTeamCoaches).mockImplementation(async (teamId) =>
+      teamId === 1
+        ? [
+            makeUser({ id: 3, name: 'Johan Berg', roleName: 'COACH' }),
+            makeUser({ id: 4, name: 'Sara Nilsson', roleName: 'COACH' }),
+          ]
+        : [],
+    );
+    const navigation = await renderTeams();
+
+    expect(await screen.findByText('2 spelare · Johan Berg, Sara Nilsson')).toBeTruthy();
+    expect(screen.getByText('0 spelare')).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('P14'));
+    expect(navigation.navigate).toHaveBeenCalledWith('TeamDetail', { teamId: 1 });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Nytt lag' }));
+    expect(navigation.navigate).toHaveBeenCalledWith('NewTeam');
+  });
+
+  test('shows Inga lag when the club has no teams', async () => {
+    jest.mocked(listTeams).mockResolvedValue([]);
+    await renderTeams();
+
+    expect(await screen.findByText('Inga lag')).toBeTruthy();
+  });
+
+  test('shows the Swedish message on 403', async () => {
+    jest.mocked(listTeams).mockRejectedValue(await forbiddenError());
+    await renderTeams();
+
+    expect(await screen.findByText(FORBIDDEN_TEXT)).toBeTruthy();
+  });
+});
