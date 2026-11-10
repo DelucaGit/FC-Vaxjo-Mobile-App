@@ -94,7 +94,8 @@ public class MyScheduleController {
                     player.getName(),
                     row.status(),
                     t.statusOrScheduled().name(),
-                    t.getCancelReason()));
+                    t.getCancelReason(),
+                    t.getAttendanceLockedAt()));
         }
         return responses;
     }

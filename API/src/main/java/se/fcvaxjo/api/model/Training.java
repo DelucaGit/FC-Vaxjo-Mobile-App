@@ -14,7 +14,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * One training session for a team (start + end). Attendance rows are snapshotted on create.
+ * One training session for a team (start + end).
+ * Attendance rows are saved when a player is marked, and for everyone on the list
+ * when the attendance list is frozen (issue #86).
  */
 @Entity
 @Table(name = "trainings")
@@ -56,6 +58,14 @@ public class Training {
     /** Optional note, for example "Pitch closed". Null when the training is not cancelled. */
     @Column(name = "cancel_reason")
     private String cancelReason;
+
+    /**
+     * When the attendance list was frozen ("Klar" or 6 hours after endsAt).
+     * Null means the list is still open and follows the team's current players.
+     * Nullable so Hibernate can add the column to existing rows (no Flyway).
+     */
+    @Column(name = "attendance_locked_at")
+    private LocalDateTime attendanceLockedAt;
 
     @Column(name = "created_by_user_id", nullable = false)
     private Long createdByUserId;

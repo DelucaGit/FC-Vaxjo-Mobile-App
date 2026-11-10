@@ -3,6 +3,8 @@ package se.fcvaxjo.api.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
@@ -10,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,8 +55,18 @@ class MyScheduleServiceTest {
     @Mock
     private TeamService teamService;
 
+    @Mock
+    private TrainingAttendanceRoster roster;
+
     @InjectMocks
     private MyScheduleService myScheduleService;
+
+    @BeforeEach
+    void trainingsAreNeverDueHere() {
+        // The auto-freeze rule is tested over HTTP with a controllable clock.
+        lenient().when(roster.freezeIfDue(any(Training.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     @AfterEach
     void clearAuth() {

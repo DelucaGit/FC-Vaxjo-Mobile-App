@@ -24,4 +24,6 @@ public class MyTrainingResponse {
     /** SCHEDULED or CANCELLED. Separate from the attendance status above. */
     private String trainingStatus;
     private String cancelReason;
+    /** When the attendance list was frozen. Null while it is still open (issue #86). */
+    private LocalDateTime attendanceLockedAt;
 }
