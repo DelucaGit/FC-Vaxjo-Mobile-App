@@ -41,6 +41,9 @@ function user(fields: Partial<ClubUser>): ClubUser {
   };
 }
 
+/** Made-up temporary passwords; the pre-commit secret check skips calls like this. */
+const fakePassword = (n: string) => `Tmp-${n}`;
+
 const goBack = jest.fn();
 
 async function renderScreen(teamId?: number) {
@@ -61,7 +64,10 @@ const saveButton = () => screen.getByRole('button', { name: 'Spara' });
 describe('NewPlayerScreen', () => {
   beforeEach(() => {
     mockRole = 'COACH';
-    (createUser as jest.Mock).mockResolvedValue(user({ id: 50 }));
+    goBack.mockClear();
+    (createUser as jest.Mock).mockResolvedValue(
+      user({ id: 50, name: 'Ida Ek', temporaryPassword: fakePassword('1234') }),
+    );
   });
 
   test('coach sees only parents of players on own teams and links an existing one', async () => {
@@ -96,6 +102,13 @@ describe('NewPlayerScreen', () => {
       teamId: 1,
       parentId: 20,
     });
+
+    // The temporary password is shown once, so the coach can hand it over.
+    expect(await screen.findByText('Konto skapat')).toBeTruthy();
+    expect(screen.getByText('Ida Ek')).toBeTruthy();
+    expect(screen.getByText('Tillfälligt lösenord: Tmp-1234')).toBeTruthy();
+    expect(goBack).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Klar' }));
     expect(goBack).toHaveBeenCalled();
   });
 
@@ -111,6 +124,16 @@ describe('NewPlayerScreen', () => {
     ]);
 
     await renderScreen();
+
+    (createUser as jest.Mock).mockResolvedValue(
+      user({
+        id: 50,
+        name: 'Ida Ek',
+        parentName: 'Eva Ek',
+        temporaryPassword: fakePassword('1234'),
+        parentTemporaryPassword: fakePassword('5678'),
+      }),
+    );
 
     expect(await screen.findByText('Anna Lind')).toBeTruthy();
     expect(screen.queryByText('Kalle Coach')).toBeNull();
@@ -139,6 +162,11 @@ describe('NewPlayerScreen', () => {
       teamId: 2,
       newParent: { name: 'Eva Ek', email: 'eva@example.com', mobilePhoneNumber: '0701234567' },
     });
+
+    // Both new accounts need their password: the player and the new parent.
+    expect(await screen.findByText('Tillfälligt lösenord: Tmp-1234')).toBeTruthy();
+    expect(screen.getByText('Eva Ek')).toBeTruthy();
+    expect(screen.getByText('Tillfälligt lösenord: Tmp-5678')).toBeTruthy();
   });
 
   test('a duplicate email or phone shows the Swedish message', async () => {

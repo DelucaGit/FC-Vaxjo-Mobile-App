@@ -5,6 +5,11 @@ import type { Team } from '../api/teams';
 import { createUser } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
 import {
+  CreatedAccounts,
+  createdAccounts,
+  type CreatedAccount,
+} from '../components/players/CreatedAccounts';
+import {
   EMPTY_PARENT_CHOICE,
   loadParentOptions,
   ParentPicker,
@@ -35,6 +40,7 @@ export default function NewPlayerScreen({ navigation, route }: Props) {
   const [parent, setParent] = useState<ParentChoice>(EMPTY_PARENT_CHOICE);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState<CreatedAccount[] | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -71,7 +77,7 @@ export default function NewPlayerScreen({ navigation, route }: Props) {
     setSaving(true);
     setError(null);
     try {
-      await createUser({
+      const user = await createUser({
         name: name.trim(),
         email: email.trim(),
         roleName: 'PLAYER',
@@ -80,11 +86,15 @@ export default function NewPlayerScreen({ navigation, route }: Props) {
         teamId,
         ...parentLink,
       });
-      navigation.goBack();
+      setCreated(createdAccounts(user));
     } catch (e) {
       setError(playerSaveErrorMessage(e));
       setSaving(false);
     }
+  }
+
+  if (created) {
+    return <CreatedAccounts accounts={created} onDone={() => navigation.goBack()} />;
   }
 
   return (
