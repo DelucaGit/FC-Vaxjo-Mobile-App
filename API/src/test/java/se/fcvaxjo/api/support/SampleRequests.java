@@ -123,7 +123,8 @@ public final class SampleRequests {
         return request;
     }
 
-    public static SetMatchResultRequest result(int goalsFor, int goalsAgainst) {
+    /** Pass null for a goal to test clearing (both null) or a half-filled score (one null). */
+    public static SetMatchResultRequest result(Integer goalsFor, Integer goalsAgainst) {
         SetMatchResultRequest request = new SetMatchResultRequest();
         request.setGoalsFor(goalsFor);
         request.setGoalsAgainst(goalsAgainst);

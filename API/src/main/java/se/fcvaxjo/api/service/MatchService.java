@@ -71,7 +71,7 @@ public class MatchService {
         }
 
         HomeAway homeAway = parseHomeAway(homeAwayName);
-        assertScorePair(goalsFor, goalsAgainst, false);
+        assertScorePair(goalsFor, goalsAgainst);
 
         teamService.getTeamById(teamId);
 
@@ -118,10 +118,14 @@ public class MatchService {
         throw new AccessDeniedException(MANAGE_DENIED);
     }
 
+    /**
+     * Sets the score, or clears it when both numbers are null
+     * (for a result that was typed in wrong). One number alone is 400.
+     */
     @Transactional
     public Match setResult(Long id, Integer goalsFor, Integer goalsAgainst) {
         Match match = getById(id);
-        assertScorePair(goalsFor, goalsAgainst, true);
+        assertScorePair(goalsFor, goalsAgainst);
         match.setGoalsFor(goalsFor);
         match.setGoalsAgainst(goalsAgainst);
         return matchRepository.save(match);
@@ -132,14 +136,11 @@ public class MatchService {
     }
 
     /**
-     * On create, both numbers may be empty. On a later result, both are required.
+     * Both numbers empty means "no result" (on create, and to clear a result).
      * One number without the other is always rejected.
      */
-    private void assertScorePair(Integer goalsFor, Integer goalsAgainst, boolean required) {
+    private void assertScorePair(Integer goalsFor, Integer goalsAgainst) {
         if (goalsFor == null && goalsAgainst == null) {
-            if (required) {
-                throw new BadRequestException("goalsFor and goalsAgainst are required");
-            }
             return;
         }
         if (goalsFor == null || goalsAgainst == null) {

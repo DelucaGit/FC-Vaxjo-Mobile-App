@@ -123,7 +123,9 @@ Kod idag: stämmer. Anonymt anrop är 401.
 ### Matcher
 
 `x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.
-Det gäller lista, hämta, skapa och sätta resultat.
+Det gäller lista, hämta, skapa, sätta resultat och tömma resultat.
+
+`PUT /api/matches/{id}/result` med båda målen `null` tömmer resultatet. Bara ett mål satt ger 400. Samma roller och lag som får sätta resultatet får tömma det. En COACH från ett annat lag får 403 och resultatet ligger kvar.
 
 En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte finns, så svaret inte säger att matchen finns. ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
 

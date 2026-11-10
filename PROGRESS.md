@@ -760,6 +760,12 @@ These are noted but not planned yet:
 - CORS.
 - Rate limiting for the rest of the API (phase 1 only limits login).
 
+## Clearing a match result (#60)
+
+Decision: `PUT /api/matches/{id}/result` with both goals `null` clears the result. Only one goal set is 400. The same roles and teams that may set a result may clear it.
+
+Why: a coach must be able to undo a wrongly typed score without a new endpoint.
+
 # No player data is public (#61, decided 5/11-2026)
 
 Decision (Marcel): no player data is ever shown publicly, not even with a parent's consent. This replaces "Public reads need the parent's consent" above. `GET /api/public/teams/{id}/players` and `PUT /api/users/{id}/public-consent` are removed, together with `publicConsentAt`, their services, DTOs and tests. ADR 0007 is rewritten as "Inga spelardata publikt", and ADR 0003 and 0004 hold without exceptions. Public reads are teams, upcoming matches and match history.
