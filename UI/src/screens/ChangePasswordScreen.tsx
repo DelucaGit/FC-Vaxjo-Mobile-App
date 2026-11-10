@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import { colors, radius } from '../theme/colors';
+import { colors, radius } from '../theme';
 
 export default function ChangePasswordScreen() {
   const { changePassword, logout, session } = useAuth();
@@ -101,28 +101,28 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: colors.onSurfaceVariant,
+    color: colors.textMuted,
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.onSurface,
+    color: colors.text,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radius.md,
+    borderColor: colors.border,
+    borderRadius: radius,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 14,
-    backgroundColor: colors.surfaceContainerLowest,
-    color: colors.onSurface,
+    backgroundColor: colors.surface,
+    color: colors.text,
   },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: radius.lg,
+    borderRadius: radius,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   error: {
-    color: colors.error,
+    color: colors.warning,
     marginBottom: 8,
   },
 });

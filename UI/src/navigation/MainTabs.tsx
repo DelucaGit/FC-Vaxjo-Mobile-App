@@ -1,144 +1,88 @@
+import type { ComponentType } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import {
+  CalendarDays,
+  Contact,
+  Menu,
+  Search,
+  Shield,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useAuth } from '../auth/AuthContext';
-import { canCreateTeam, isStaff } from '../auth/roles';
-import CreateTeamScreen from '../screens/CreateTeamScreen';
-import CreateUserScreen from '../screens/CreateUserScreen';
-import HomeScreen from '../screens/HomeScreen';
-import MoreScreen from '../screens/MoreScreen';
-import MyScheduleScreen from '../screens/MyScheduleScreen';
-import SearchScreen from '../screens/SearchScreen';
-import TeamsScreen from '../screens/TeamsScreen';
-import TrainingsScreen from '../screens/TrainingsScreen';
-import { colors } from '../theme/colors';
-import type { TabParamList } from './types';
+import { colors, sizes, type } from '../theme';
+import {
+  ActivitiesStack,
+  CoachesStack,
+  MoreStack,
+  ScheduleStack,
+  SearchStack,
+  SquadStack,
+  TeamsStack,
+  UsersStack,
+} from './stacks';
+import { tabsForRole } from './tabsForRole';
+import type { TabName, TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function TabLabel({ label, focused }: { label: string; focused: boolean }) {
-  return (
-    <Text
-      style={{
-        fontSize: 11,
-        fontWeight: focused ? '700' : '600',
-        color: focused ? colors.primary : colors.onSurfaceVariant,
-        marginBottom: 2,
-      }}
-    >
-      {label}
-    </Text>
-  );
-}
+/** Label, icon and stack for each tab (spec section 8). */
+const TABS: Record<TabName, { label: string; icon: LucideIcon; stack: ComponentType }> = {
+  ScheduleTab: { label: 'Schema', icon: CalendarDays, stack: ScheduleStack },
+  CoachesTab: { label: 'Tränare', icon: Contact, stack: CoachesStack },
+  ActivitiesTab: { label: 'Aktiviteter', icon: CalendarDays, stack: ActivitiesStack },
+  SquadTab: { label: 'Laget', icon: Users, stack: SquadStack },
+  SearchTab: { label: 'Sök', icon: Search, stack: SearchStack },
+  TeamsTab: { label: 'Lag', icon: Shield, stack: TeamsStack },
+  UsersTab: { label: 'Användare', icon: UserRound, stack: UsersStack },
+  MoreTab: { label: 'Mer', icon: Menu, stack: MoreStack },
+};
 
-function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
-  return (
-    <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.55, marginTop: 4 }}>
-      {icon}
-    </Text>
-  );
-}
-
+/**
+ * The bottom menu. Only the tabs for the signed-in role are registered,
+ * so a route from another role's tab cannot be opened at all.
+ */
 export default function MainTabs() {
   const { session } = useAuth();
-  // Chairman is above coach, so staff screens stay open for CHAIRMAN.
-  const staff = isStaff(session?.roleName);
-  // The create-team route itself is omitted for a coach, so navigate() cannot open it.
-  const mayCreateTeam = canCreateTeam(session?.roleName);
+  const tabs = tabsForRole(session?.roleName);
 
   return (
     <Tab.Navigator
-      initialRouteName="Home"
       screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.primary,
-          shadowColor: colors.primary,
-          shadowOpacity: 0.25,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 6,
-        },
-        headerTintColor: colors.onPrimary,
-        headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+        headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.onSurfaceVariant,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: colors.surfaceContainerLowest,
-          borderTopColor: colors.outlineVariant,
-          height: 64,
-          paddingTop: 4,
+          backgroundColor: colors.surface,
+          borderTopWidth: sizes.divider,
+          borderTopColor: colors.border,
+          minHeight: sizes.tabBar,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        sceneStyle: { backgroundColor: colors.background },
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          title: 'FC Växjö',
-          headerShown: false,
-          tabBarLabel: ({ focused }) => <TabLabel label="Hem" focused={focused} />,
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Schema"
-        component={staff ? TrainingsScreen : MyScheduleScreen}
-        options={{
-          title: staff ? 'Närvaro' : 'Schema',
-          tabBarLabel: ({ focused }) => <TabLabel label="Schema" focused={focused} />,
-          tabBarIcon: ({ focused }) => <TabIcon icon="📅" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Laget"
-        component={TeamsScreen}
-        options={{
-          title: 'Laget',
-          tabBarLabel: ({ focused }) => <TabLabel label="Laget" focused={focused} />,
-          tabBarIcon: ({ focused }) => <TabIcon icon="👥" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Mer"
-        component={MoreScreen}
-        options={{
-          title: 'Mer',
-          tabBarLabel: ({ focused }) => <TabLabel label="Mer" focused={focused} />,
-          tabBarIcon: ({ focused }) => <TabIcon icon="☰" focused={focused} />,
-        }}
-      />
-      {/* Hidden routes opened from Mer / Home quick actions */}
-      <Tab.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          title: 'Sök',
-          tabBarButton: () => null,
-          tabBarItemStyle: { display: 'none' },
-        }}
-      />
-      {staff ? (
-        <Tab.Screen
-          name="Create"
-          component={CreateUserScreen}
-          options={{
-            title: 'Skapa',
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: 'none' },
-          }}
-        />
-      ) : null}
-      {mayCreateTeam ? (
-        <Tab.Screen
-          name="CreateTeam"
-          component={CreateTeamScreen}
-          options={{
-            title: 'Skapa lag',
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: 'none' },
-          }}
-        />
-      ) : null}
+      {tabs.map((name) => {
+        const { label, icon: Icon, stack } = TABS[name];
+        return (
+          <Tab.Screen
+            key={name}
+            name={name}
+            component={stack}
+            options={{
+              title: label,
+              tabBarButtonTestID: `tab-${name}`,
+              tabBarAccessibilityLabel: label,
+              tabBarIcon: ({ focused, color }) => (
+                <Icon size={sizes.icon} color={color} strokeWidth={focused ? 2 : 1.5} />
+              ),
+              tabBarLabel: ({ color }) => <Text style={[type.tab, { color }]}>{label}</Text>,
+            }}
+          />
+        );
+      })}
     </Tab.Navigator>
   );
 }
