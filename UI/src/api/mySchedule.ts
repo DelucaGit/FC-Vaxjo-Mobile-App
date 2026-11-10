@@ -37,3 +37,22 @@ export async function listMyTrainings(childId?: number): Promise<MyTraining[]> {
   }
   return response.json();
 }
+
+export type MyCoach = {
+  id: number;
+  name: string | null;
+  email: string | null;
+  mobilePhoneNumber: string | null;
+};
+
+// Coaches of the player's team. A parent must pass the child's id;
+// a player must leave it out (the API answers 403 otherwise).
+export async function listMyCoaches(childId?: number): Promise<MyCoach[]> {
+  const query =
+    childId != null ? `?childId=${encodeURIComponent(String(childId))}` : '';
+  const response = await apiFetch(`${API_BASE_URL}/my/coaches${query}`);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.json();
+}
