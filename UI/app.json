@@ -32,7 +32,8 @@
           "configureAndroidBackup": true,
           "faceIDPermission": false
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
