@@ -88,9 +88,12 @@ public class MyScheduleController {
                     t.getStartsAt(),
                     t.getEndsAt(),
                     t.getTitle(),
+                    t.getVenue(),
                     player.getId(),
                     player.getName(),
-                    row.status()));
+                    row.status(),
+                    t.statusOrScheduled().name(),
+                    t.getCancelReason()));
         }
         return responses;
     }

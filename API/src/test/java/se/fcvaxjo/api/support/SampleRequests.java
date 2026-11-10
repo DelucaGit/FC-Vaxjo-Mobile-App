@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import se.fcvaxjo.api.DTO.AddCoachRequest;
 import se.fcvaxjo.api.DTO.ChangePasswordRequest;
 import se.fcvaxjo.api.DTO.ChangeRoleRequest;
+import se.fcvaxjo.api.DTO.CancelTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.CreateTeamRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
@@ -15,6 +16,7 @@ import se.fcvaxjo.api.DTO.PublicConsentRequest;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
+import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 
 /**
  * JSON bodies for the role tests. Fields match what the service already accepts,
@@ -93,6 +95,22 @@ public final class SampleRequests {
         request.setStartsAt(LocalDateTime.of(2026, 12, 1, 18, 0));
         request.setEndsAt(LocalDateTime.of(2026, 12, 1, 19, 0));
         request.setTitle("Extra testtraning");
+        request.setVenue("Extra hall");
+        return request;
+    }
+
+    public static UpdateTrainingRequest trainingChange() {
+        UpdateTrainingRequest request = new UpdateTrainingRequest();
+        request.setStartsAt(LocalDateTime.of(2026, 12, 2, 18, 0));
+        request.setEndsAt(LocalDateTime.of(2026, 12, 2, 19, 30));
+        request.setTitle("Flyttad testtraning");
+        request.setVenue("Nya hallen");
+        return request;
+    }
+
+    public static CancelTrainingRequest cancellation(String reason) {
+        CancelTrainingRequest request = new CancelTrainingRequest();
+        request.setReason(reason);
         return request;
     }
 

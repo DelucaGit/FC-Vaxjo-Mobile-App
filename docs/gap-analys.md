@@ -43,6 +43,10 @@ Personalens matcher följer samma laggräns som träningar. ADMIN och CHAIRMAN s
 
 `GET /api/public/**` är öppet. Andra metoder på den sökvägen är det inte. Truppen visar bara namn och tröjnummer, och bara när den länkade föräldern har satt `publicConsentAt` (ADR 0007). Inaktiva användare syns inte. En inaktiv förälder döljer barnet, för återkallelsen skulle annars inte gå att göra. Kontaktuppgifter finns inte i de publika svaren. Tränarkontakt och publikt träningsschema är kvar som planerade. Rate limit och CORS för fcvaxjo.se (punkt 8) är kvar.
 
+## Sprint 2, ställa in en träning
+
+`PUT /api/trainings/{id}` ändrar tid, plats och titel. `PUT /api/trainings/{id}/cancellation` sätter CANCELLED utan att radera raden. Närvaron ligger kvar. Ny närvaro på en inställd träning är 400. Spelare och föräldrar ser att den är inställd i `/api/my/trainings`. Samma skrivare som när träningen skapas.
+
 ## Det som redan fungerar bra
 - Lösenord hashas med BCrypt, och entiteter exponeras aldrig direkt (bara via DTO).
 - Träningar och närvaro är lagbegränsade för COACH (`TrainingService.assertCanManageTeam`).

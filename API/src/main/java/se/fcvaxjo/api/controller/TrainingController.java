@@ -16,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import se.fcvaxjo.api.DTO.AttendanceResponse;
+import se.fcvaxjo.api.DTO.CancelTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
 import se.fcvaxjo.api.DTO.TrainingResponse;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
+import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
@@ -48,7 +50,8 @@ public class TrainingController {
                 request.getTeamId(),
                 request.getStartsAt(),
                 request.getEndsAt(),
-                request.getTitle());
+                request.getTitle(),
+                request.getVenue());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
@@ -66,6 +69,33 @@ public class TrainingController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public TrainingResponse getById(@PathVariable Long id) {
         return toResponse(trainingService.getById(id));
+    }
+
+    /**
+     * Changes time, place, and title. Same writers as create.
+     * The team is not part of the body, so the attendance list stays.
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public TrainingResponse update(@PathVariable Long id, @RequestBody UpdateTrainingRequest request) {
+        Training updated = trainingService.updateTraining(
+                id,
+                request.getStartsAt(),
+                request.getEndsAt(),
+                request.getTitle(),
+                request.getVenue());
+        return toResponse(updated);
+    }
+
+    /**
+     * Calls the training off. The row is not deleted.
+     * reason is optional.
+     */
+    @PutMapping("/{id}/cancellation")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public TrainingResponse cancel(@PathVariable Long id, @RequestBody CancelTrainingRequest request) {
+        String reason = request == null ? null : request.getReason();
+        return toResponse(trainingService.cancelTraining(id, reason));
     }
 
     @GetMapping("/{id}/attendance")
@@ -107,6 +137,9 @@ public class TrainingController {
                 training.getStartsAt(),
                 training.getEndsAt(),
                 training.getTitle(),
+                training.getVenue(),
+                training.statusOrScheduled().name(),
+                training.getCancelReason(),
                 training.getCreatedByUserId());
     }
 }
