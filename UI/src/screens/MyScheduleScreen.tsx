@@ -24,9 +24,18 @@ function formatWhen(iso: string): string {
 
 function statusLabel(status: MyTraining['status']): string {
   if (status == null) {
-    return 'Not marked yet';
+    return 'Inte markerad än';
   }
-  return status;
+  switch (status) {
+    case 'PRESENT':
+      return 'Närvarande';
+    case 'ABSENT':
+      return 'Frånvarande';
+    case 'EXCUSED':
+      return 'Ursäktad';
+    default:
+      return status;
+  }
 }
 
 export default function MyScheduleScreen() {
@@ -65,7 +74,7 @@ export default function MyScheduleScreen() {
           }
         } catch (err) {
           if (!cancelled) {
-            setError(err instanceof Error ? err.message : 'Could not load schedule.');
+            setError(err instanceof Error ? err.message : 'Kunde inte ladda schemat.');
             setTrainings([]);
           }
         } finally {
@@ -89,7 +98,7 @@ export default function MyScheduleScreen() {
     try {
       setTrainings(await listMyTrainings(child.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load schedule.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ladda schemat.');
       setTrainings([]);
     } finally {
       setLoading(false);
@@ -98,21 +107,21 @@ export default function MyScheduleScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>My schedule</Text>
+      <Text style={styles.heading}>Mitt schema</Text>
       <Text style={styles.hint}>
         {isParent
-          ? 'Pick a child to see their team trainings and attendance status. Only coaches mark attendance.'
-          : 'Trainings for your team and your attendance status. Only coaches mark attendance.'}
+          ? 'Välj ett barn för att se lagets träningar och närvaro. Det är bara tränarna som markerar närvaro.'
+          : 'Ditt lags träningar och din närvaro. Det är bara tränarna som markerar närvaro.'}
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading ? <Text style={styles.hint}>Loading…</Text> : null}
+      {loading ? <Text style={styles.hint}>Laddar…</Text> : null}
 
       {isParent ? (
         <>
-          <Text style={styles.label}>Child</Text>
+          <Text style={styles.label}>Barn</Text>
           {children.length === 0 ? (
-            <Text style={styles.hint}>No linked players yet.</Text>
+            <Text style={styles.hint}>Inga kopplade spelare än.</Text>
           ) : (
             <View style={styles.rowWrap}>
               {children.map((child) => (
@@ -142,9 +151,9 @@ export default function MyScheduleScreen() {
         </>
       ) : null}
 
-      <Text style={styles.subheading}>Trainings</Text>
+      <Text style={styles.subheading}>Träningar</Text>
       {trainings.length === 0 && !loading ? (
-        <Text style={styles.hint}>No trainings to show.</Text>
+        <Text style={styles.hint}>Inga träningar att visa.</Text>
       ) : (
         trainings.map((training) => (
           <View key={training.id} style={styles.card}>
@@ -154,7 +163,7 @@ export default function MyScheduleScreen() {
               {formatWhen(training.endsAt)}
             </Text>
             {isParent ? (
-              <Text style={styles.cardMeta}>Player: {training.playerName}</Text>
+              <Text style={styles.cardMeta}>Spelare: {training.playerName}</Text>
             ) : null}
             <Text style={styles.status}>{statusLabel(training.status)}</Text>
           </View>

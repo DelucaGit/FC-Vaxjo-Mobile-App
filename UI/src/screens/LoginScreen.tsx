@@ -19,7 +19,7 @@ export default function LoginScreen() {
 
   async function onLogin() {
     if (!email.trim() || !password) {
-      setError('Email and password are required.');
+      setError('Fyll i e-post och lösenord.');
       return;
     }
     setLoading(true);
@@ -27,7 +27,7 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed.');
+      setError(err instanceof Error ? err.message : 'Inloggningen misslyckades.');
     } finally {
       setLoading(false);
     }
@@ -36,25 +36,25 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FC Växjö</Text>
-      <Text style={styles.subtitle}>Sign in with your club email</Text>
+      <Text style={styles.subtitle}>Logga in med din e-post från klubben</Text>
 
-      <Text style={styles.label}>Email</Text>
+      <Text style={styles.label}>E-post</Text>
       <TextInput
         style={styles.input}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@fcvaxjo.se"
+        placeholder="du@fcvaxjo.se"
       />
 
-      <Text style={styles.label}>Password</Text>
+      <Text style={styles.label}>Lösenord</Text>
       <TextInput
         style={styles.input}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        placeholder="Password"
+        placeholder="Lösenord"
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -63,7 +63,7 @@ export default function LoginScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
+          <Text style={styles.buttonText}>Logga in</Text>
         )}
       </Pressable>
     </View>

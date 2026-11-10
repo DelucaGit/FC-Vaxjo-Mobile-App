@@ -56,7 +56,7 @@ describe('TrainingsScreen 403', () => {
     expect(
       await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),
     ).toBeTruthy();
-    expect(screen.getByText('Create training')).toBeTruthy();
+    expect(screen.getByText('Skapa träning')).toBeTruthy();
     expect(screen.getByText('P15')).toBeTruthy();
   });
 });

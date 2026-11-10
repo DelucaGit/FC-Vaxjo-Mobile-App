@@ -36,7 +36,7 @@ export default function CreateTeamScreen() {
     }
     const trimmed = name.trim();
     if (!trimmed) {
-      setError('Team name is required (e.g. P15).');
+      setError('Fyll i ett lagnamn (t.ex. P15).');
       return;
     }
     setLoading(true);
@@ -47,7 +47,7 @@ export default function CreateTeamScreen() {
       setName('');
       setMessage(`Laget ${team.name} är skapat.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create team failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte skapa laget.');
     } finally {
       setLoading(false);
     }

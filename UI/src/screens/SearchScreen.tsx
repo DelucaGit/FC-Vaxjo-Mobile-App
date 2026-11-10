@@ -29,7 +29,7 @@ export default function SearchScreen() {
   async function onSearch() {
     const trimmed = query.trim();
     if (!trimmed) {
-      setError('Type something to search.');
+      setError('Skriv något att söka på.');
       setResults([]);
       return;
     }
@@ -42,12 +42,12 @@ export default function SearchScreen() {
         const users = await searchByName(trimmed);
         setResults(users);
         if (users.length === 0) {
-          setError('No users matched that name.');
+          setError('Ingen användare matchade namnet.');
         }
       } else if (mode === 'number') {
         const shirtNumber = Number(trimmed);
         if (Number.isNaN(shirtNumber)) {
-          setError('Shirt number must be a number.');
+          setError('Tröjnumret måste vara ett tal.');
           setResults([]);
           return;
         }
@@ -59,7 +59,7 @@ export default function SearchScreen() {
       }
     } catch (err) {
       setResults([]);
-      setError(err instanceof Error ? err.message : 'Search failed.');
+      setError(err instanceof Error ? err.message : 'Sökningen misslyckades.');
     } finally {
       setLoading(false);
     }
@@ -67,13 +67,13 @@ export default function SearchScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Find a user</Text>
-      <Text style={styles.hint}>Search by name, shirt number, or phone.</Text>
+      <Text style={styles.title}>Hitta en användare</Text>
+      <Text style={styles.hint}>Sök på namn, tröjnummer eller telefon.</Text>
 
       <View style={styles.modeRow}>
-        <ModeButton label="Name" active={mode === 'name'} onPress={() => setMode('name')} />
-        <ModeButton label="Shirt #" active={mode === 'number'} onPress={() => setMode('number')} />
-        <ModeButton label="Phone" active={mode === 'phone'} onPress={() => setMode('phone')} />
+        <ModeButton label="Namn" active={mode === 'name'} onPress={() => setMode('name')} />
+        <ModeButton label="Tröjnr" active={mode === 'number'} onPress={() => setMode('number')} />
+        <ModeButton label="Telefon" active={mode === 'phone'} onPress={() => setMode('phone')} />
       </View>
 
       <TextInput
@@ -82,17 +82,17 @@ export default function SearchScreen() {
         onChangeText={setQuery}
         placeholder={
           mode === 'name'
-            ? 'e.g. TESTMAN'
+            ? 't.ex. TESTMAN'
             : mode === 'number'
-              ? 'e.g. 42'
-              : 'e.g. +46701112233'
+              ? 't.ex. 42'
+              : 't.ex. +46701112233'
         }
         autoCapitalize={mode === 'name' ? 'words' : 'none'}
         keyboardType={mode === 'number' ? 'number-pad' : mode === 'phone' ? 'phone-pad' : 'default'}
       />
 
       <Pressable style={styles.button} onPress={onSearch} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Searching…' : 'Search'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'Söker…' : 'Sök'}</Text>
       </Pressable>
 
       {loading ? <ActivityIndicator style={styles.loader} /> : null}
@@ -101,12 +101,12 @@ export default function SearchScreen() {
       {results.map((user) => (
         <View key={user.id} style={styles.card}>
           <Text style={styles.cardTitle}>{user.name}</Text>
-          <Text>Email: {user.email}</Text>
-          <Text>Role: {roleLabel(user.roleName)}</Text>
-          <Text>Shirt #: {user.playerNumber ?? '—'}</Text>
-          <Text>Phone: {user.mobilePhoneNumber ?? '—'}</Text>
-          <Text>Parent: {user.parentName ?? '—'}</Text>
-          <Text>Team: {user.teamName ?? '—'}</Text>
+          <Text>E-post: {user.email}</Text>
+          <Text>Roll: {roleLabel(user.roleName)}</Text>
+          <Text>Tröjnr: {user.playerNumber ?? '—'}</Text>
+          <Text>Telefon: {user.mobilePhoneNumber ?? '—'}</Text>
+          <Text>Förälder: {user.parentName ?? '—'}</Text>
+          <Text>Lag: {user.teamName ?? '—'}</Text>
         </View>
       ))}
     </ScrollView>

@@ -116,7 +116,7 @@ export default function TeamsScreen() {
     try {
       setTeams(await listTeams());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load teams.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ladda lagen.');
     }
   }, []);
 
@@ -204,7 +204,7 @@ export default function TeamsScreen() {
       setCoaches([]);
       setPlayers([]);
       setError(
-        err instanceof Error ? err.message : 'Could not load team members.',
+        err instanceof Error ? err.message : 'Kunde inte ladda lagets medlemmar.',
       );
     }
   }
@@ -232,15 +232,15 @@ export default function TeamsScreen() {
 
   async function onSavePlayer() {
     if (!viewingPlayer || editTeamId == null) {
-      setError('Team is required.');
+      setError('Välj ett lag.');
       return;
     }
     if (!editName.trim()) {
-      setError('Name is required.');
+      setError('Fyll i namn.');
       return;
     }
     if (!editEmail.trim()) {
-      setError('Email is required.');
+      setError('Fyll i e-post.');
       return;
     }
 
@@ -248,7 +248,7 @@ export default function TeamsScreen() {
     if (editShirt.trim()) {
       shirt = Number(editShirt.trim());
       if (Number.isNaN(shirt)) {
-        setError('Shirt number must be a number.');
+        setError('Tröjnumret måste vara ett tal.');
         return;
       }
     }
@@ -285,7 +285,7 @@ export default function TeamsScreen() {
         await reloadSelectedTeamMembers(selectedTeam);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte spara.');
     } finally {
       setLoading(false);
     }
@@ -307,7 +307,7 @@ export default function TeamsScreen() {
         await reloadSelectedTeamMembers(selectedTeam);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Remove failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ta bort.');
     } finally {
       setLoading(false);
     }
@@ -343,7 +343,7 @@ export default function TeamsScreen() {
       setShowAddCoach(false);
       setCoaches(await listTeamCoaches(selectedTeam.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Add coach failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte lägga till tränaren.');
     } finally {
       setLoading(false);
     }
@@ -361,7 +361,7 @@ export default function TeamsScreen() {
       setMessage(`Removed ${coach.name} from ${selectedTeam.name}.`);
       setCoaches(await listTeamCoaches(selectedTeam.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Remove coach failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ta bort tränaren.');
     } finally {
       setLoading(false);
     }

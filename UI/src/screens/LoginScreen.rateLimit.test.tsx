@@ -26,8 +26,8 @@ describe('LoginScreen 429', () => {
 
     await render(<LoginScreen />);
     // In Testing Library v14 fireEvent is async, so each call is awaited.
-    await fireEvent.changeText(screen.getByPlaceholderText('Password'), 'wrong-guess');
-    await fireEvent.press(screen.getByText('Sign in'));
+    await fireEvent.changeText(screen.getByPlaceholderText('Lösenord'), 'wrong-guess');
+    await fireEvent.press(screen.getByText('Logga in'));
 
     expect(await screen.findByText(TOO_MANY_LOGIN_ATTEMPTS_MESSAGE)).toBeTruthy();
     expect(TOO_MANY_LOGIN_ATTEMPTS_MESSAGE).toBe(

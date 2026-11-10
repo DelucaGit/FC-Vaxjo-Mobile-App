@@ -63,7 +63,7 @@ export default function TrainingsScreen() {
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
 
-  const [title, setTitle] = useState('Training');
+  const [title, setTitle] = useState('Träning');
   const [date, setDate] = useState('2026-10-27');
   const [startTime, setStartTime] = useState('16:00');
   const [endTime, setEndTime] = useState('17:30');
@@ -96,13 +96,13 @@ export default function TrainingsScreen() {
           setTrainings(await listTrainings(next[0].id));
         } catch (err) {
           setError(
-            err instanceof Error ? err.message : 'Could not load trainings.',
+            err instanceof Error ? err.message : 'Kunde inte ladda träningarna.',
           );
           setTrainings([]);
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load teams.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ladda lagen.');
     }
   }, [session]);
 
@@ -122,7 +122,7 @@ export default function TrainingsScreen() {
     try {
       setTrainings(await listTrainings(team.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load trainings.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ladda träningarna.');
       setTrainings([]);
     } finally {
       setLoading(false);
@@ -131,11 +131,11 @@ export default function TrainingsScreen() {
 
   async function onCreateTraining() {
     if (!selectedTeam) {
-      setError('Pick a team first.');
+      setError('Välj ett lag först.');
       return;
     }
     if (!date.trim() || !startTime.trim() || !endTime.trim()) {
-      setError('Date, start time, and end time are required (YYYY-MM-DD and HH:mm).');
+      setError('Fyll i datum, starttid och sluttid (ÅÅÅÅ-MM-DD och TT:mm).');
       return;
     }
 
@@ -147,14 +147,14 @@ export default function TrainingsScreen() {
         teamId: selectedTeam.id,
         startsAt: toApiDateTime(date, startTime),
         endsAt: toApiDateTime(date, endTime),
-        title: title.trim() || 'Training',
+        title: title.trim() || 'Träning',
       });
-      setMessage(`Created ${created.title} (id ${created.id}).`);
+      setMessage(`Skapade ${created.title} (id ${created.id}).`);
       setTrainings(await listTrainings(selectedTeam.id));
       setSelectedTraining(created);
       setAttendance(await listAttendance(created.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create training failed.');
+      setError(err instanceof Error ? err.message : 'Kunde inte skapa träningen.');
     } finally {
       setLoading(false);
     }
@@ -168,7 +168,7 @@ export default function TrainingsScreen() {
     try {
       setAttendance(await listAttendance(training.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load attendance.');
+      setError(err instanceof Error ? err.message : 'Kunde inte ladda närvaron.');
       setAttendance([]);
     } finally {
       setLoading(false);
@@ -188,7 +188,7 @@ export default function TrainingsScreen() {
         ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update attendance.');
+      setError(err instanceof Error ? err.message : 'Kunde inte uppdatera närvaron.');
     }
   }
 
@@ -206,7 +206,7 @@ export default function TrainingsScreen() {
       );
       setAttendance(results);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not mark all present.');
+      setError(err instanceof Error ? err.message : 'Kunde inte markera alla som närvarande.');
     } finally {
       setLoading(false);
     }
@@ -273,7 +273,7 @@ export default function TrainingsScreen() {
         >
           {attendance.length === 0 ? (
             <Text style={styles.hint}>
-              No players were on the team when this was created.
+              Det fanns inga spelare i laget när träningen skapades.
             </Text>
           ) : (
             attendance.map((row) => (
@@ -384,16 +384,16 @@ export default function TrainingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Trainings</Text>
+      <Text style={styles.heading}>Träningar</Text>
       <Text style={styles.hint}>
-        Pick a team, create a training (start + end), then open it for pitch-mode
-        attendance (JA / NEJ).
+        Välj ett lag och skapa en träning (start och slut). Öppna den sedan för att
+        markera närvaro på plan (JA / NEJ).
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
-      <Text style={styles.label}>Team</Text>
+      <Text style={styles.label}>Lag</Text>
       <View style={styles.rowWrap}>
         {teams.map((team) => (
           <Pressable
@@ -418,30 +418,30 @@ export default function TrainingsScreen() {
 
       {selectedTeam ? (
         <>
-          <Text style={styles.subheading}>New training for {selectedTeam.name}</Text>
-          <Text style={styles.label}>Title</Text>
+          <Text style={styles.subheading}>Ny träning för {selectedTeam.name}</Text>
+          <Text style={styles.label}>Titel</Text>
           <TextInput style={styles.input} value={title} onChangeText={setTitle} />
-          <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
+          <Text style={styles.label}>Datum (ÅÅÅÅ-MM-DD)</Text>
           <TextInput style={styles.input} value={date} onChangeText={setDate} />
-          <Text style={styles.label}>Start (HH:mm)</Text>
+          <Text style={styles.label}>Start (TT:mm)</Text>
           <TextInput
             style={styles.input}
             value={startTime}
             onChangeText={setStartTime}
           />
-          <Text style={styles.label}>End (HH:mm)</Text>
+          <Text style={styles.label}>Slut (TT:mm)</Text>
           <TextInput style={styles.input} value={endTime} onChangeText={setEndTime} />
           <Pressable
             style={styles.button}
             onPress={onCreateTraining}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>Create training</Text>
+            <Text style={styles.buttonText}>Skapa träning</Text>
           </Pressable>
 
-          <Text style={styles.subheading}>Trainings</Text>
+          <Text style={styles.subheading}>Träningar</Text>
           {trainings.length === 0 ? (
-            <Text style={styles.hint}>No trainings yet for this team.</Text>
+            <Text style={styles.hint}>Inga träningar för laget än.</Text>
           ) : (
             trainings.map((training) => (
               <Pressable
