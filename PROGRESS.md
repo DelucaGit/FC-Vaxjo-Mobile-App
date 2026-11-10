@@ -25,6 +25,8 @@ Java Spring Boot will be used to make the API service. Why Java? Because that's 
 
 Railway will be used to host the database (PostgreSQL) and API. I first planned AWS because that's what I have studied previously at school, but AWS is too expensive for a small club app, so the plan is now Railway (see `docs/adr/0002-hosting-pa-railway.md`). For Version 1 I will keep PostgreSQL on my own computer first, and move it to Railway later when the basics work.
 
+Update 10/11-2026: the API moves to Railway as a Docker image by 20 December 2026. See "Phase 1 plan (10/11-2026)" at the end of this file.
+
 For the repository structure I will go for a monorepo where I keep everything inside one root folder on Github. Inside that I will have one folder for the API (the Java backend) and another folder for the UI (React Native).
 
 I will not have microservices for several reasons:
@@ -37,6 +39,8 @@ Inside the API folder I will use layers: controller, service, repository and mod
 # Project Timeline
 
 I won't build everything at once. As a junior developer I need to focus on understanding how the code works in the system. So I will build slowly and steady. I will divide the project in versions where I will have small goals to accomplish each version. I have no idea how long this will take. Taking into consideration that I work 12h a day, have a newborn at home and have some local responsibilities in my area - I hope to achieve a stable version of the app in 3-4 months.
+
+Update 10/11-2026: the plan is now four phases, with a pilot in mid-January 2027. See "Phase 1 plan (10/11-2026)" at the end of this file.
 
 # Project Rules
 
@@ -703,4 +707,55 @@ Why not delete: the attendance history is still the club's record. Players and p
 
 The same people who create a training may edit or cancel it. A place is a new optional column, because the old training row had no venue. A null status on an older row is shown as SCHEDULED. Hibernate adds the columns (`ddl-auto=update`, ADR 0002). No Flyway. `UI/` is not changed.
 
+# Phase 1 plan (10/11-2026)
 
+Marcel and Claude went through the plan on 9–10/11-2026. The full spec is GitHub issue #57. This section writes down the decisions.
+
+## Phases
+
+Decision: the work is split into four phases.
+
+- **Phase 1 – pilot.** One real team starts in mid-January 2027. Only the chairman (CHAIRMAN) and the team's coach (COACH) log in. The app is installed as an APK on the chairman's Android phone. The pilot is done when they can log in, add players, trainings and matches, see them, mark attendance on every training and match, and change, cancel and reactivate a training.
+- **Phase 2 – solid ground.** Flyway, automatic backups, monitoring, input validation, protection for the last ADMIN, an audit log, and more teams.
+- **Phase 3 – families.** Parents and players log in. Parent contact info. Push notifications.
+- **Phase 4 – public.** Public training schedule, public coaches who give their own consent, CORS, and a link from the club website.
+
+Why: a small pilot gives real feedback early. Everything that touches children's data or the public waits until the base is stable.
+
+## Pilot scope
+
+Decision: a player has only a name and a shirt number. No parents and no email or phone for players. Until the move to Railway only fake test data is used. The pilot team's real players are added last, after everything is tested.
+
+Why: no child's name should sit on a server before it is needed (ADR 0004).
+
+## Hosting on Railway
+
+Decision: the API runs on Railway with the `prod` profile and Railway's PostgreSQL. The spending limit is 10 USD/month. The API is live by 20 December 2026. Everything is built and tested locally first.
+
+Why: the API must be up all the time, but the bill must not run away.
+
+## Database schema during the pilot
+
+Decision: `ddl-auto=update` stays during the pilot. Flyway comes in phase 2. A manual backup with `pg_dump` is taken before every deploy.
+
+Why: Flyway is a bigger change. One team with little data can live with `update` for a few weeks. The backup is the way back if a deploy breaks something.
+
+## Docker
+
+Decision: the API is built into a Docker image with a multi-stage build. Maven builds the jar, and a clean Java 21 runtime runs it. No secrets are in the image. They come from environment variables (`DB_PASSWORD`, `JWT_SECRET` and so on), like today. Daily development still uses the Maven Wrapper. Docker is for testing "like on the server" and for deploys.
+
+Why: the same image can move between servers. Keeping Maven for daily work keeps the fast loop.
+
+## Kanban on GitHub instead of Jira
+
+Decision: GitHub Issues and a Kanban board in GitHub Projects replace Jira. Issues are linked with "Blocked by". Phase 1 issues are in the milestone "Fas 1: Pilot". At most 2 issues are in progress at the same time.
+
+Why: the work and the code live in the same place, and an AI agent can read the issues. The Jira notes earlier in this file are history.
+
+## Backlog
+
+These are noted but not planned yet:
+
+- An active field on teams.
+- CORS.
+- Rate limiting for the rest of the API (phase 1 only limits login).
