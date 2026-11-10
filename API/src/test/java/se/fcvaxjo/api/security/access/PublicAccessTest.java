@@ -3,17 +3,13 @@ package se.fcvaxjo.api.security.access;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
-import se.fcvaxjo.api.model.AppUser;
-import se.fcvaxjo.api.repository.UserRepository;
 import se.fcvaxjo.api.support.Actor;
 import se.fcvaxjo.api.support.ClubApiTest;
 import se.fcvaxjo.api.support.ClubFixture;
@@ -22,12 +18,9 @@ import se.fcvaxjo.api.support.SampleRequests;
 /**
  * GET /api/public/** needs no token.
  * The body never has an email or a phone.
- * A player is listed only after the linked parent has consented, and only by name and shirt number.
+ * No player data is public at all (ADR 0007). PublicLeakTest checks every GET.
  */
 class PublicAccessTest extends ClubApiTest {
-
-    @Autowired
-    private UserRepository users;
 
     @Test
     void anonymous_canListTeamsWithoutPeople() throws Exception {
@@ -97,76 +90,10 @@ class PublicAccessTest extends ClubApiTest {
     }
 
     @Test
-    void squad_hidesEveryPlayerUntilAParentConsents() throws Exception {
-        get(Actor.ANON, alfaSquad())
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString(ClubFixture.NAME_PLAYER_ALFA))))
-                .andExpect(content().string(not(containsString(ClubFixture.NAME_PLAYER_BETA))))
-                .andExpect(content().string(not(containsString("@"))))
-                .andExpect(content().string(not(containsString("070-"))));
-    }
-
-    @Test
-    void squad_showsOnlyNameAndShirtAfterConsent() throws Exception {
-        put(Actor.PARENT_ALFA, consent(world.playerAlfaId()), SampleRequests.consent(true))
-                .andExpect(status().isOk());
-
-        get(Actor.ANON, alfaSquad())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value(ClubFixture.NAME_PLAYER_ALFA))
-                .andExpect(jsonPath("$[0].playerNumber").value(ClubFixture.SHIRT_ALFA))
-                .andExpect(content().string(not(containsString(ClubFixture.EMAIL_PLAYER_ALFA))))
-                .andExpect(content().string(not(containsString(ClubFixture.PHONE_PLAYER_ALFA))))
-                .andExpect(content().string(not(containsString(ClubFixture.PHONE_PARENT_ALFA))))
-                .andExpect(content().string(not(containsString(ClubFixture.NAME_PARENT_ALFA))))
-                .andExpect(content().string(not(containsString("Test Spelare Extra"))))
-                .andExpect(content().string(not(containsString("email"))))
-                .andExpect(content().string(not(containsString("mobilePhoneNumber"))));
-    }
-
-    @Test
-    void revokedConsent_dropsThePlayerAtOnce() throws Exception {
-        put(Actor.PARENT_ALFA, consent(world.playerAlfaId()), SampleRequests.consent(true))
-                .andExpect(status().isOk());
-        put(Actor.PARENT_ALFA, consent(world.playerAlfaId()), SampleRequests.consent(false))
-                .andExpect(status().isOk());
-
-        get(Actor.ANON, alfaSquad())
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString(ClubFixture.NAME_PLAYER_ALFA))));
-    }
-
-    @Test
-    void inactivePlayer_isNeverOnTheSquad() throws Exception {
-        put(Actor.PARENT_ALFA, consent(world.playerAlfaId()), SampleRequests.consent(true))
-                .andExpect(status().isOk());
-        AppUser player = users.findById(world.playerAlfaId()).orElseThrow();
-        player.setActive(false);
-        users.save(player);
-
-        get(Actor.ANON, alfaSquad())
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString(ClubFixture.NAME_PLAYER_ALFA))));
-    }
-
-    @Test
-    void inactiveParent_hidesTheChildBecauseTheyCannotRevoke() throws Exception {
-        put(Actor.PARENT_ALFA, consent(world.playerAlfaId()), SampleRequests.consent(true))
-                .andExpect(status().isOk());
-        AppUser parent = users.findById(world.parentAlfaId()).orElseThrow();
-        parent.setActive(false);
-        users.save(parent);
-
-        get(Actor.ANON, alfaSquad())
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString(ClubFixture.NAME_PLAYER_ALFA))));
-    }
-
-    @Test
-    void eachRole_canReadTheSquad() throws Exception {
-        for (Actor actor : signedInRoles()) {
-            get(actor, alfaSquad()).andExpect(status().isOk());
-        }
+    void removedSquadEndpoint_isGone() throws Exception {
+        // ADR 0007: no player data is public. The old squad route has no handler.
+        get(Actor.ANON, "/api/public/teams/" + world.teamAlfaId() + "/players")
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -205,13 +132,5 @@ class PublicAccessTest extends ClubApiTest {
                 Actor.PLAYER_ALFA,
                 Actor.PARENT_ALFA
         };
-    }
-
-    private String alfaSquad() {
-        return "/api/public/teams/" + world.teamAlfaId() + "/players";
-    }
-
-    private String consent(long playerId) {
-        return "/api/users/" + playerId + "/public-consent";
     }
 }
