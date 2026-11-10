@@ -759,3 +759,13 @@ These are noted but not planned yet:
 - An active field on teams.
 - CORS.
 - Rate limiting for the rest of the API (phase 1 only limits login).
+
+# No player data is public (#61, decided 5/11-2026)
+
+Decision (Marcel): no player data is ever shown publicly, not even with a parent's consent. This replaces "Public reads need the parent's consent" above. `GET /api/public/teams/{id}/players` and `PUT /api/users/{id}/public-consent` are removed, together with `publicConsentAt`, their services, DTOs and tests. ADR 0007 is rewritten as "Inga spelardata publikt", and ADR 0003 and 0004 hold without exceptions. Public reads are teams, upcoming matches and match history.
+
+Why: the players are children. A consent can be forgotten or set by mistake, and then the name is already out. Publishing nothing is the simplest safe rule.
+
+`PublicLeakTest` seeds a player with a unique name, email, phone and shirt number, finds every GET under `/api/public/` through Spring's handler mappings, and checks that none of the values is in any answer. A new public endpoint is checked without editing the test. The test fails if an endpoint never answers 200, so nothing slips through unchecked.
+
+`ddl-auto=update` does not drop columns, so `public_consent_at` may stay in a database that already ran the old code. It is unused and harmless. `UI/` is not changed.

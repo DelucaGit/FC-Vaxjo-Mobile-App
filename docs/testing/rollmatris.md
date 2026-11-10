@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, publika läsningar och samtycke. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
+Senast uppdaterad: 2026-11-10, inga spelardata publikt (ADR 0007). Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -142,11 +142,11 @@ Kod idag: stämmer. Anonymt anrop är 401.
 
 ### Planerade publika anrop
 
-`GET /api/public/teams`, `GET /api/public/matches/upcoming`, `GET /api/public/matches/history` och `GET /api/public/teams/{id}/players` är öppna utan token. Truppen har bara namn och tröjnummer, och bara efter förälderns samtycke. Ingen e-post och ingen telefon. Inaktiv spelare och inaktiv förälder döljer barnet.
+`GET /api/public/teams`, `GET /api/public/matches/upcoming`, `GET /api/public/matches/history` är öppna utan token. Ingen spelardata, ingen e-post och ingen telefon (ADR 0007). Den gamla truppen `GET /api/public/teams/{id}/players` är borttagen och ger 404. `PublicLeakTest` seedar en spelare med unika värden och anropar alla publika GET-endpoints som Spring känner till.
 
 `GET /api/public/teams/{id}/trainings` och `GET /api/public/teams/{id}/coaches` är kvar som planerade. De har ingen handler, så svaret är 404, inte en lista.
 
-`PUT /api/users/{id}/public-consent` är bara den länkade föräldern. Övriga roller får 403. Anonymt anrop får 401. POST, PUT och DELETE under `/api/public` får 401 utan token, och 405 när någon är inloggad men metoden inte finns.
+POST, PUT och DELETE under `/api/public` får 401 utan token, och 405 när någon är inloggad men metoden inte finns.
 
 ### Anonymt anrop
 

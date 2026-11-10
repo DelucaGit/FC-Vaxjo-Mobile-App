@@ -20,5 +20,5 @@ En mjukt borttagen användare (`active=false`) lämnas inte ut på den vanliga l
 
 ## Konsekvenser
 - Flera befintliga endpoints bryter mot punkt 2, 4 och 5 (se `docs/gap-analys.md`).
-- Det behövs fortfarande en samtyckesmodell per fält för tränare innan `/api/public/teams/{id}/coaches` byggs. Spelarens namn och tröjnummer följer ADR 0007.
+- Det behövs fortfarande en samtyckesmodell per fält för tränare innan `/api/public/teams/{id}/coaches` byggs. Spelardata publiceras aldrig, inte ens med samtycke (ADR 0007).
 - Testaren granskar behörighet och dataläckor i varje PR.
