@@ -36,7 +36,9 @@ import se.fcvaxjo.api.repository.UserRepository;
  * Local demo data for every team: 1 coach + up to 10 players (each with one parent)
  * + up to 10 trainings with attendance snapshots
  * + one upcoming home match and one away match that already has a score.
- * Idempotent per team. Resets bootstrap admin password for local login.
+ * Idempotent per team. Passwords are only set when a user is created, so a password
+ * changed by the developer survives a restart. With DEMO_RESET_PASSWORDS=true
+ * (app.seed.reset-passwords) the admin and all demo passwords are reset on start instead.
  * Only runs with the "dev" profile so production never gets demo users or known passwords.
  * There is no default profile. A start without SPRING_PROFILES_ACTIVE must not create this bean.
  * Passwords come from DEMO_PASSWORD and BOOTSTRAP_ADMIN_PASSWORD (API/.env), never from code.
@@ -63,6 +65,7 @@ public class DemoClubSeeder implements CommandLineRunner {
     private final String demoPassword;
     private final String adminEmail;
     private final String adminPassword;
+    private final boolean resetPasswords;
 
     public DemoClubSeeder(
             UserRepository userRepository,
@@ -76,7 +79,8 @@ public class DemoClubSeeder implements CommandLineRunner {
             UserService userService,
             @Value("${app.seed.demo-password:}") String demoPassword,
             @Value("${app.seed.admin-email}") String adminEmail,
-            @Value("${app.seed.admin-password:}") String adminPassword) {
+            @Value("${app.seed.admin-password:}") String adminPassword,
+            @Value("${app.seed.reset-passwords:false}") boolean resetPasswords) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
@@ -89,6 +93,7 @@ public class DemoClubSeeder implements CommandLineRunner {
         this.demoPassword = demoPassword;
         this.adminEmail = adminEmail;
         this.adminPassword = adminPassword;
+        this.resetPasswords = resetPasswords;
     }
 
     @Override
@@ -98,7 +103,10 @@ public class DemoClubSeeder implements CommandLineRunner {
             return;
         }
 
-        resetBootstrapAdminPassword();
+        if (resetPasswords) {
+            log.info("DEMO_RESET_PASSWORDS is on: resetting the bootstrap admin and demo passwords.");
+            resetBootstrapAdminPassword();
+        }
 
         Role coachRole = requireRole("COACH");
         Role playerRole = requireRole("PLAYER");
@@ -158,7 +166,9 @@ public class DemoClubSeeder implements CommandLineRunner {
                     && user.getEmail().endsWith("@demo.fcvaxjo.se")
                     && user.getEmail().startsWith("player")) {
                 existingDemoPlayers++;
-                // Keep demo logins in sync with DEMO_PASSWORD (older rows may still have an old password).
+                if (!resetPasswords) {
+                    continue;
+                }
                 resetDemoLogin(user);
                 if (user.getParentId() != null) {
                     userRepository.findById(user.getParentId()).ifPresent(this::resetDemoLogin);
@@ -330,7 +340,7 @@ public class DemoClubSeeder implements CommandLineRunner {
         userRepository.save(user);
     }
 
-        private AppUser saveUser(
+    private AppUser saveUser(
             String name,
             String email,
             Long roleId,
@@ -339,9 +349,11 @@ public class DemoClubSeeder implements CommandLineRunner {
             Long parentId,
             Long teamId) {
         return userRepository.findByEmail(email).map(existing -> {
-            // Keep demo logins working across restarts (password may have been changed).
-            PasswordChange.storeHash(existing, passwordEncoder.encode(demoPassword));
-            existing.setMustChangePassword(true);
+            // The password is only reset when the developer asks for it (DEMO_RESET_PASSWORDS).
+            if (resetPasswords) {
+                PasswordChange.storeHash(existing, passwordEncoder.encode(demoPassword));
+                existing.setMustChangePassword(true);
+            }
             existing.setActive(true);
             if (teamId != null) {
                 existing.setTeamId(teamId);
