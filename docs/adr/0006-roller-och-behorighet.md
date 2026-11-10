@@ -56,6 +56,29 @@ Efter bytet måste personen logga in igen för att få en token med rollen COACH
 
 Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 
+## Genomförande (matcher, sprint 2)
+
+Öppen fråga från beslutet: vem registrerar matcher? Samma personer som skapar träningar.
+
+- ADMIN och CHAIRMAN får skapa en match, läsa den och sätta resultat för vilket lag som helst. De behöver ingen rad i `team_coaches`.
+- COACH får göra samma sak bara för lag där hen finns i `team_coaches`.
+- PLAYER och PARENT skriver inte matcher. De läser sitt eget lag, eller sitt barns lag, via `GET /api/my/matches`.
+- `ClubRole.canManageAllMatches()` är en egen metod. Den säger samma sak som träningarna idag, men en senare ändring av träningar ska inte tyst ändra matcher.
+- En tränare som frågar efter ett annat lags match, eller efter ett id som inte finns, får samma 403. Texten är "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches". ADMIN och CHAIRMAN får 404 "Match not found" när id saknas, för de får se alla lag.
+- Resultatet är valfritt vid skapande och sätts i efterhand med `PUT /api/matches/{id}/result`. Matchen raderas inte.
+- Svaret har motståndare, tid, plats, hemma eller borta, och resultat. Ingen e-post och ingen telefon.
+
+## Genomförande (ändra och ställa in träning, sprint 2)
+
+S1-11 hade ingen URL för att byta titel eller tid. Den finns nu.
+
+- `PUT /api/trainings/{id}` byter tid, plats och titel. Laget ändras inte, så närvaroraderna ligger kvar.
+- `PUT /api/trainings/{id}/cancellation` sätter status CANCELLED och en valfri orsak. Raden raderas inte.
+- Samma personer som skapar en träning får ändra och ställa in den. ADMIN och CHAIRMAN alla lag. COACH bara egna lag.
+- Närvaron kan fortfarande läsas. Den kan inte markeras på en inställd träning. Svaret är 400 "This training is cancelled".
+- PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Personal ser `status` i lagets lista.
+- Plats är en ny valfri kolumn `venue`. Äldre rader har null. Statuskolumnen är också null på äldre rader, och det visas som SCHEDULED. Hibernate lägger till kolumnerna (`ddl-auto=update`, ADR 0002). Ingen Flyway.
+
 ## Genomförande (S1-11)
 - `ClubRole.canManageAllTrainings()` är sant för ADMIN och CHAIRMAN. COACH, PLAYER och PARENT är falskt. Lagkontrollen för en tränare ligger kvar i `TrainingService`, eftersom rollen inte vet vilka rader som finns i `team_coaches`.
 - CHAIRMAN får skapa träning och markera närvaro på vilket lag som helst, utan att vara kopplad som tränare. Samma sak gäller att lista och hämta träningen, så ordföranden kan se det hen just ändrade.

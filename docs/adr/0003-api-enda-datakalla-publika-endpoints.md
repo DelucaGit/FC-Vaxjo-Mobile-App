@@ -8,15 +8,16 @@ Klubbens hemsida fcvaxjo.se ska visa information som appen hanterar. Två databa
 ## Beslut
 - Spring Boot-API:t är **enda källan** till klubbdata. Appen skriver till det och hemsidan läser från det, utan egen databas för klubbdata.
 - Hemsidan läser bara via **publika read-only** endpoints under `/api/public/**` (`permitAll`, bara GET), med egna DTO:er:
-  - aktiva lag (`/api/public/teams`)
-  - träningsscheman per lag (`/api/public/teams/{id}/trainings`)
+  - lag (`/api/public/teams`)
   - kommande matcher (`/api/public/matches/upcoming`)
   - matchhistorik/resultat (`/api/public/matches/history`)
-  - tränarens namn och kontaktuppgifter (`/api/public/teams/{id}/coaches`), bara **med tränarens samtycke** och bara de uppgifter tränaren valt att visa
-- Publika DTO:er innehåller **aldrig** spelar- eller föräldrauppgifter (namn, e-post, telefon), närvaro eller beteende. `FetchUserResponse` m.fl. återanvänds aldrig publikt.
+  - trupp (`/api/public/teams/{id}/players`): bara namn och tröjnummer, och bara med den länkade förälderns samtycke (ADR 0007)
+  - träningsscheman per lag (`/api/public/teams/{id}/trainings`) — fortfarande planerat
+  - tränarens namn och kontaktuppgifter (`/api/public/teams/{id}/coaches`) — fortfarande planerat, bara med tränarens eget samtycke per fält
+- Publika DTO:er innehåller **aldrig** e-post, telefon, föräldrauppgifter, närvaro eller beteende. `FetchUserResponse` återanvänds aldrig publikt.
 - CORS tillåter `https://fcvaxjo.se` (och `www`) bara för `/api/public/**` och bara GET.
 
 ## Konsekvenser
-- Det finns en sanning för all data. Endpoints är markerade `x-status: planned` i `openapi.yaml`.
-- **Matcher finns inte i API:t ännu.** Det behövs en ny entitet och skriv-endpoints. Samtyckesfält för tränare behövs också.
+- Det finns en sanning för all data. Byggda publika läsningar har ingen `x-status: planned`. Träningsschema och tränarkontakt är kvar som planerade.
+- **Matcher kan skrivas av personal** (`POST /api/matches`). Publika läsningar för lag, matcher och trupp är byggda (ADR 0007). Träningsschema, tränarkontakt, rate limit och CORS för fcvaxjo.se är kvar.
 - Publika endpoints behöver rate limiting (429) och caching. Kontraktstester ska visa att inga spelar-/föräldra-PII-fält finns i publika svar.

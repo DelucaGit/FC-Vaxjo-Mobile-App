@@ -35,6 +35,18 @@ Allvarlighet: **K** = kritisk (måste åtgärdas före produktion), **H** = hög
 | 15 | L | Rollbyte saknar skydd mot att den sista ADMIN nedgraderas, och det loggas inte vem som ändrade vad (ingen audit-logg för ändringar av persondata). | `J/service/UserService.java:364-370` |
 | 16 | L | Dokumentationen var inaktuell: README sa "No login yet" och PROGRESS sa AWS (*åtgärdat på `docs/api-contract`*). Koden låter inte COACH skapa PARENT fristående, vilket ADR 0006 kräver. | `README.md:6`, `:33`; `PROGRESS.md:19`, `:108` |
 
+## Sprint 2, matcher
+
+Personalens matcher följer samma laggräns som träningar. ADMIN och CHAIRMAN skriver alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT läser via `GET /api/my/matches`. En tränare får samma 403 för ett annat lag och för ett id som inte finns. Svaret har ingen e-post och ingen telefon.
+
+## Sprint 2, publika läsningar
+
+`GET /api/public/**` är öppet. Andra metoder på den sökvägen är det inte. Truppen visar bara namn och tröjnummer, och bara när den länkade föräldern har satt `publicConsentAt` (ADR 0007). Inaktiva användare syns inte. En inaktiv förälder döljer barnet, för återkallelsen skulle annars inte gå att göra. Kontaktuppgifter finns inte i de publika svaren. Tränarkontakt och publikt träningsschema är kvar som planerade. Rate limit och CORS för fcvaxjo.se (punkt 8) är kvar.
+
+## Sprint 2, ställa in en träning
+
+`PUT /api/trainings/{id}` ändrar tid, plats och titel. `PUT /api/trainings/{id}/cancellation` sätter CANCELLED utan att radera raden. Närvaron ligger kvar. Ny närvaro på en inställd träning är 400. Spelare och föräldrar ser att den är inställd i `/api/my/trainings`. Samma skrivare som när träningen skapas.
+
 ## Det som redan fungerar bra
 - Lösenord hashas med BCrypt, och entiteter exponeras aldrig direkt (bara via DTO).
 - Träningar och närvaro är lagbegränsade för COACH (`TrainingService.assertCanManageTeam`).

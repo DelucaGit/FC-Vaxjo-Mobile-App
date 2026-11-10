@@ -681,6 +681,32 @@ Decision: `searchByName`, `searchByShirtNumber` and `searchByPhone` in `UI/src/a
 
 Why: ADR 0004. A phone number in the URL can be stored in an access log. This follows `docs/api/openapi.yaml` from the backend change (PR #51). GET on that URL is 405. A non-ok answer still goes through `readErrorMessage`, so 400 and 404 keep the server text and a bare 403 stays the role sentence.
 
+# Matches: same writers as trainings (5/11-2026)
+
+Decision: a match belongs to one team and stores opponent, kickoff, venue, home or away, and an optional score. ADMIN and CHAIRMAN write every team. A coach writes only teams in `team_coaches`. A player and a parent do not use the staff URLs. They read `GET /api/my/matches` for their own team, or for their own child.
+
+Why the same 403 for a missing match and for another team: a 404 would tell a coach that the id is free, and a different text would tell them the match exists on a team they do not coach. ADMIN and CHAIRMAN still get 404 "Match not found", because they are allowed to see every team. The score is left empty at create and set later with `PUT /api/matches/{id}/result`. The row is not deleted. The table is `club_matches` because MATCH is a reserved SQL word. Hibernate adds it (`ddl-auto=update`, ADR 0002). No Flyway.
+
+The answer has no email and no phone. `UI/` is not changed here. Public match URLs stay closed until the consent work.
+
+# Public reads need the parent's consent (5/11-2026)
+
+Decision: `GET /api/public/**` is open. No other method on that path is open. The public pages are teams, upcoming matches, match history, and a squad. The squad is name and shirt number only. Email, phone, and parent contact are never in those answers.
+
+Why the parent, and not the child: creating a player already requires a linked parent, so every player in this app is treated as a child. Only that parent may set or revoke `publicConsentAt`. The player, the coach, the chairman, and the admin cannot. The default is null, which means no consent. A second yes keeps the first timestamp. A no clears it, and the name disappears from the public squad at once.
+
+An inactive player is never shown. If the parent is inactive, the child is hidden too, because that parent can no longer revoke. A missing id and someone else's child share one 403, so the answer does not say the row exists.
+
+Coach contact on the website, public trainings, rate limiting, and CORS for fcvaxjo.se are not in this change. ADR 0007 records the exception to the older "never publish a player" line. `UI/` is not changed.
+
+# Edit a training, or call it off (5/11-2026)
+
+Decision: `PUT /api/trainings/{id}` changes the time, the place, and the title. The team does not change, so the attendance rows stay on that training. `PUT /api/trainings/{id}/cancellation` sets CANCELLED and an optional reason. The row is not deleted.
+
+Why not delete: the attendance history is still the club's record. Players and parents see `trainingStatus` CANCELLED on `/api/my/trainings`. Staff see `status` on the team list. Marking attendance on a cancelled training is 400 "This training is cancelled". Reading the old attendance still works.
+
+The same people who create a training may edit or cancel it. A place is a new optional column, because the old training row had no venue. A null status on an older row is shown as SCHEDULED. Hibernate adds the columns (`ddl-auto=update`, ADR 0002). No Flyway. `UI/` is not changed.
+
 # Phase 1 plan (10/11-2026)
 
 Marcel and Claude went through the plan on 9–10/11-2026. The full spec is GitHub issue #57. This section writes down the decisions.

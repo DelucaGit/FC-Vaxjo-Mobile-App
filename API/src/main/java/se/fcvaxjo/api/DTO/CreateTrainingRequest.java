@@ -12,4 +12,6 @@ public class CreateTrainingRequest {
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
     private String title;
+    /** Optional place. Null or blank stores null. */
+    private String venue;
 }

@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, F2 och F11. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
+Senast uppdaterad: 2026-11-05, publika läsningar och samtycke. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -114,17 +114,43 @@ Det gäller lista, hämta, skapa, lista närvaro och markera närvaro.
 
 Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post och inte förälderns telefon.
 
+`PUT /api/trainings/{id}` ändrar tid, plats och titel. Laget ändras inte.
+`PUT /api/trainings/{id}/cancellation` sätter CANCELLED och en valfri orsak. Raden raderas inte. Närvaron ligger kvar, men ny närvaro är 400 "This training is cancelled".
+PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Personal ser `status` i lagets lista.
+
+Kod idag: stämmer. Anonymt anrop är 401.
+
+### Matcher
+
+`x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.
+Det gäller lista, hämta, skapa och sätta resultat.
+
+En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte finns, så svaret inte säger att matchen finns. ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
+
+`GET /api/my/matches`: PLAYER bara sitt lag. PARENT måste skicka sitt eget barn. Ingen e-post, ingen telefon, inget `createdByUserId`.
+
+Kod idag: stämmer. Anonymt anrop är 401.
+
 ### Mitt schema
 
 | Anrop | Mål | Kod idag |
 |---|---|---|
 | `GET /api/my/teams` | ADMIN alla lag. COACH bara sina. Övriga 403 | Stämmer |
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
-| `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post | Stämmer |
+| `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post. `trainingStatus` visar CANCELLED när träningen är inställd | Stämmer |
+| `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
+
+### Planerade publika anrop
+
+`GET /api/public/teams`, `GET /api/public/matches/upcoming`, `GET /api/public/matches/history` och `GET /api/public/teams/{id}/players` är öppna utan token. Truppen har bara namn och tröjnummer, och bara efter förälderns samtycke. Ingen e-post och ingen telefon. Inaktiv spelare och inaktiv förälder döljer barnet.
+
+`GET /api/public/teams/{id}/trainings` och `GET /api/public/teams/{id}/coaches` är kvar som planerade. De har ingen handler, så svaret är 404, inte en lista.
+
+`PUT /api/users/{id}/public-consent` är bara den länkade föräldern. Övriga roller får 403. Anonymt anrop får 401. POST, PUT och DELETE under `/api/public` får 401 utan token, och 405 när någon är inloggad men metoden inte finns.
 
 ### Anonymt anrop
 
-Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` ska ge 401 utan token, inklusive de planerade `/api/public/**` (de är inte byggda och får inte vara öppna). Login med fel lösenord, okänd e-post eller inaktivt konto är 401 med texten "Invalid email or password" (S1-9). Saknad e-post eller lösenord är 400. `AnonymousAccessTest` läser filen, så en ny path kommer med av sig själv. Koden gör detta idag.
+Varje operation i `docs/api/openapi.yaml` utom `POST /api/auth/login` och `GET /api/public/**` ska ge 401 utan token. Login med fel lösenord, okänd e-post eller inaktivt konto är 401 med texten "Invalid email or password" (S1-9). Saknad e-post eller lösenord är 400. `AnonymousAccessTest` läser filen och hoppar över de publika GET-anropen. Övriga nya paths kommer med av sig själv.
 
 ### Trasig token
 
@@ -152,6 +178,9 @@ Nyckeln i testerna är testprofilens `app.jwt.secret`, plus en uppenbart påhitt
 | Tränare byter `teamId` på träningar till ett annat lag eller ett okänt lag | 403, även när laget inte finns | Stämmer |
 | Tränare byter tränings-id till ett annat lag | 403 | Stämmer |
 | Tränare byter tränings-id till ett id som inte finns | 404 för alla, kontraktet skiljer på saknad rad | Stämmer |
+| Tränare byter match-id till ett annat lag | 403 | Stämmer |
+| Tränare byter match-id till ett id som inte finns | 403, samma text som ett annat lag | Stämmer |
+| Ordförande öppnar en match i vilket lag som helst | 200 | Stämmer |
 | Tränare byter lag-id på spelarlistan | 403, ingen föräldratelefon | 403. Taggen `known-gap` är borta. **S1-10** |
 | Tränare byter user-id till en spelare i ett annat lag | 403 | 403. Taggen `known-gap` är borta. **S1-10** |
 | Ordförande öppnar en träning i vilket lag som helst | 200 | Stämmer (S1-11) |
@@ -163,10 +192,6 @@ Beslut (F3, Arkitekten): `GET /api/users/{id}` på en inaktiv användare är **4
 ### Ändra och mjukradera ett id som saknas
 
 Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger i ett annat lag, på `PUT /api/users/{id}/player` och `DELETE /api/users/{id}`. ADMIN och CHAIRMAN får fortfarande 404 när id saknas.
-
-### Planerade publika anrop
-
-`/api/public/**` är `x-status: planned` och finns inte i koden. Anonymt anrop får 401, inte en öppen lista. Ingen mätsticka för "ska vara 200", för de är inte byggda än.
 
 ## Vad som läcker idag, per roll
 
@@ -186,4 +211,4 @@ Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger 
 
 **Inaktiv spelare.** Login är 401 med samma text som fel lösenord, `Invalid email or password` (S1-9). En redan utfärdad token stoppas av filtret (S1-4). `GET /api/users/{id}` är 404 "User not found" för ADMIN och CHAIRMAN, och 403 för PLAYER, PARENT och COACH (F3). Listor och sök tar inte med raden.
 
-**Anonym och trasig token.** 401 utan persondata i svaret. Inget hål där i den här körningen.
+**Anonym och trasig token.** Skyddade URL:er är 401 utan persondata i svaret. `GET /api/public/**` är öppet och innehåller inte e-post eller telefon.

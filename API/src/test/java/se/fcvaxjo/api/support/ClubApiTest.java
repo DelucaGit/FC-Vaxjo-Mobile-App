@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import tools.jackson.databind.ObjectMapper;
 
+import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TeamRepository;
@@ -63,6 +64,9 @@ public abstract class ClubApiTest {
     private TrainingAttendanceRepository attendance;
 
     @Autowired
+    private MatchRepository matches;
+
+    @Autowired
     private PasswordEncoder encoder;
 
     @Autowired
@@ -79,7 +83,7 @@ public abstract class ClubApiTest {
     @BeforeEach
     void loadClub() {
         world = ClubFixture.load(
-                roles, users, teams, links, trainings, attendance, encoder, jwt, sharedLogin);
+                roles, users, teams, links, trainings, attendance, matches, encoder, jwt, sharedLogin);
     }
 
     protected String token(Actor actor) {

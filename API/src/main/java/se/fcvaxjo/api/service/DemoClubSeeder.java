@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -16,11 +17,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.HomeAway;
+import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.model.TrainingStatus;
+import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TeamRepository;
@@ -30,7 +35,8 @@ import se.fcvaxjo.api.repository.UserRepository;
 
 /**
  * Local demo data for every team: 1 coach + up to 10 players (each with one parent)
- * + up to 10 trainings with attendance snapshots.
+ * + up to 10 trainings with attendance snapshots
+ * + one upcoming home match and one away match that already has a score.
  * Idempotent per team. Resets bootstrap admin password for local login.
  * Only runs with the "dev" profile so production never gets demo users or known passwords.
  * There is no default profile. A start without SPRING_PROFILES_ACTIVE must not create this bean.
@@ -52,6 +58,7 @@ public class DemoClubSeeder implements CommandLineRunner {
     private final TeamCoachRepository teamCoachRepository;
     private final TrainingRepository trainingRepository;
     private final TrainingAttendanceRepository attendanceRepository;
+    private final MatchRepository matchRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
     private final String demoPassword;
@@ -65,6 +72,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             TeamCoachRepository teamCoachRepository,
             TrainingRepository trainingRepository,
             TrainingAttendanceRepository attendanceRepository,
+            MatchRepository matchRepository,
             PasswordEncoder passwordEncoder,
             UserService userService,
             @Value("${app.seed.demo-password:}") String demoPassword,
@@ -76,6 +84,7 @@ public class DemoClubSeeder implements CommandLineRunner {
         this.teamCoachRepository = teamCoachRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
+        this.matchRepository = matchRepository;
         this.passwordEncoder = passwordEncoder;
         this.userService = userService;
         this.demoPassword = demoPassword;
@@ -181,6 +190,89 @@ public class DemoClubSeeder implements CommandLineRunner {
         }
 
         seedTrainings(team, coach.getId());
+        cancelOneTrainingIfNoneIsCancelled(team);
+        seedMatches(team, coach.getId());
+    }
+
+    /**
+     * One called-off training per team, so the demo list shows CANCELLED
+     * without deleting the attendance rows. Skipped when one already exists.
+     */
+    private void cancelOneTrainingIfNoneIsCancelled(Team team) {
+        List<Training> existing = trainingRepository.findByTeamIdOrderByStartsAtDesc(team.getId());
+        for (Training training : existing) {
+            if (training.getStatus() == TrainingStatus.CANCELLED) {
+                return;
+            }
+        }
+        if (existing.isEmpty()) {
+            return;
+        }
+        Training earliest = existing.get(existing.size() - 1);
+        earliest.setStatus(TrainingStatus.CANCELLED);
+        earliest.setCancelReason("Pitch closed");
+        trainingRepository.save(earliest);
+    }
+
+    /**
+     * One home match still to be played, and one away match that already has a score.
+     * Skipped when those two opponents are already stored for the team.
+     */
+    private void seedMatches(Team team, Long coachUserId) {
+        List<Match> existing = matchRepository.findByTeamIdOrderByKickoffAtDesc(team.getId());
+        boolean hasHome = false;
+        boolean hasAway = false;
+        for (Match match : existing) {
+            if ("Home Demo".equals(match.getOpponent())) {
+                hasHome = true;
+            }
+            if ("Away Demo".equals(match.getOpponent())) {
+                hasAway = true;
+            }
+        }
+        if (!hasHome) {
+            saveDemoMatch(
+                    team.getId(),
+                    coachUserId,
+                    "Home Demo",
+                    LocalDateTime.now().plusDays(10).withHour(14).withMinute(0).withSecond(0).withNano(0),
+                    "Home pitch",
+                    HomeAway.HOME,
+                    null,
+                    null);
+        }
+        if (!hasAway) {
+            saveDemoMatch(
+                    team.getId(),
+                    coachUserId,
+                    "Away Demo",
+                    LocalDateTime.now().minusDays(10).withHour(14).withMinute(0).withSecond(0).withNano(0),
+                    "Away pitch",
+                    HomeAway.AWAY,
+                    2,
+                    1);
+        }
+    }
+
+    private void saveDemoMatch(
+            Long teamId,
+            Long coachUserId,
+            String opponent,
+            LocalDateTime kickoffAt,
+            String venue,
+            HomeAway homeAway,
+            Integer goalsFor,
+            Integer goalsAgainst) {
+        Match match = new Match();
+        match.setTeamId(teamId);
+        match.setOpponent(opponent);
+        match.setKickoffAt(kickoffAt);
+        match.setVenue(venue);
+        match.setHomeAway(homeAway);
+        match.setGoalsFor(goalsFor);
+        match.setGoalsAgainst(goalsAgainst);
+        match.setCreatedByUserId(coachUserId);
+        matchRepository.save(match);
     }
 
     /**
@@ -207,6 +299,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             training.setEndsAt(endsAt);
             training.setTitle("Training " + i);
             training.setCreatedByUserId(coachUserId);
+            training.setStatus(TrainingStatus.SCHEDULED);
             Training saved = trainingRepository.save(training);
 
             for (AppUser player : players) {
@@ -270,6 +363,11 @@ public class DemoClubSeeder implements CommandLineRunner {
             user.setActive(true);
             PasswordChange.storeHash(user, passwordEncoder.encode(demoPassword));
             user.setMustChangePassword(true);
+            if (email != null && email.startsWith("player1.")) {
+                // Dev only, and only on the first insert. One published child per team
+                // so the public squad is not empty. A later revoke is left alone.
+                user.setPublicConsentAt(Instant.now());
+            }
             return userRepository.save(user);
         });
     }

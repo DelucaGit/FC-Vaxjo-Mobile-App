@@ -20,20 +20,25 @@ import se.fcvaxjo.api.DTO.ChangeRoleResponse;
 import se.fcvaxjo.api.DTO.CreateUserRequest;
 import se.fcvaxjo.api.DTO.CreateUserResponse;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
+import se.fcvaxjo.api.DTO.PublicConsentRequest;
+import se.fcvaxjo.api.DTO.PublicConsentResponse;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.service.CreatedUserResult;
+import se.fcvaxjo.api.service.PublicConsentService;
 import se.fcvaxjo.api.service.UserService;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
     private final UserService userService;
+    private final PublicConsentService publicConsentService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, PublicConsentService publicConsentService) {
         this.userService = userService;
+        this.publicConsentService = publicConsentService;
     }
 
     /**
@@ -184,6 +189,23 @@ public class UserController {
     public ResponseEntity<Void> softDeletePlayer(@PathVariable Long id) {
         userService.softDeletePlayer(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * The linked parent turns public name and shirt number on or off.
+     * The player cannot do this. Staff cannot do this.
+     * A missing id and someone else's child use the same 403.
+     */
+    @PutMapping("/{id}/public-consent")
+    @PreAuthorize("hasRole('PARENT')")
+    public PublicConsentResponse setPublicConsent(
+            @PathVariable Long id,
+            @RequestBody PublicConsentRequest request) {
+        AppUser player = publicConsentService.setConsent(id, request.getPublicConsent());
+        return new PublicConsentResponse(
+                player.getId(),
+                player.getPublicConsentAt() != null,
+                player.getPublicConsentAt());
     }
 
     private FetchUserResponse toFetchResponse(AppUser user) {
