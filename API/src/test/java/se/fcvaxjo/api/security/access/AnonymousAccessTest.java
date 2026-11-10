@@ -72,6 +72,7 @@ class AnonymousAccessTest extends ClubApiTest {
         assertTrue(operations.stream().anyMatch(ContractOperations::isLogin));
         assertTrue(operations.stream().anyMatch(operation -> operation.path().equals("/api/users")));
         assertTrue(operations.stream().anyMatch(operation -> operation.path().equals("/api/trainings/{id}/attendance/{playerId}")));
+        assertTrue(operations.stream().anyMatch(operation -> operation.path().equals("/api/matches/{id}/attendance/{playerId}")));
         assertTrue(operations.stream().anyMatch(operation ->
                 "GET".equals(operation.method()) && operation.path().equals("/api/public/teams")));
         assertTrue(operations.size() >= 25);
@@ -99,6 +100,7 @@ class AnonymousAccessTest extends ClubApiTest {
             path = path.replace("{playerId}", String.valueOf(world.playerAlfaId()));
         } else if (path.contains("/matches/")) {
             path = path.replace("{id}", String.valueOf(world.matchAlfaId()));
+            path = path.replace("{playerId}", String.valueOf(world.playerAlfaId()));
         }
         if ("/api/trainings".equals(template)) {
             path = path + "?teamId=" + world.teamAlfaId();

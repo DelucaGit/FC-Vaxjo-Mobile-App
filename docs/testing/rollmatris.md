@@ -131,6 +131,8 @@ Det gäller lista, hämta, skapa, sätta resultat och tömma resultat.
 
 En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte finns, så svaret inte säger att matchen finns. ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
 
+Matchnärvaro (#67): `GET /api/matches/{id}/attendance` och `PUT /api/matches/{id}/attendance/{playerId}` har samma roller, lag och 403/404-regler som matchen ovan. PLAYER och PARENT: 403. Anonymt: 401. En spelare som inte är aktiv spelare i matchens lag ger 400 "This player is not on the team for this match". En COACH från ett annat lag får 403 innan spelaren kontrolleras. Svaret har spelarens namn och nummer, inte e-post och inte telefon. Tester: `MatchAttendanceAccessTest`.
+
 `GET /api/my/matches`: PLAYER bara sitt lag. PARENT måste skicka sitt eget barn. Ingen e-post, ingen telefon, inget `createdByUserId`.
 
 Kod idag: stämmer. Anonymt anrop är 401.

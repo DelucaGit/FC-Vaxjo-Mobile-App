@@ -813,3 +813,9 @@ Why: every restart threw away the developer's new password and forced a password
 Proposed decision (ADR 0009, waiting for Marcel): new `GET /api/my/coaches` for PLAYER and PARENT. It returns the active coaches (`team_coaches`) of the player's own team, or of the parent's child's team (`childId`, same rules as `/api/my/trainings`), with only `id`, `name`, `email` and `mobilePhoneNumber`. `GET /api/teams/{id}/coaches` is unchanged and still 403 for PLAYER and PARENT.
 
 Why: a parent must be able to reach the coach, for example when the child has not come home. Cost: everyone on the team sees the coach's private phone and email, so the coaches must be told before the pilot.
+
+## Match attendance in the API (#67, 10/11-2026)
+
+New table `match_attendance` (one row per match and player, unique on the pair) and `GET /api/matches/{id}/attendance` + `PUT /api/matches/{id}/attendance/{playerId}`, same JSON and roles as training attendance. ADMIN and CHAIRMAN all teams, COACH own teams, PLAYER and PARENT 403. A player not on the match's team is 400.
+
+Decision: the row is created on the first mark, not when the match is created (trainings take a roster snapshot at creation). Why: matches already in the database would otherwise have no rows and need a backfill, and a player who joins the team after the match was created would be missing. The list shows today's active players (status null until marked) plus anyone marked earlier who has since left. Cost: the list follows the current roster, not a frozen one. No demo match attendance in `DemoClubSeeder`; an empty list is the normal start state.

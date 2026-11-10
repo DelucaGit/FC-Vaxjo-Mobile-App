@@ -1,7 +1,10 @@
 package se.fcvaxjo.api.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -12,11 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
+import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.HomeAway;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.MatchAttendance;
+import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
+import se.fcvaxjo.api.repository.UserRepository;
 
 /**
  * Staff matches. ADMIN and CHAIRMAN may write every team.
@@ -36,14 +44,20 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final TeamService teamService;
     private final TeamCoachRepository teamCoachRepository;
+    private final MatchAttendanceRepository attendanceRepository;
+    private final UserRepository userRepository;
 
     public MatchService(
             MatchRepository matchRepository,
             TeamService teamService,
-            TeamCoachRepository teamCoachRepository) {
+            TeamCoachRepository teamCoachRepository,
+            MatchAttendanceRepository attendanceRepository,
+            UserRepository userRepository) {
         this.matchRepository = matchRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
+        this.attendanceRepository = attendanceRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -131,8 +145,100 @@ public class MatchService {
         return matchRepository.save(match);
     }
 
+    /**
+     * The match's attendance list: every active player on the team today, plus anyone
+     * who was marked earlier but has since left the team (so a saved mark never disappears).
+     * A player who has not been marked yet has no saved row. They get an unsaved row
+     * with status null here, so the list looks the same as a training's.
+     */
+    public List<MatchAttendance> listAttendance(Long matchId) {
+        Match match = getById(matchId);
+        List<MatchAttendance> saved = attendanceRepository.findByMatchId(match.getId());
+
+        List<MatchAttendance> rows = new ArrayList<>();
+        Set<Long> listed = new HashSet<>();
+        for (AppUser player : teamService.listPlayers(match.getTeamId())) {
+            MatchAttendance row = findSaved(saved, player.getId());
+            if (row == null) {
+                row = new MatchAttendance();
+                row.setMatchId(match.getId());
+                row.setPlayerUserId(player.getId());
+                row.setStatus(null);
+            }
+            rows.add(row);
+            listed.add(player.getId());
+        }
+        for (MatchAttendance row : saved) {
+            if (!listed.contains(row.getPlayerUserId())) {
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    /**
+     * Marks one player. The first mark creates the row; later marks change it.
+     * The player must be an active player on the match's team (or already have a row).
+     * The team check runs first, so a coach of another team gets 403 and never learns
+     * anything about the player.
+     */
+    @Transactional
+    public MatchAttendance updateAttendance(Long matchId, Long playerUserId, String statusName) {
+        Match match = getById(matchId);
+
+        if (statusName == null || statusName.isBlank()) {
+            throw new BadRequestException("status is required (PRESENT, ABSENT, or EXCUSED)");
+        }
+        AttendanceStatus status;
+        try {
+            status = AttendanceStatus.valueOf(statusName.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("status must be PRESENT, ABSENT, or EXCUSED");
+        }
+
+        MatchAttendance row = attendanceRepository
+                .findByMatchIdAndPlayerUserId(match.getId(), playerUserId)
+                .orElse(null);
+        if (row == null) {
+            if (!isPlayerOnTeam(match.getTeamId(), playerUserId)) {
+                throw new BadRequestException("This player is not on the team for this match");
+            }
+            row = new MatchAttendance();
+            row.setMatchId(match.getId());
+            row.setPlayerUserId(playerUserId);
+        }
+        row.setStatus(status);
+        return attendanceRepository.save(row);
+    }
+
+    public AppUser getPlayer(Long playerUserId) {
+        return userRepository.findById(playerUserId)
+                .orElseThrow(() -> new NotFoundException("Player not found"));
+    }
+
     public String getTeamName(Long teamId) {
         return teamService.getTeamName(teamId);
+    }
+
+    private boolean isPlayerOnTeam(Long teamId, Long playerUserId) {
+        if (playerUserId == null) {
+            return false;
+        }
+        for (AppUser player : teamService.listPlayers(teamId)) {
+            if (playerUserId.equals(player.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private MatchAttendance findSaved(List<MatchAttendance> saved, Long playerUserId) {
+        for (MatchAttendance row : saved) {
+            if (row.getPlayerUserId().equals(playerUserId)) {
+                return row;
+            }
+        }
+        return null;
     }
 
     /**

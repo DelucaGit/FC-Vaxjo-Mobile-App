@@ -15,11 +15,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import se.fcvaxjo.api.DTO.AttendanceResponse;
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.MatchResponse;
 import se.fcvaxjo.api.DTO.MatchResultResponse;
 import se.fcvaxjo.api.DTO.SetMatchResultRequest;
+import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
+import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.MatchAttendance;
 import se.fcvaxjo.api.service.MatchService;
 
 /**
@@ -74,6 +78,33 @@ public class MatchController {
     public MatchResponse setResult(@PathVariable Long id, @RequestBody SetMatchResultRequest request) {
         Match updated = matchService.setResult(id, request.getGoalsFor(), request.getGoalsAgainst());
         return toResponse(updated);
+    }
+
+    /** Same JSON as training attendance (AttendanceResponse): no email, no phone. */
+    @GetMapping("/{id}/attendance")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public List<AttendanceResponse> listAttendance(@PathVariable Long id) {
+        List<AttendanceResponse> responses = new ArrayList<>();
+        for (MatchAttendance row : matchService.listAttendance(id)) {
+            responses.add(toAttendanceResponse(row));
+        }
+        return responses;
+    }
+
+    @PutMapping("/{id}/attendance/{playerId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public AttendanceResponse updateAttendance(
+            @PathVariable Long id,
+            @PathVariable Long playerId,
+            @RequestBody UpdateAttendanceRequest request) {
+        MatchAttendance updated = matchService.updateAttendance(id, playerId, request.getStatus());
+        return toAttendanceResponse(updated);
+    }
+
+    private AttendanceResponse toAttendanceResponse(MatchAttendance row) {
+        AppUser player = matchService.getPlayer(row.getPlayerUserId());
+        String status = row.getStatus() == null ? null : row.getStatus().name();
+        return new AttendanceResponse(player.getId(), player.getName(), player.getPlayerNumber(), status);
     }
 
     private MatchResponse toResponse(Match match) {

@@ -1029,6 +1029,75 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/matches/{id}/attendance:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    get:
+      tags: [Matches]
+      operationId: listMatchAttendance
+      summary: Lista närvaro för en match
+      description: |
+        Samma svarsform som träningsnärvaron. Listan innehåller lagets aktiva spelare just nu
+        (status `null` tills någon markerat), plus spelare som redan markerats men sedan lämnat laget.
+        Raden i `match_attendance` skapas först vid första markeringen.
+        Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`. Svaret har ingen e-post och ingen telefon.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.listAttendance → MatchService.listAttendance
+      responses:
+        '200':
+          description: Närvarorader.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/attendance/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+      - name: playerId
+        in: path
+        required: true
+        description: Spelarens användar-id.
+        schema: { type: integer, format: int64 }
+    put:
+      tags: [Matches]
+      operationId: updateMatchAttendance
+      summary: Markera närvaro för en spelare på en match
+      description: |
+        Status är skiftlägesokänslig. Första markeringen skapar raden, senare ändrar samma rad.
+        Spelaren måste vara en aktiv spelare i matchens lag (eller redan ha en rad).
+        Lagkontrollen görs före spelarkontrollen, så en COACH från ett annat lag får 403, inte 400.
+        Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
+        "This player is not on the team for this match" (400);
+        "Match not found" (404 för ADMIN och CHAIRMAN);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403 för COACH, även när id saknas);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.updateAttendance → MatchService.updateAttendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAttendanceRequest' }
+      responses:
+        '200':
+          description: Uppdaterad närvarorad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/my/matches:
     get:
       tags: [MySchedule]
