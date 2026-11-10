@@ -1,6 +1,6 @@
 # ADR 0009: Tränarens kontaktuppgifter syns för lagets spelare och föräldrar
 
-**Status:** Föreslagen (väntar på Marcel, issue #79) · **Datum:** 2026-11-10
+**Status:** Accepterad (Marcel, 2026-11-10, issue #79) · **Datum:** 2026-11-10
 
 ## Kontext
 Föräldrar och spelare har idag ingen väg att kontakta sin tränare i appen. `GET /api/teams/{id}/coaches` ger 403 för PLAYER och PARENT (S1-10), och tränarens telefon och e-post är personuppgifter (ADR 0004). Marcel tog upp behovet 2026-11-10: en förälder kan behöva ringa tränaren, till exempel när barnet inte har kommit hem efter träningen, eller fråga om en träning.
