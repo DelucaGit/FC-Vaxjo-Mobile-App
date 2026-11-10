@@ -1,6 +1,8 @@
 package se.fcvaxjo.api.service;
 
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -86,6 +88,7 @@ public class UserService {
     private final TeamRepository teamRepository;
     private final TeamCoachRepository teamCoachRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public UserService(
@@ -93,12 +96,14 @@ public class UserService {
             RoleRepository roleRepository,
             TeamRepository teamRepository,
             TeamCoachRepository teamCoachRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            Clock clock) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
         this.teamCoachRepository = teamCoachRepository;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     /**
@@ -329,6 +334,8 @@ public class UserService {
         user.setParentId(parentId);
         user.setTeamId(teamId);
         user.setActive(true);
+        // #85: the membership starts today. memberUntil stays null while active.
+        user.setMemberSince(LocalDate.now(clock));
         PasswordChange.storeHash(user, passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(true);
         AppUser saved = userRepository.save(user);
@@ -443,6 +450,8 @@ public class UserService {
             throw new BadRequestException("Player is already inactive");
         }
         player.setActive(false);
+        // #85: the membership ends today. Kept so old attendance can be traced.
+        player.setMemberUntil(LocalDate.now(clock));
         return userRepository.save(player);
     }
 
@@ -742,6 +751,24 @@ public class UserService {
             return null;
         }
         return getParentMobilePhoneNumber(parentId);
+    }
+
+    /**
+     * #85: membership dates are for the people who run the club and the team.
+     * ADMIN and CHAIRMAN see every row they can read. A COACH only reaches rows
+     * on their own team, so the same check covers "the team's coach".
+     * PLAYER and PARENT get null, also on their own row (same idea as F6).
+     */
+    public LocalDate memberSinceForCaller(AppUser user) {
+        return mayReadMemberDates() ? user.getMemberSince() : null;
+    }
+
+    public LocalDate memberUntilForCaller(AppUser user) {
+        return mayReadMemberDates() ? user.getMemberUntil() : null;
+    }
+
+    private boolean mayReadMemberDates() {
+        return hasRole("ADMIN") || hasRole("CHAIRMAN") || hasRole("COACH");
     }
 
     private String fieldOnActiveParent(Long parentId, Function<AppUser, String> field) {

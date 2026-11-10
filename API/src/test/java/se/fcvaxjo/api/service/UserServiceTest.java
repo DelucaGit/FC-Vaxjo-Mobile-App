@@ -12,6 +12,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +22,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
@@ -63,11 +65,17 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    @InjectMocks
+    /** Fixed "today" for the membership dates (#85). */
+    private static final LocalDate TODAY = LocalDate.of(2026, 3, 15);
+
     private UserService userService;
 
     @BeforeEach
     void setAdminAuth() {
+        // Built by hand so the service gets a fixed clock (#85).
+        Clock clock = Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
+        userService = new UserService(
+                userRepository, roleRepository, teamRepository, teamCoachRepository, passwordEncoder, clock);
         login(1L, "ADMIN");
     }
 
@@ -231,6 +239,8 @@ class UserServiceTest {
         AppUser result = userService.softDeletePlayer(30L);
 
         assertEquals(false, result.isActive());
+        // #85: the membership ends on the day of the soft delete.
+        assertEquals(TODAY, result.getMemberUntil());
     }
 
     @Test

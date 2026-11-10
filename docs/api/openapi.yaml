@@ -1480,6 +1480,22 @@ components:
         teamId: { type: [integer, 'null'], format: int64 }
         teamName: { type: [string, 'null'] }
         active: { type: boolean, description: false = mjukt raderad. }
+        memberSince:
+          type: [string, 'null']
+          format: date
+          x-pii: true
+          description: |
+            Dagen personen blev medlem (#85). Sätts när användaren skapas.
+            null betyder "medlem sedan tidigare" (rad från före fältet), eller att
+            anroparen är PLAYER/PARENT. Visas bara för ADMIN, CHAIRMAN och COACH
+            (en COACH når bara rader i sitt eget lag).
+        memberUntil:
+          type: [string, 'null']
+          format: date
+          x-pii: true
+          description: |
+            Dagen medlemskapet slutade (#85). Sätts vid mjukradering, null så länge
+            personen är aktiv. Samma synlighet som memberSince.
     SearchUsersRequest:
       type: object
       description: |

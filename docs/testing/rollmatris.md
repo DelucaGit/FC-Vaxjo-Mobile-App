@@ -63,6 +63,8 @@ Exempel: `coachFromOtherTeam_cannotSeePlayerPhoneNumber`.
 | PARENT, eget barn | Barnets namn och schema via `/api/my`. Inte klubbkatalogen |
 | PARENT, annat barn | Inga |
 
+Medlemsdatum (#85): `memberSince` (sätts när användaren skapas) och `memberUntil` (sätts vid mjukradering, annars null). Båda är `x-pii`. ADMIN, CHAIRMAN och COACH ser dem på de rader de redan når. PLAYER och PARENT får null, även på sin egen rad. Gamla rader har null i `memberSince`, vilket betyder "medlem sedan tidigare". Testerna finns i `MemberDatesAccessTest`.
+
 `TeamResponse` har bara id och namn. Inget `x-pii`. Alla inloggade får lista lag.
 
 `AttendanceResponse`: `playerName` och `status` är `x-pii`. Bara ADMIN och lagets tränare. Ingen e-post och ingen föräldertelefon i det svaret.
