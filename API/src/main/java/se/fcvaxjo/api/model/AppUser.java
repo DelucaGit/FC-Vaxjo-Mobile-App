@@ -95,13 +95,4 @@ public class AppUser {
      */
     @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
-
-    /**
-     * When the linked parent allowed this player's name and shirt number
-     * on the public site. Null means no consent. That is the default.
-     * Contact details are never published, even when this is set.
-     * There is no Flyway (ADR 0002). Hibernate adds the nullable column.
-     */
-    @Column(name = "public_consent_at")
-    private Instant publicConsentAt;
 }

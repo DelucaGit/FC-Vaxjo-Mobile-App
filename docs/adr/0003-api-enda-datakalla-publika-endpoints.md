@@ -11,13 +11,12 @@ Klubbens hemsida fcvaxjo.se ska visa information som appen hanterar. Två databa
   - lag (`/api/public/teams`)
   - kommande matcher (`/api/public/matches/upcoming`)
   - matchhistorik/resultat (`/api/public/matches/history`)
-  - trupp (`/api/public/teams/{id}/players`): bara namn och tröjnummer, och bara med den länkade förälderns samtycke (ADR 0007)
   - träningsscheman per lag (`/api/public/teams/{id}/trainings`) — fortfarande planerat
   - tränarens namn och kontaktuppgifter (`/api/public/teams/{id}/coaches`) — fortfarande planerat, bara med tränarens eget samtycke per fält
-- Publika DTO:er innehåller **aldrig** e-post, telefon, föräldrauppgifter, närvaro eller beteende. `FetchUserResponse` återanvänds aldrig publikt.
+- Publika DTO:er innehåller **aldrig** spelardata (ADR 0007), e-post, telefon, föräldrauppgifter, närvaro eller beteende. `FetchUserResponse` återanvänds aldrig publikt.
 - CORS tillåter `https://fcvaxjo.se` (och `www`) bara för `/api/public/**` och bara GET.
 
 ## Konsekvenser
 - Det finns en sanning för all data. Byggda publika läsningar har ingen `x-status: planned`. Träningsschema och tränarkontakt är kvar som planerade.
-- **Matcher kan skrivas av personal** (`POST /api/matches`). Publika läsningar för lag, matcher och trupp är byggda (ADR 0007). Träningsschema, tränarkontakt, rate limit och CORS för fcvaxjo.se är kvar.
+- **Matcher kan skrivas av personal** (`POST /api/matches`). Publika läsningar för lag och matcher är byggda. Någon publik trupp finns inte (ADR 0007). Träningsschema, tränarkontakt, rate limit och CORS för fcvaxjo.se är kvar.
 - Publika endpoints behöver rate limiting (429) och caching. Kontraktstester ska visa att inga spelar-/föräldra-PII-fält finns i publika svar.

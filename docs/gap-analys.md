@@ -41,7 +41,7 @@ Personalens matcher följer samma laggräns som träningar. ADMIN och CHAIRMAN s
 
 ## Sprint 2, publika läsningar
 
-`GET /api/public/**` är öppet. Andra metoder på den sökvägen är det inte. Truppen visar bara namn och tröjnummer, och bara när den länkade föräldern har satt `publicConsentAt` (ADR 0007). Inaktiva användare syns inte. En inaktiv förälder döljer barnet, för återkallelsen skulle annars inte gå att göra. Kontaktuppgifter finns inte i de publika svaren. Tränarkontakt och publikt träningsschema är kvar som planerade. Rate limit och CORS för fcvaxjo.se (punkt 8) är kvar.
+`GET /api/public/**` är öppet. Andra metoder på den sökvägen är det inte. Ingen spelardata är publik, och det finns ingen publik trupp (ADR 0007). `PublicLeakTest` kontrollerar alla publika GET-endpoints. Kontaktuppgifter finns inte i de publika svaren. Tränarkontakt och publikt träningsschema är kvar som planerade. Rate limit och CORS för fcvaxjo.se (punkt 8) är kvar.
 
 ## Sprint 2, ställa in en träning
 
