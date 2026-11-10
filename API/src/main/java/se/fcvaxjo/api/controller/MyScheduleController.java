@@ -12,10 +12,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import se.fcvaxjo.api.DTO.MatchResultResponse;
 import se.fcvaxjo.api.DTO.MyChildResponse;
+import se.fcvaxjo.api.DTO.MyMatchResponse;
 import se.fcvaxjo.api.DTO.MyTrainingResponse;
 import se.fcvaxjo.api.DTO.TeamResponse;
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.service.MyScheduleService;
@@ -90,5 +93,34 @@ public class MyScheduleController {
                     row.status()));
         }
         return responses;
+    }
+
+    /**
+     * PLAYER: matches for their own team. PARENT: must pass childId of a linked child.
+     * The body has no email and no phone.
+     */
+    @GetMapping("/matches")
+    @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
+    public List<MyMatchResponse> listMatches(@RequestParam(required = false) Long childId) {
+        List<MyMatchResponse> responses = new ArrayList<>();
+        for (Match match : myScheduleService.listMyMatches(childId)) {
+            responses.add(new MyMatchResponse(
+                    match.getId(),
+                    match.getTeamId(),
+                    myScheduleService.getTeamName(match.getTeamId()),
+                    match.getOpponent(),
+                    match.getKickoffAt(),
+                    match.getVenue(),
+                    match.getHomeAway().name(),
+                    resultOf(match)));
+        }
+        return responses;
+    }
+
+    private MatchResultResponse resultOf(Match match) {
+        if (match.getGoalsFor() == null && match.getGoalsAgainst() == null) {
+            return null;
+        }
+        return new MatchResultResponse(match.getGoalsFor(), match.getGoalsAgainst());
     }
 }

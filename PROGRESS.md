@@ -676,3 +676,11 @@ Why: ADR 0004 says personal data should not sit in the URL. An access log that s
 Decision: `searchByName`, `searchByShirtNumber` and `searchByPhone` in `UI/src/api/users.ts` call `POST /api/users/search`. The JSON body has exactly one of `name`, `playerNumber` and `phone`. The function names and arguments stay the same, so the screens do not change. The shirt field in the body is `playerNumber`. The old query key was `number`.
 
 Why: ADR 0004. A phone number in the URL can be stored in an access log. This follows `docs/api/openapi.yaml` from the backend change (PR #51). GET on that URL is 405. A non-ok answer still goes through `readErrorMessage`, so 400 and 404 keep the server text and a bare 403 stays the role sentence.
+
+# Matches: same writers as trainings (5/11-2026)
+
+Decision: a match belongs to one team and stores opponent, kickoff, venue, home or away, and an optional score. ADMIN and CHAIRMAN write every team. A coach writes only teams in `team_coaches`. A player and a parent do not use the staff URLs. They read `GET /api/my/matches` for their own team, or for their own child.
+
+Why the same 403 for a missing match and for another team: a 404 would tell a coach that the id is free, and a different text would tell them the match exists on a team they do not coach. ADMIN and CHAIRMAN still get 404 "Match not found", because they are allowed to see every team. The score is left empty at create and set later with `PUT /api/matches/{id}/result`. The row is not deleted. The table is `club_matches` because MATCH is a reserved SQL word. Hibernate adds it (`ddl-auto=update`, ADR 0002). No Flyway.
+
+The answer has no email and no phone. `UI/` is not changed here. Public match URLs stay closed until the consent work.

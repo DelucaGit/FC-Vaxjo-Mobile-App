@@ -1,6 +1,6 @@
 # Rollmatris (S1-6a)
 
-Senast uppdaterad: 2026-11-05, F2 och F11. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
+Senast uppdaterad: 2026-11-05, matcher. Tröjnumrets 404 är "User not found". Inaktiv refresh är 401.
 
 Det här är målet för vem som får anropa varje endpoint, och vilka personfält svaret får innehålla.
 Källan är `docs/api/openapi.yaml` (`x-roles`, `x-scope`, `x-pii`, och `x-roles-planned` / `x-scope-planned` där de finns) plus ADR 0006.
@@ -114,6 +114,17 @@ Det gäller lista, hämta, skapa, lista närvaro och markera närvaro.
 
 Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post och inte förälderns telefon.
 
+### Matcher
+
+`x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.
+Det gäller lista, hämta, skapa och sätta resultat.
+
+En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte finns, så svaret inte säger att matchen finns. ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
+
+`GET /api/my/matches`: PLAYER bara sitt lag. PARENT måste skicka sitt eget barn. Ingen e-post, ingen telefon, inget `createdByUserId`.
+
+Kod idag: stämmer. Anonymt anrop är 401.
+
 ### Mitt schema
 
 | Anrop | Mål | Kod idag |
@@ -121,6 +132,7 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 | `GET /api/my/teams` | ADMIN alla lag. COACH bara sina. Övriga 403 | Stämmer |
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
 | `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post | Stämmer |
+| `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
 
 ### Anonymt anrop
 
@@ -152,6 +164,9 @@ Nyckeln i testerna är testprofilens `app.jwt.secret`, plus en uppenbart påhitt
 | Tränare byter `teamId` på träningar till ett annat lag eller ett okänt lag | 403, även när laget inte finns | Stämmer |
 | Tränare byter tränings-id till ett annat lag | 403 | Stämmer |
 | Tränare byter tränings-id till ett id som inte finns | 404 för alla, kontraktet skiljer på saknad rad | Stämmer |
+| Tränare byter match-id till ett annat lag | 403 | Stämmer |
+| Tränare byter match-id till ett id som inte finns | 403, samma text som ett annat lag | Stämmer |
+| Ordförande öppnar en match i vilket lag som helst | 200 | Stämmer |
 | Tränare byter lag-id på spelarlistan | 403, ingen föräldratelefon | 403. Taggen `known-gap` är borta. **S1-10** |
 | Tränare byter user-id till en spelare i ett annat lag | 403 | 403. Taggen `known-gap` är borta. **S1-10** |
 | Ordförande öppnar en träning i vilket lag som helst | 200 | Stämmer (S1-11) |

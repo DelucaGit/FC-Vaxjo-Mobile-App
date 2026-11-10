@@ -25,6 +25,7 @@ import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.repository.UserRepository;
@@ -41,6 +42,9 @@ class MyScheduleServiceTest {
 
     @Mock
     private TrainingAttendanceRepository attendanceRepository;
+
+    @Mock
+    private MatchRepository matchRepository;
 
     @Mock
     private UserService userService;

@@ -58,6 +58,16 @@ public enum ClubRole {
     }
 
     /**
+     * Matches for every team, not one team.
+     * Written out again on purpose. A later change to trainings must not
+     * silently change who may record a match. The coach's team check stays
+     * in MatchService, because this enum does not know team_coaches.
+     */
+    public boolean canManageAllMatches() {
+        return this == ADMIN || this == CHAIRMAN;
+    }
+
+    /**
      * People on every team, not only the teams in team_coaches.
      * ADMIN and CHAIRMAN look after the whole club, so the list, the search
      * and a single user are not limited to one team.

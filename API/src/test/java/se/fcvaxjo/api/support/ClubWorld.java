@@ -18,6 +18,8 @@ public record ClubWorld(
         long parentAlfaId,
         long parentBetaId,
         long trainingAlfaId,
+        long matchAlfaId,
+        long matchBetaId,
         String adminToken,
         String chairmanToken,
         String coachAlfaToken,

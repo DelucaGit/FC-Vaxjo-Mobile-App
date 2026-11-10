@@ -12,7 +12,9 @@ import org.springframework.stereotype.Service;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Training;
+import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.repository.UserRepository;
@@ -26,6 +28,7 @@ public class MyScheduleService {
     private final UserRepository userRepository;
     private final TrainingRepository trainingRepository;
     private final TrainingAttendanceRepository attendanceRepository;
+    private final MatchRepository matchRepository;
     private final UserService userService;
     private final TeamService teamService;
 
@@ -33,11 +36,13 @@ public class MyScheduleService {
             UserRepository userRepository,
             TrainingRepository trainingRepository,
             TrainingAttendanceRepository attendanceRepository,
+            MatchRepository matchRepository,
             UserService userService,
             TeamService teamService) {
         this.userRepository = userRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
+        this.matchRepository = matchRepository;
         this.userService = userService;
         this.teamService = teamService;
     }
@@ -81,6 +86,18 @@ public class MyScheduleService {
             rows.add(new ScheduleRow(training, target, status));
         }
         return rows;
+    }
+
+    /**
+     * Same person check as {@link #listMyTrainings(Long)}.
+     * PLAYER sees matches for their own team. PARENT must pass a linked child.
+     */
+    public List<Match> listMyMatches(Long childId) {
+        AppUser target = resolveTargetPlayer(childId);
+        if (target == null || target.getTeamId() == null) {
+            return List.of();
+        }
+        return matchRepository.findByTeamIdOrderByKickoffAtDesc(target.getTeamId());
     }
 
     public String getTeamName(Long teamId) {

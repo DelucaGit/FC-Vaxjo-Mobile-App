@@ -56,6 +56,18 @@ Efter bytet måste personen logga in igen för att få en token med rollen COACH
 
 Ingen schemaändring. Rollnamnet är redan en textkolumn (se S1-2 och ADR 0002).
 
+## Genomförande (matcher, sprint 2)
+
+Öppen fråga från beslutet: vem registrerar matcher? Samma personer som skapar träningar.
+
+- ADMIN och CHAIRMAN får skapa en match, läsa den och sätta resultat för vilket lag som helst. De behöver ingen rad i `team_coaches`.
+- COACH får göra samma sak bara för lag där hen finns i `team_coaches`.
+- PLAYER och PARENT skriver inte matcher. De läser sitt eget lag, eller sitt barns lag, via `GET /api/my/matches`.
+- `ClubRole.canManageAllMatches()` är en egen metod. Den säger samma sak som träningarna idag, men en senare ändring av träningar ska inte tyst ändra matcher.
+- En tränare som frågar efter ett annat lags match, eller efter ett id som inte finns, får samma 403. Texten är "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches". ADMIN och CHAIRMAN får 404 "Match not found" när id saknas, för de får se alla lag.
+- Resultatet är valfritt vid skapande och sätts i efterhand med `PUT /api/matches/{id}/result`. Matchen raderas inte.
+- Svaret har motståndare, tid, plats, hemma eller borta, och resultat. Ingen e-post och ingen telefon.
+
 ## Genomförande (S1-11)
 - `ClubRole.canManageAllTrainings()` är sant för ADMIN och CHAIRMAN. COACH, PLAYER och PARENT är falskt. Lagkontrollen för en tränare ligger kvar i `TrainingService`, eftersom rollen inte vet vilka rader som finns i `team_coaches`.
 - CHAIRMAN får skapa träning och markera närvaro på vilket lag som helst, utan att vara kopplad som tränare. Samma sak gäller att lista och hämta träningen, så ordföranden kan se det hen just ändrade.
