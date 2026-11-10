@@ -332,7 +332,7 @@ Jira (paste yourself): Epic — Coaches can run trainings… Story — As a coac
 
 # Demo club seed (27/10-2026)
 
-`DemoClubSeeder`: ensures teams P13 + P14 + P15; each gets 1 coach, up to 10 players (1 parent each), and up to **10 trainings** with attendance snapshots. Idempotent (fills missing players/trainings only). Demo users get a hardcoded temporary password. Also resets `admin@fcvaxjo.se` to its temporary password (must change password) so local login works after password drift. Runs only with the Spring profile `dev` (default locally), never in production.
+`DemoClubSeeder`: ensures teams P13 + P14 + P15; each gets 1 coach, up to 10 players (1 parent each), and up to **10 trainings** with attendance snapshots. Idempotent (fills missing players/trainings only). Demo users get a temporary password from `DEMO_PASSWORD`. Also resets `admin@fcvaxjo.se` to its temporary password (must change password) so local login works after password drift. Runs only when you set `SPRING_PROFILES_ACTIVE=dev`. There is no default profile, so a start without that variable does not plant demo users.
 
 # Player + parent read-only schedule (27/10-2026)
 
@@ -655,7 +655,9 @@ Refresh of an inactive account stays a check inside `AuthService.refresh`, but t
 
 Decision: `spring.jpa.show-sql` is `false` in `application.properties` and in `application-prod.properties`. Only `application-dev.properties` sets it to `true`.
 
-Why the default is false: the app already starts in the `dev` profile locally, so a developer still sees SQL. If Railway forgets `SPRING_PROFILES_ACTIVE=prod`, the default file still keeps the log off. Putting `true` in the default file and hoping prod overrides it would print queries, including email and phone, whenever the profile is missing. The prod file has no secrets. Passwords stay in environment variables. Gap analysis point 7 is closed for the SQL log. `ddl-auto=update` and the database user are still open.
+There is no default profile. `application.properties` does not set `spring.profiles.active`. If `SPRING_PROFILES_ACTIVE` is missing, no profile is active, SQL logging stays off, and `DemoClubSeeder` is not created (`@Profile("dev")`). A local run turns demo data and SQL logging on with `SPRING_PROFILES_ACTIVE=dev` in the start command (bash or PowerShell). `API/.env` does not select the profile: `springboot4-dotenv` loads that file after Spring has already chosen profiles. Production sets `SPRING_PROFILES_ACTIVE=prod`.
+
+Why there is no fallback to `dev`: a forgotten variable on Railway must not print queries (email and phone can be in the SQL) and must not plant demo users. The prod file has no secrets. Passwords stay in environment variables. Gap analysis point 7 is closed for the SQL log. `ddl-auto=update` and the database user are still open.
 
 # F10: reject a duplicate shirt before insert (5/11-2026)
 
@@ -668,6 +670,12 @@ A `DataIntegrityViolationException` that still escapes is 400 `Could not save th
 Decision: `GET /api/users/search?name=&number=&phone=` is replaced by `POST /api/users/search`. The JSON body must contain exactly one of `name`, `playerNumber` and `phone`. Anything else is 400. The answers and the roles stay the same. GET on that URL is 405, so it is not a search.
 
 Why: ADR 0004 says personal data should not sit in the URL. An access log that stores the path would store the phone. The mobile app must switch to this POST before or at the same time as this change is merged. `UI/` is not changed here.
+
+# F1 UI: the app searches with POST (5/11-2026)
+
+Decision: `searchByName`, `searchByShirtNumber` and `searchByPhone` in `UI/src/api/users.ts` call `POST /api/users/search`. The JSON body has exactly one of `name`, `playerNumber` and `phone`. The function names and arguments stay the same, so the screens do not change. The shirt field in the body is `playerNumber`. The old query key was `number`.
+
+Why: ADR 0004. A phone number in the URL can be stored in an access log. This follows `docs/api/openapi.yaml` from the backend change (PR #51). GET on that URL is 405. A non-ok answer still goes through `readErrorMessage`, so 400 and 404 keep the server text and a bare 403 stays the role sentence.
 
 # Matches: same writers as trainings (5/11-2026)
 
