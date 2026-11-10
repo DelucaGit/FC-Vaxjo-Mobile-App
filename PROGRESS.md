@@ -801,3 +801,9 @@ Why: the API will be public on Railway, and nothing stopped password guessing. A
 - [ ] Spärra dig själv från 4G (5 fel), kontrollera att samma konto från wifi fortfarande får 401/200.
 - [ ] Ingen publik TCP-proxy är påslagen i Railway (den skulle gå förbi edge-proxyn och `X-Real-IP`).
 - [ ] Varningen "client IP is internal" syns inte i loggen.
+
+## Demo seed keeps changed passwords (10/11-2026)
+
+Decision: `DemoClubSeeder` (dev only) sets a password and `mustChangePassword=true` only when it creates a user. Existing users, the bootstrap admin included, keep their password and flag on restart. `DEMO_RESET_PASSWORDS=true` in `API/.env` (`app.seed.reset-passwords`, default false) brings back the old reset of the admin and all demo passwords, with one info line in the log. `AdminSeeder` already only created the admin and is unchanged.
+
+Why: every restart threw away the developer's new password and forced a password change again.

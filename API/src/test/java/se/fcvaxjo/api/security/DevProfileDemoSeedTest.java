@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -11,8 +12,11 @@ import org.springframework.boot.jpa.autoconfigure.JpaProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.repository.TeamRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
@@ -55,6 +59,12 @@ class DevProfileDemoSeedTest {
     @Autowired
     private TrainingRepository trainings;
 
+    @Autowired
+    private DemoClubSeeder seeder;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Test
     void devProfileIsActiveAndSqlLoggingIsOn() {
         assertTrue(List.of(environment.getActiveProfiles()).contains("dev"));
@@ -73,5 +83,48 @@ class DevProfileDemoSeedTest {
         assertTrue(users.findByEmail("player10.p13@demo.fcvaxjo.se").isPresent());
         assertTrue(users.findByEmail("parent1.p13@demo.fcvaxjo.se").isPresent());
         assertEquals(10, trainings.findByTeamIdOrderByStartsAtDesc(p13.getId()).size());
+    }
+
+    /**
+     * A restart must not undo a password the developer changed. With
+     * app.seed.reset-passwords=true the seeder goes back to DEMO_PASSWORD and
+     * BOOTSTRAP_ADMIN_PASSWORD, and asks for a new password again.
+     */
+    @Test
+    void restartKeepsChangedPasswordsUnlessResetIsOn() {
+        List<String> emails = List.of(
+                "admin@fcvaxjo.se",
+                "coach.p13@demo.fcvaxjo.se",
+                "player1.p13@demo.fcvaxjo.se",
+                "parent1.p13@demo.fcvaxjo.se",
+                "parent10.p13@demo.fcvaxjo.se");
+        for (String email : emails) {
+            AppUser user = users.findByEmail(email).orElseThrow();
+            user.setPasswordHash("my-own-hash");
+            user.setMustChangePassword(false);
+            users.save(user);
+        }
+
+        seeder.run();
+
+        for (String email : emails) {
+            AppUser user = users.findByEmail(email).orElseThrow();
+            assertEquals("my-own-hash", user.getPasswordHash(), email);
+            assertFalse(user.isMustChangePassword(), email);
+        }
+
+        ReflectionTestUtils.setField(seeder, "resetPasswords", true);
+        try {
+            seeder.run();
+        } finally {
+            ReflectionTestUtils.setField(seeder, "resetPasswords", false);
+        }
+
+        for (String email : emails) {
+            AppUser user = users.findByEmail(email).orElseThrow();
+            String expected = email.startsWith("admin") ? "test-only-admin-password" : "test-only-demo-password";
+            assertTrue(passwordEncoder.matches(expected, user.getPasswordHash()), email);
+            assertTrue(user.isMustChangePassword(), email);
+        }
     }
 }
