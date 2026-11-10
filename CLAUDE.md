@@ -6,7 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **AI writes, developer understands.** Claude writes and edits the code. The developer must still understand every change: after making one, explain what changed and why in simple language (junior-friendly, no unexplained jargon), including any non-obvious choice, what it costs later, and the alternative. Prefer small, readable steps over big rewrites or clever abstractions, and warn early if a change would make the structure messy. This replaces the older "mentor mode" rule in `.cursor/rules/mentor-mode.mdc`.
 - `LK_POSTS.md` is local only and gitignored. Never stage, commit, or push it.
-- Jira is run by the developer. Do not create or change Jira items. If asked for Jira text: epics and stories use plain language (`As a ____ I would like to ____ because ____.`); tasks use three lines, **Add / Why / Done when**.
+- **Kanban on GitHub Issues** replaces Jira. Issues are linked with "Blocked by"; phase 1 is the milestone "Fas 1: Pilot" (spec #57), with at most 2 issues in progress. Stories use plain language (`As a ____ I would like to ____ because ____.`); tasks use **Add / Why / Done when**.
+- **Vertical slices.** Each issue goes all the way: DB → API → app → real phone.
+- **Labels.** `AFK`: the agent does everything and Marcel reviews the PR. `HITL`: a human is needed for part of it.
+- **Done means all four:** (1) API tests green (`mvnw verify`); (2) app tests, lint and typecheck green; (3) run against the local API (after the move: against Railway); (4) tried on a real phone.
+- Nothing is pushed or merged to `master` without Marcel's explicit yes.
 - Record locked decisions in `PROGRESS.md`. Architecture decisions go in `docs/adr/` (written in Swedish).
 
 ## Repo layout

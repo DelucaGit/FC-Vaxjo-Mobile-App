@@ -1,6 +1,6 @@
 # ADR 0005: React Navigation behålls (inte Expo Router)
 
-**Status:** Föreslagen, godkänns när Marcel mergar PR:en för `docs/api-contract` · **Datum:** 2026-11-05
+**Status:** Accepterad (Marcel, 2026-11-10) · **Datum:** 2026-11-05
 
 ## Kontext
 `UI/AGENTS.md` (rad 28–29) säger: "Use **Expo Router** for all navigation. Routes live in `src/app/`" och "Import `Link`, `router` … from `expo-router`". Koden gör något annat:
