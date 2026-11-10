@@ -1,0 +1,34 @@
+# Files Docker never sends into the build (issue #68).
+# Secrets first: no .env file may ever end up in the image.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+
+# Build output and local tools. The image builds its own target/.
+target/
+bin/
+build/
+*.log
+logs/
+
+# Git and IDE folders.
+.git
+.gitignore
+.gitattributes
+.idea
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings
+.project
+.classpath
+.factorypath
+
+# Docs and diagrams are not needed to build the jar.
+Diagrams/
+*.md
+Dockerfile
+.dockerignore

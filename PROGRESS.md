@@ -781,3 +781,11 @@ Why: the players are children. A consent can be forgotten or set by mistake, and
 `PublicLeakTest` seeds a player with a unique name, email, phone and shirt number, finds every GET under `/api/public/` through Spring's handler mappings, and checks that none of the values is in any answer. A new public endpoint is checked without editing the test. The test fails if an endpoint never answers 200, so nothing slips through unchecked.
 
 `ddl-auto=update` does not drop columns, so `public_consent_at` may stay in a database that already ran the old code. It is unused and harmless. `UI/` is not changed.
+
+## Docker image for the API (#68)
+
+Decision: `API/Dockerfile` is a multi-stage build on `eclipse-temurin` 21 (pinned to `21.0.13_9`, Ubuntu noble). The JDK stage builds the jar with the Maven Wrapper and skips tests (CI runs them). The JRE stage runs only the jar as a non-root user on port 8080. `API/.dockerignore` keeps `.env`, `target/` and `.git` out of the build. `application.properties` now reads `DB_URL`, `DB_USERNAME` and `PORT` from the environment, with the old local values as defaults. `springboot4-dotenv` needs no change: `springdotenv.ignore-if-missing` is `true` by default, so a container without `.env` starts. How to build and run: `docs/docker.md`.
+
+Why: inside a container `localhost` is the container itself, so the database address must come from outside. Railway sets `PORT`. Pinned tags mean a rebuild gives the same base image.
+
+Left for Marcel (HITL): install Docker Desktop, build the image, run it against local PostgreSQL with `prod`, check that `.env` is not in the image, and try the app on a real phone.

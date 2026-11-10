@@ -48,6 +48,8 @@ $env:SPRING_PROFILES_ACTIVE = "dev"
 
 Base URL: `http://localhost:8080/api`
 
+To build and run the API as a Docker image (like on the server), see `docs/docker.md`.
+
 In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings, and SQL logging is on. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`.
 
 Production turns SQL logging off. Set the environment variable `SPRING_PROFILES_ACTIVE=prod` (Railway variables, not a file in Git). That loads `application-prod.properties`. Do not set `dev` at the same time. If the variable is missing, no profile is active. The base file has `spring.jpa.show-sql=false`, so a forgotten profile does not print SQL and does not plant demo users. Passwords and `JWT_SECRET` stay in environment variables. Nothing secret is written in the prod file.
