@@ -32,18 +32,21 @@ public class TrainingService {
     private final TeamService teamService;
     private final TeamCoachRepository teamCoachRepository;
     private final UserRepository userRepository;
+    private final TrainingAttendanceRoster roster;
 
     public TrainingService(
             TrainingRepository trainingRepository,
             TrainingAttendanceRepository attendanceRepository,
             TeamService teamService,
             TeamCoachRepository teamCoachRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            TrainingAttendanceRoster roster) {
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
         this.userRepository = userRepository;
+        this.roster = roster;
     }
 
     public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title) {
@@ -51,8 +54,8 @@ public class TrainingService {
     }
 
     /**
-     * Creates a training and snapshots current active players on the team
-     * into attendance rows (status null until marked).
+     * Creates a training. No attendance rows are copied: while the training is open,
+     * the list follows the team's current players (issue #86).
      */
     @Transactional
     public Training createTraining(
@@ -81,18 +84,7 @@ public class TrainingService {
         training.setVenue(blankToNull(venue));
         training.setStatus(TrainingStatus.SCHEDULED);
         training.setCreatedByUserId(currentUserId());
-        Training saved = trainingRepository.save(training);
-
-        List<AppUser> players = teamService.listPlayers(teamId);
-        for (AppUser player : players) {
-            TrainingAttendance row = new TrainingAttendance();
-            row.setTrainingId(saved.getId());
-            row.setPlayerUserId(player.getId());
-            row.setStatus(null);
-            attendanceRepository.save(row);
-        }
-
-        return saved;
+        return trainingRepository.save(training);
     }
 
     public List<Training> listByTeam(Long teamId) {
@@ -101,18 +93,23 @@ public class TrainingService {
         }
         assertCanManageTeam(teamId);
         teamService.getTeamById(teamId);
-        return trainingRepository.findByTeamIdOrderByStartsAtDesc(teamId);
+        List<Training> trainings = new ArrayList<>();
+        for (Training training : trainingRepository.findByTeamIdOrderByStartsAtDesc(teamId)) {
+            trainings.add(roster.freezeIfDue(training));
+        }
+        return trainings;
     }
 
     public Training getById(Long id) {
         Training training = trainingRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Training not found"));
         assertCanManageTeam(training.getTeamId());
-        return training;
+        return roster.freezeIfDue(training);
     }
 
     /**
      * Changes time, place, and title. The team stays, so the attendance rows stay.
+     * A frozen list stays frozen even if the time moves.
      * A cancelled training can still be corrected. Marking attendance stays blocked.
      */
     @Transactional
@@ -156,9 +153,37 @@ public class TrainingService {
         return trainingRepository.save(training);
     }
 
+    /**
+     * Open: the team's active players now, with saved status or null.
+     * Frozen: only the saved rows (a player who has left stays, a new player is not shown).
+     */
+    @Transactional
     public List<TrainingAttendance> listAttendance(Long trainingId) {
         Training training = getById(trainingId);
-        return attendanceRepository.findByTrainingId(training.getId());
+        return roster.currentList(training);
+    }
+
+    /**
+     * "Klar": freezes the attendance list. Calling it again changes nothing (200).
+     * Every player on the live list must be marked first, otherwise 400.
+     * A team with no players can be frozen right away (nobody to mark).
+     */
+    @Transactional
+    public Training lockAttendance(Long trainingId) {
+        Training training = getById(trainingId);
+        if (training.statusOrScheduled() == TrainingStatus.CANCELLED) {
+            throw new BadRequestException("This training is cancelled");
+        }
+        if (training.getAttendanceLockedAt() != null) {
+            return training;
+        }
+        boolean someoneUnmarked = roster.currentList(training).stream()
+                .anyMatch(row -> row.getStatus() == null);
+        if (someoneUnmarked) {
+            throw new BadRequestException(
+                    "All players must be marked before the attendance list can be frozen");
+        }
+        return roster.freezeNow(training);
     }
 
     @Transactional
@@ -166,6 +191,10 @@ public class TrainingService {
         Training training = getById(trainingId);
         if (training.statusOrScheduled() == TrainingStatus.CANCELLED) {
             throw new BadRequestException("This training is cancelled");
+        }
+        if (training.getAttendanceLockedAt() != null) {
+            throw new BadRequestException(
+                    "The attendance list for this training is frozen and can no longer be changed");
         }
 
         if (statusName == null || statusName.isBlank()) {
@@ -179,10 +208,18 @@ public class TrainingService {
             throw new BadRequestException("status must be PRESENT, ABSENT, or EXCUSED");
         }
 
+        if (!roster.isLivePlayer(training.getTeamId(), playerUserId)) {
+            throw new BadRequestException(
+                    "This player is not on the attendance list for this training");
+        }
         TrainingAttendance row = attendanceRepository
                 .findByTrainingIdAndPlayerUserId(training.getId(), playerUserId)
-                .orElseThrow(() -> new BadRequestException(
-                        "This player is not on the attendance list for this training"));
+                .orElseGet(() -> {
+                    TrainingAttendance created = new TrainingAttendance();
+                    created.setTrainingId(training.getId());
+                    created.setPlayerUserId(playerUserId);
+                    return created;
+                });
 
         row.setStatus(status);
         return attendanceRepository.save(row);

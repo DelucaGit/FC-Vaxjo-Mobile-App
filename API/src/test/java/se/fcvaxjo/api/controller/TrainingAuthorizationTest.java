@@ -215,8 +215,8 @@ class TrainingAuthorizationTest {
     private String trainingJson(long teamId, String title) {
         return "{"
                 + "\"teamId\":" + teamId + ","
-                + "\"startsAt\":\"2026-11-06T18:00:00\","
-                + "\"endsAt\":\"2026-11-06T19:30:00\","
+                + "\"startsAt\":\"2099-11-06T18:00:00\","
+                + "\"endsAt\":\"2099-11-06T19:30:00\","
                 + "\"title\":\"" + title + "\""
                 + "}";
     }

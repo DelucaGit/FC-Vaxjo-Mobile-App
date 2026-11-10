@@ -117,6 +117,16 @@ public class TrainingController {
         return responses;
     }
 
+    /**
+     * "Klar": freezes the attendance list (issue #86). Same roles and team scope as marking.
+     * Returns the training with attendanceLockedAt set. Calling it again is a no-op.
+     */
+    @PutMapping("/{id}/attendance/lock")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public TrainingResponse lockAttendance(@PathVariable Long id) {
+        return toResponse(trainingService.lockAttendance(id));
+    }
+
     @PutMapping("/{id}/attendance/{playerId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public AttendanceResponse updateAttendance(
@@ -143,6 +153,7 @@ public class TrainingController {
                 training.getVenue(),
                 training.statusOrScheduled().name(),
                 training.getCancelReason(),
-                training.getCreatedByUserId());
+                training.getCreatedByUserId(),
+                training.getAttendanceLockedAt());
     }
 }

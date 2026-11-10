@@ -124,6 +124,18 @@ PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Pers
 
 Kod idag: stämmer. Anonymt anrop är 401.
 
+#### Frysta närvarolistor (issue #86, ADR 0010)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `PUT /api/trainings/{id}/attendance/lock` ("Klar") | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer. Okänt id 404. Inställd träning 400 |
+
+- Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. `POST /api/trainings` kopierar inte spelare.
+- "Klar" kräver att alla på listan är markerade, annars 400 "All players must be marked before the attendance list can be frozen". Lag utan spelare kan frysas. Redan fryst: 200 och inget ändras.
+- Automatisk frysning vid första läsning eller skrivning när nu (Europe/Stockholm) är mer än 6 timmar efter `endsAt`. Bara sparade rader följer med, omarkerade läggs inte till. Inställda träningar fryses inte automatiskt.
+- Fryst lista: markera närvaro ger 400. Spelare som slutat ligger kvar, nya spelare syns inte. Ändrad tid låser inte upp.
+- `attendanceLockedAt` (`null` = öppen) finns i `TrainingResponse` och `MyTrainingResponse`.
+
 ### Matcher
 
 `x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.

@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,12 +54,18 @@ class TrainingServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TrainingAttendanceRoster roster;
+
     @InjectMocks
     private TrainingService trainingService;
 
     @BeforeEach
     void setAdminAuth() {
         setAuth(1L, "ADMIN");
+        // The clock rules are tested over HTTP. Here a training is never due for auto-freeze.
+        lenient().when(roster.freezeIfDue(any(Training.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     private void setAuth(long userId, String roleName) {
@@ -76,33 +82,27 @@ class TrainingServiceTest {
     }
 
     @Test
-    void createTraining_snapshotsActivePlayers() {
+    void createTraining_doesNotCopyPlayersIntoAttendance() {
         Team team = new Team();
         team.setId(10L);
         team.setName("P15");
-
-        AppUser player = new AppUser();
-        player.setId(30L);
-        player.setName("Erik");
 
         LocalDateTime start = LocalDateTime.of(2026, 10, 27, 16, 0);
         LocalDateTime end = LocalDateTime.of(2026, 10, 27, 17, 30);
 
         when(teamService.getTeamById(10L)).thenReturn(team);
-        when(teamService.listPlayers(10L)).thenReturn(List.of(player));
         when(trainingRepository.save(any(Training.class))).thenAnswer(invocation -> {
             Training t = invocation.getArgument(0);
             t.setId(100L);
             return t;
         });
-        when(attendanceRepository.save(any(TrainingAttendance.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
 
         Training created = trainingService.createTraining(10L, start, end, "Evening");
 
         assertEquals(100L, created.getId());
         assertEquals("Evening", created.getTitle());
-        verify(attendanceRepository, times(1)).save(any(TrainingAttendance.class));
+        // Issue #86: the list follows the team while open, so nothing is copied on create.
+        verify(attendanceRepository, never()).save(any(TrainingAttendance.class));
     }
 
     @Test
@@ -118,6 +118,7 @@ class TrainingServiceTest {
         row.setStatus(null);
 
         when(trainingRepository.findById(100L)).thenReturn(Optional.of(training));
+        when(roster.isLivePlayer(10L, 30L)).thenReturn(true);
         when(attendanceRepository.findByTrainingIdAndPlayerUserId(100L, 30L))
                 .thenReturn(Optional.of(row));
         when(attendanceRepository.save(any(TrainingAttendance.class)))
@@ -135,8 +136,7 @@ class TrainingServiceTest {
         training.setTeamId(10L);
 
         when(trainingRepository.findById(100L)).thenReturn(Optional.of(training));
-        when(attendanceRepository.findByTrainingIdAndPlayerUserId(100L, 99L))
-                .thenReturn(Optional.empty());
+        when(roster.isLivePlayer(10L, 99L)).thenReturn(false);
 
         assertThrows(BadRequestException.class,
                 () -> trainingService.updateAttendance(100L, 99L, "ABSENT"));
@@ -163,7 +163,7 @@ class TrainingServiceTest {
         row.setStatus(null);
 
         when(trainingRepository.findById(100L)).thenReturn(Optional.of(training));
-        when(attendanceRepository.findByTrainingId(100L)).thenReturn(List.of(row));
+        when(roster.currentList(training)).thenReturn(List.of(row));
 
         List<TrainingAttendance> rows = trainingService.listAttendance(100L);
 
@@ -182,7 +182,6 @@ class TrainingServiceTest {
         LocalDateTime end = LocalDateTime.of(2026, 11, 6, 19, 30);
 
         when(teamService.getTeamById(10L)).thenReturn(team);
-        when(teamService.listPlayers(10L)).thenReturn(List.of());
         when(trainingRepository.save(any(Training.class))).thenAnswer(invocation -> {
             Training training = invocation.getArgument(0);
             training.setId(100L);
@@ -209,6 +208,7 @@ class TrainingServiceTest {
         row.setPlayerUserId(30L);
 
         when(trainingRepository.findById(100L)).thenReturn(Optional.of(training));
+        when(roster.isLivePlayer(10L, 30L)).thenReturn(true);
         when(attendanceRepository.findByTrainingIdAndPlayerUserId(100L, 30L))
                 .thenReturn(Optional.of(row));
         when(attendanceRepository.save(any(TrainingAttendance.class)))
@@ -232,7 +232,6 @@ class TrainingServiceTest {
 
         when(teamCoachRepository.existsByTeamIdAndUserId(10L, 80L)).thenReturn(true);
         when(teamService.getTeamById(10L)).thenReturn(team);
-        when(teamService.listPlayers(10L)).thenReturn(List.of());
         when(trainingRepository.save(any(Training.class))).thenAnswer(invocation -> {
             Training training = invocation.getArgument(0);
             training.setId(101L);
@@ -258,6 +257,7 @@ class TrainingServiceTest {
 
         when(teamCoachRepository.existsByTeamIdAndUserId(10L, 80L)).thenReturn(true);
         when(trainingRepository.findById(101L)).thenReturn(Optional.of(training));
+        when(roster.isLivePlayer(10L, 30L)).thenReturn(true);
         when(attendanceRepository.findByTrainingIdAndPlayerUserId(101L, 30L))
                 .thenReturn(Optional.of(row));
         when(attendanceRepository.save(any(TrainingAttendance.class)))

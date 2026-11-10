@@ -716,7 +716,7 @@ paths:
       operationId: createTraining
       summary: Skapa träning
       description: |
-        Skapar träningen och tar en ögonblicksbild av lagets aktiva spelare som närvarorader (status null).
+        Skapar träningen. Inga närvarorader kopieras: medan träningen är öppen följer närvarolistan lagets spelare (#86).
         `title` blir "Training" om den saknas/är tom. `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa träningen på vilket lag som helst, utan rad i `team_coaches`.
         Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
@@ -845,6 +845,11 @@ paths:
       description: |
         ADMIN och CHAIRMAN får lista närvaro för en träning i vilket lag som helst.
         Listan finns kvar när träningen är inställd.
+        Öppen träning (`attendanceLockedAt` null): lagets aktiva spelare (roll PLAYER) just nu, med sparad
+        status eller `status: null`. En spelare som har slutat eller bytt lag syns inte längre.
+        Fryst träning: exakt de sparade raderna. Den som har slutat finns kvar, den som har kommit senare syns inte.
+        Automatisk frysning (#86): om träningen inte är inställd och klockan är mer än 6 timmar efter `endsAt`
+        (svensk tid) fryses den först, med de rader som redan är sparade. Inget läggs till och inget tas bort.
         Fel: "Training not found", "Player not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
@@ -863,6 +868,40 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/trainings/{id}/attendance/lock:
+    parameters:
+      - $ref: '#/components/parameters/TrainingId'
+    put:
+      tags: [Trainings]
+      operationId: lockAttendance
+      summary: Frys närvarolistan ("Klar")
+      description: |
+        Alla spelare på den levande listan måste ha en status först. Finns minst en omarkerad spelare
+        (`status: null`) ges 400 och listan förblir öppen. Ett lag utan spelare kan frysas direkt.
+        Sparar en rad för varje spelare på den levande listan, tar bort sparade
+        rader för spelare som inte längre är med på listan och sätter `attendanceLockedAt`. Ingen body.
+        Efter det visar `GET .../attendance` alltid den frysta listan och markering ger 400.
+        Att frysa en redan fryst träning ändrar inget (200, samma `attendanceLockedAt`), även om
+        listan har omarkerade spelare (t.ex. efter automatisk frysning).
+        Samma roller och lagavgränsning som att markera närvaro.
+        Fel: "This training is cancelled" (400);
+        "All players must be marked before the attendance list can be frozen" (400); "Training not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.lockAttendance → TrainingService.lockAttendance
+      responses:
+        '200':
+          description: Träningen med `attendanceLockedAt` satt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/trainings/{id}/attendance/{playerId}:
     parameters:
       - $ref: '#/components/parameters/TrainingId'
@@ -876,10 +915,12 @@ paths:
       operationId: updateAttendance
       summary: Markera närvaro för en spelare
       description: |
-        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste finnas på träningens
-        ögonblicksbild. Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
+        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
+        i träningens lag just nu; raden skapas om den saknas. Fryst träning (även automatiskt fryst, se listan) nekas.
+        Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
         "This player is not on the attendance list for this training",
-        "This training is cancelled" (400); "Training not found" (404);
+        "This training is cancelled",
+        "The attendance list for this training is frozen and can no longer be changed" (400); "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
         ADMIN och CHAIRMAN får markera närvaro på vilket lag som helst.
@@ -1144,6 +1185,9 @@ paths:
         - PLAYER: eget lags träningar + egen status. `childId` får inte skickas (403 "Players can only view their own schedule").
         - PARENT: `childId` krävs om föräldern har barn (400 "childId is required for parents"); barnet måste vara
           föräldrens, aktivt och PLAYER (403 "That child is not linked to you"). Förälder utan barn får tom lista.
+        Samma frysregler som personalens närvarolista: en träning som har passerat `endsAt` + 6 timmar fryses
+        först. `status` är spelarens sparade status, eller null om spelaren inte är markerad eller inte finns
+        på den frysta listan.
         Fel: "User not found", "Player not found" (404).
       x-roles: [PLAYER, PARENT]
       x-scope: PARENT endast egna (länkade, aktiva) barn; PLAYER endast sig själv.
@@ -1586,6 +1630,11 @@ components:
         status: { $ref: '#/components/schemas/TrainingStatus' }
         cancelReason: { type: [string, 'null'] }
         createdByUserId: { type: integer, format: int64 }
+        attendanceLockedAt:
+          description: När närvarolistan frystes ("Klar" eller 6 timmar efter `endsAt`). Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
     AttendanceResponse:
       type: object
       required: [playerUserId, playerName]
@@ -1702,6 +1751,11 @@ components:
         status: { $ref: '#/components/schemas/AttendanceStatus' }
         trainingStatus: { $ref: '#/components/schemas/TrainingStatus' }
         cancelReason: { type: [string, 'null'] }
+        attendanceLockedAt:
+          description: När närvarolistan frystes. Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
 
     PublicTeamResponse:
       type: object

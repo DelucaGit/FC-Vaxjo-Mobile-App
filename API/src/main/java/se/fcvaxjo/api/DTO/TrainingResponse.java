@@ -21,4 +21,6 @@ public class TrainingResponse {
     private String status;
     private String cancelReason;
     private Long createdByUserId;
+    /** When the attendance list was frozen. Null while it is still open (issue #86). */
+    private LocalDateTime attendanceLockedAt;
 }

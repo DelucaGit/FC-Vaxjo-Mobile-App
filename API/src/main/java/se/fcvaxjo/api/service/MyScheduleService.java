@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
@@ -34,6 +35,7 @@ public class MyScheduleService {
     private final TeamCoachRepository teamCoachRepository;
     private final UserService userService;
     private final TeamService teamService;
+    private final TrainingAttendanceRoster roster;
 
     public MyScheduleService(
             UserRepository userRepository,
@@ -42,7 +44,8 @@ public class MyScheduleService {
             MatchRepository matchRepository,
             TeamCoachRepository teamCoachRepository,
             UserService userService,
-            TeamService teamService) {
+            TeamService teamService,
+            TrainingAttendanceRoster roster) {
         this.userRepository = userRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
@@ -50,6 +53,7 @@ public class MyScheduleService {
         this.teamCoachRepository = teamCoachRepository;
         this.userService = userService;
         this.teamService = teamService;
+        this.roster = roster;
     }
 
     public List<AppUser> listMyChildren() {
@@ -67,7 +71,10 @@ public class MyScheduleService {
     /**
      * PLAYER: trainings for own team + own status.
      * PARENT: must pass childId of a linked child (empty list if no children).
+     * Status follows the same rules as the coach's list (issue #86): a training that is due
+     * is frozen first, then the player's saved row (if any) gives the status.
      */
+    @Transactional
     public List<ScheduleRow> listMyTrainings(Long childId) {
         AppUser target = resolveTargetPlayer(childId);
         if (target == null) {
@@ -81,7 +88,8 @@ public class MyScheduleService {
         List<Training> trainings =
                 trainingRepository.findByTeamIdOrderByStartsAtDesc(target.getTeamId());
         List<ScheduleRow> rows = new ArrayList<>();
-        for (Training training : trainings) {
+        for (Training listed : trainings) {
+            Training training = roster.freezeIfDue(listed);
             String status = null;
             var attendance = attendanceRepository.findByTrainingIdAndPlayerUserId(
                     training.getId(), target.getId());
