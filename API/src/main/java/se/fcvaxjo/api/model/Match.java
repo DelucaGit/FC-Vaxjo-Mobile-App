@@ -53,4 +53,12 @@ public class Match {
 
     @Column(name = "created_by_user_id", nullable = false)
     private Long createdByUserId;
+
+    /**
+     * When the attendance list was frozen ("Klar" or 8 hours after kickoffAt).
+     * Null means the list is still open and follows the team's current players.
+     * Nullable so Hibernate can add the column to existing rows (no Flyway).
+     */
+    @Column(name = "attendance_locked_at")
+    private LocalDateTime attendanceLockedAt;
 }

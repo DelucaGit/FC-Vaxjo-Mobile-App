@@ -117,7 +117,8 @@ public class MyScheduleController {
                     match.getKickoffAt(),
                     match.getVenue(),
                     match.getHomeAway().name(),
-                    resultOf(match)));
+                    resultOf(match),
+                    match.getAttendanceLockedAt()));
         }
         return responses;
     }

@@ -32,4 +32,12 @@ Tidigare kopierades lagets spelare till närvarolistan när träningen skapades 
 - `docs/api/openapi.yaml` och `docs/testing/rollmatris.md` beskriver reglerna. `TrainingAttendanceFreezeTest` låser dem.
 - Appen behöver en "Klar"-knapp och måste visa att en fryst lista inte går att ändra.
 - Medlemmars start- och slutdatum (`memberSince`/`memberUntil`, issue #85) används inte av frysningen ännu.
-- **Planerat, inte byggt:** matcher (issue #67, PR #84) ska byggas om med samma regler. Gränsen för automatisk frysning blir avspark + 8 timmar, eftersom matcher saknar sluttid (2 timmars match + 6 timmar).
+- **Byggt för matcher** (issue #67, PR #90, ersätter PR #84). Matcher följer samma regler, med de skillnader som står i nästa avsnitt.
+
+## Matcher (issue #67)
+1. Anropen är `GET /api/matches/{id}/attendance`, `PUT /api/matches/{id}/attendance/{playerId}` och `PUT /api/matches/{id}/attendance/lock` ("Klar"). ADMIN, CHAIRMAN och COACH för matchens lag får använda dem. COACH för annat lag, PLAYER och PARENT får 403. Anonym får 401.
+2. **Okänt match-id:** ADMIN och CHAIRMAN får 404, men COACH får 403. Det är samma som för matchens andra anrop: en tränare ska inte kunna se om en match i ett annat lag finns.
+3. **Automatisk frysning 8 timmar efter avspark** (`kickoffAt`, Europe/Stockholm). Matcher har ingen sluttid, så vi räknar med ungefär 2 timmars match plus samma 6 timmar som för träningar. Frysningen sker lat när en enskild match läses eller ändras, när lagets matchlista hämtas och i `GET /api/my/matches`.
+4. Markering på en öppen lista kräver att spelaren finns på den levande listan, annars 400. Raden skapas första gången spelaren markeras. På en fryst lista ger markering 400 "The attendance list for this match is frozen and can no longer be changed".
+5. Ny tabell `match_attendance` med unik nyckel (`match_id`, `player_user_id`). `attendanceLockedAt` finns i `MatchResponse` och `MyMatchResponse`. `MatchAttendanceFreezeTest` låser reglerna.
+6. **Två separata klasser.** `MatchAttendanceRoster` är en nära kopia av `TrainingAttendanceRoster`, inte en gemensam generisk klass. Skälet är att varje klass blir lätt att läsa. Kostnaden är att en regeländring måste göras på två ställen.

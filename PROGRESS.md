@@ -824,4 +824,10 @@ Why: the base for frozen attendance lists (#86) and for tracing who was a member
 
 Decision (ADR 0010, accepted by Marcel): an open training attendance list is live (every active PLAYER on the team now, saved status or null), and `POST /api/trainings` no longer copies players. `PUT /api/trainings/{id}/attendance/lock` ("Klar") freezes it once every player is marked. A training that is not cancelled and ended more than 6 h ago (Europe/Stockholm) freezes on its own at the first read or write, keeping only the rows already saved ("alternativ A"). A frozen list never changes. New field `attendanceLockedAt` on `TrainingResponse` and `MyTrainingResponse`.
 
-Why: traceable history, so a new player does not show up on old trainings and a player who left stays. Cost: a frozen list cannot be corrected in the app yet, and unmarked players drop out of history if nobody presses Klar. Planned, not built: matches (#67) get the same rules with kickoff + 8 h as the freeze limit.
+Why: traceable history, so a new player does not show up on old trainings and a player who left stays. Cost: a frozen list cannot be corrected in the app yet, and unmarked players drop out of history if nobody presses Klar. Matches (#67) now follow the same rules, with kickoff + 8 h as the freeze limit (see below).
+
+## Match attendance with frozen lists (#67, 10/11-2026)
+
+Decision (ADR 0010): matches get attendance with the same rules as trainings. `GET /api/matches/{id}/attendance` shows the live list while open and exactly the saved rows once frozen. `PUT /api/matches/{id}/attendance/{playerId}` marks a player on the live list (400 when frozen). `PUT /api/matches/{id}/attendance/lock` ("Klar") freezes once every player is marked. A match freezes on its own 8 h after `kickoffAt` (Europe/Stockholm), because a match has no end time (about 2 h match + 6 h). Roles: ADMIN, CHAIRMAN and the match's own COACH; an unknown id is 404 for ADMIN/CHAIRMAN and 403 for COACH, like the other match endpoints. New table `match_attendance` and field `attendanceLockedAt` on `MatchResponse` and `MyMatchResponse`. Replaces PR #84.
+
+Why: the same traceable history as trainings. Cost: `MatchAttendanceRoster` is a close copy of `TrainingAttendanceRoster` instead of a shared generic class, so it is easy to read but a rule change must be made in both.
