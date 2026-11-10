@@ -1,5 +1,7 @@
 package se.fcvaxjo.api.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,8 +23,11 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody LoginRequest request) {
-        return authService.login(request.getEmail(), request.getPassword());
+    public LoginResponse login(@RequestBody LoginRequest request, HttpServletRequest http) {
+        // Never read X-Real-IP or X-Forwarded-For here: any caller can fake them. In prod, Tomcat's
+        // RemoteIpValve puts X-Real-IP into getRemoteAddr(), but only when the request came through
+        // a trusted internal proxy (application-prod.properties, ADR 0008).
+        return authService.login(request.getEmail(), request.getPassword(), http.getRemoteAddr());
     }
 
     /** Requires a valid JWT. Clears mustChangePassword after a successful change. */

@@ -85,6 +85,7 @@ paths:
         Fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger alla
         samma **401** "Invalid email or password". Svaret säger inte om kontot finns.
         När e-posten saknas körs ändå en BCrypt-jämförelse, så svaret inte blir tydligt snabbare än en vanlig kontroll.
+        För många misslyckade försök ger **429** i 15 minuter (se 429 nedan och ADR 0008).
       security: []
       x-roles: [PUBLIC]
       x-source: AuthController.login → AuthService.login
@@ -108,6 +109,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
               example: { message: "Invalid email or password" }
+        '429':
+          description: |
+            För många misslyckade inloggningar (#64, ADR 0008). Spärren gäller i 15 minuter,
+            även med rätt lösenord, och slår till vid:
+            - 5 misslyckade försök för samma e-post från samma IP,
+            - 30 misslyckade försök från samma IP (oavsett e-post),
+            - 20 misslyckade försök för samma e-post (oavsett IP).
+            Ett misslyckat försök glöms 15 minuter efter det senaste. En lyckad inloggning
+            nollställer räknarna för e-post+IP och e-post (inte IP). Okänd e-post räknas likadant,
+            så spärren avslöjar inte om kontot finns. Räknarna ligger i minnet, och IP sparas bara som HMAC.
+            Svaret innehåller aldrig IP-adressen.
+            Klientens IP är `getRemoteAddr()`. I prod sätter Tomcat den från `X-Real-IP`, men bara när
+            anropet kommer från en intern proxy (Railway). Är IP:n ändå intern (privat, 100.64/10, loopback)
+            hoppas IP-reglerna över, och e-posten spärras ensam efter 5 försök.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: "För många inloggningsförsök. Försök igen om 15 minuter." }
 
   /api/auth/change-password:
     post:

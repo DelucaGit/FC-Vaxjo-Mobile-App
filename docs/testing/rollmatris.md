@@ -78,6 +78,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | Mål | Kod idag |
 |---|---|---|
 | `POST /api/auth/login` | Publik. 200 för aktiv användare. Fel lösenord, okänd e-post och inaktiv ger samma 401 | Stämmer (S1-9). Saknad e-post eller lösenord är fortfarande 400 |
+| `POST /api/auth/login`, spärr (#64, ADR 0008) | 429 i 15 minuter, även med rätt lösenord, efter 5 misslyckade försök per e-post+IP, 30 per IP eller 20 per e-post. Samma e-post från annan IP släpps fram tills 20. Lyckad inloggning nollställer e-post+IP och e-post. Intern IP (proxy) ger e-post ensam vid 5. Falska `X-Real-IP`/`X-Forwarded-For` ignoreras utan betrodd proxy. 429-svaret innehåller ingen IP | Stämmer (`LoginRateLimitTest`, `LoginAttemptLimiterTest`, styrbar klocka; `LoginClientIpServerTest` med riktig Tomcat och `X-Real-IP`). Okänd e-post räknas likadant |
 | `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
 | `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 401 | Inaktiv token får 401. Texten är "Login required", samma som övriga nekade token (F11) |
 
