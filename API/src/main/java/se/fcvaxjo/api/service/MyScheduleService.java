@@ -13,8 +13,10 @@ import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.repository.MatchRepository;
+import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.repository.UserRepository;
@@ -29,6 +31,7 @@ public class MyScheduleService {
     private final TrainingRepository trainingRepository;
     private final TrainingAttendanceRepository attendanceRepository;
     private final MatchRepository matchRepository;
+    private final TeamCoachRepository teamCoachRepository;
     private final UserService userService;
     private final TeamService teamService;
 
@@ -37,12 +40,14 @@ public class MyScheduleService {
             TrainingRepository trainingRepository,
             TrainingAttendanceRepository attendanceRepository,
             MatchRepository matchRepository,
+            TeamCoachRepository teamCoachRepository,
             UserService userService,
             TeamService teamService) {
         this.userRepository = userRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
         this.matchRepository = matchRepository;
+        this.teamCoachRepository = teamCoachRepository;
         this.userService = userService;
         this.teamService = teamService;
     }
@@ -98,6 +103,27 @@ public class MyScheduleService {
             return List.of();
         }
         return matchRepository.findByTeamIdOrderByKickoffAtDesc(target.getTeamId());
+    }
+
+    /**
+     * Same person check as {@link #listMyTrainings(Long)}.
+     * Returns the active coaches (team_coaches) of the player's own team, so the family
+     * can reach the coach. Never another team's coaches (ADR 0009).
+     */
+    public List<AppUser> listMyCoaches(Long childId) {
+        AppUser target = resolveTargetPlayer(childId);
+        if (target == null || target.getTeamId() == null) {
+            return List.of();
+        }
+        List<AppUser> coaches = new ArrayList<>();
+        for (TeamCoach link : teamCoachRepository.findByTeamId(target.getTeamId())) {
+            userRepository.findById(link.getUserId()).ifPresent(user -> {
+                if (user.isActive()) {
+                    coaches.add(user);
+                }
+            });
+        }
+        return coaches;
     }
 
     public String getTeamName(Long teamId) {

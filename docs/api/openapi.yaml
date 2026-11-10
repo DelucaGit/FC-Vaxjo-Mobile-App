@@ -1062,6 +1062,41 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/my/coaches:
+    get:
+      tags: [MySchedule]
+      operationId: listMyCoaches
+      summary: Tränarna i mitt (eller mitt barns) lag, med kontaktuppgifter
+      description: |
+        Samma personkontroll som `GET /api/my/trainings`.
+        - PLAYER: aktiva tränare (`team_coaches`) i eget lag. `childId` får inte skickas (403 "Players can only view their own schedule").
+        - PARENT: `childId` krävs om föräldern har barn (400 "childId is required for parents"); barnet måste vara
+          föräldrens, aktivt och PLAYER (403 "That child is not linked to you"). Okänt id ger 404 "Player not found".
+          Förälder utan barn får tom lista.
+        Svaret har bara id, namn, e-post och telefon, så att familjen kan nå tränaren (ADR 0009).
+        Inaktiva tränare och tränare i andra lag är aldrig med. `GET /api/teams/{id}/coaches` är oförändrad (PLAYER och PARENT får 403).
+      x-roles: [PLAYER, PARENT]
+      x-scope: PARENT endast tränarna i ett eget (länkat, aktivt) barns lag; PLAYER endast tränarna i sitt eget lag.
+      x-source: MyScheduleController.listCoaches → MyScheduleService.listMyCoaches
+      parameters:
+        - name: childId
+          in: query
+          required: false
+          description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Aktiva tränare i laget.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MyCoachResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/my/teams:
     get:
       tags: [MySchedule]
@@ -1626,6 +1661,15 @@ components:
         name: { type: [string, 'null'], x-pii: true }
         teamId: { type: [integer, 'null'], format: int64 }
         teamName: { type: [string, 'null'] }
+    MyCoachResponse:
+      type: object
+      description: En tränare som lagets spelare och föräldrar ser (ADR 0009). Bara kontaktfält.
+      required: [id]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: [string, 'null'], x-pii: true }
+        email: { type: [string, 'null'], x-pii: true }
+        mobilePhoneNumber: { type: [string, 'null'], x-pii: true }
     MyTrainingResponse:
       type: object
       required: [id, teamId, startsAt, endsAt, title, playerUserId, playerName]

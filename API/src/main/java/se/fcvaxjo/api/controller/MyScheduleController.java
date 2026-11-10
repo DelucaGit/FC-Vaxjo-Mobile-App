@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import se.fcvaxjo.api.DTO.MatchResultResponse;
 import se.fcvaxjo.api.DTO.MyChildResponse;
+import se.fcvaxjo.api.DTO.MyCoachResponse;
 import se.fcvaxjo.api.DTO.MyMatchResponse;
 import se.fcvaxjo.api.DTO.MyTrainingResponse;
 import se.fcvaxjo.api.DTO.TeamResponse;
@@ -116,6 +117,24 @@ public class MyScheduleController {
                     match.getVenue(),
                     match.getHomeAway().name(),
                     resultOf(match)));
+        }
+        return responses;
+    }
+
+    /**
+     * PLAYER: coaches of their own team. PARENT: must pass childId of a linked child.
+     * Only name, email and phone, so the family can reach the coach (ADR 0009).
+     */
+    @GetMapping("/coaches")
+    @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
+    public List<MyCoachResponse> listCoaches(@RequestParam(required = false) Long childId) {
+        List<MyCoachResponse> responses = new ArrayList<>();
+        for (AppUser coach : myScheduleService.listMyCoaches(childId)) {
+            responses.add(new MyCoachResponse(
+                    coach.getId(),
+                    coach.getName(),
+                    coach.getEmail(),
+                    coach.getMobilePhoneNumber()));
         }
         return responses;
     }
