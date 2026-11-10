@@ -813,3 +813,9 @@ Why: every restart threw away the developer's new password and forced a password
 Proposed decision (ADR 0009, waiting for Marcel): new `GET /api/my/coaches` for PLAYER and PARENT. It returns the active coaches (`team_coaches`) of the player's own team, or of the parent's child's team (`childId`, same rules as `/api/my/trainings`), with only `id`, `name`, `email` and `mobilePhoneNumber`. `GET /api/teams/{id}/coaches` is unchanged and still 403 for PLAYER and PARENT.
 
 Why: a parent must be able to reach the coach, for example when the child has not come home. Cost: everyone on the team sees the coach's private phone and email, so the coaches must be told before the pilot.
+
+## Frozen attendance lists (#86, 10/11-2026)
+
+Decision (ADR 0010, accepted by Marcel): an open training attendance list is live (every active PLAYER on the team now, saved status or null), and `POST /api/trainings` no longer copies players. `PUT /api/trainings/{id}/attendance/lock` ("Klar") freezes it once every player is marked. A training that is not cancelled and ended more than 6 h ago (Europe/Stockholm) freezes on its own at the first read or write, keeping only the rows already saved ("alternativ A"). A frozen list never changes. New field `attendanceLockedAt` on `TrainingResponse` and `MyTrainingResponse`.
+
+Why: traceable history, so a new player does not show up on old trainings and a player who left stays. Cost: a frozen list cannot be corrected in the app yet, and unmarked players drop out of history if nobody presses Klar. Planned, not built: matches (#67) get the same rules with kickoff + 8 h as the freeze limit.
