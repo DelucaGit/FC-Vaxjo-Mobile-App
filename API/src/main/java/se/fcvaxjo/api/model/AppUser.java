@@ -1,6 +1,7 @@
 package se.fcvaxjo.api.model;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -95,4 +96,19 @@ public class AppUser {
      */
     @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
+
+    /**
+     * The day this person became a club member (#85). Set when the user is
+     * created. Null on rows created before this column existed: that means
+     * "member since earlier". Hibernate adds the nullable column on startup.
+     */
+    @Column(name = "member_since")
+    private LocalDate memberSince;
+
+    /**
+     * The day this person stopped being a member (#85). Null while active.
+     * Set when the user is soft-deleted, cleared if the account is reactivated.
+     */
+    @Column(name = "member_until")
+    private LocalDate memberUntil;
 }

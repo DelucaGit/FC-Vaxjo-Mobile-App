@@ -200,7 +200,9 @@ public class UserController {
                 userService.parentPhoneForCaller(user.getParentId()),
                 user.getTeamId(),
                 userService.getTeamName(user.getTeamId()),
-                user.isActive());
+                user.isActive(),
+                userService.memberSinceForCaller(user),
+                userService.memberUntilForCaller(user));
     }
 
     private CreateUserResponse toCreateResponse(CreatedUserResult created) {
@@ -219,6 +221,8 @@ public class UserController {
                 user.getTeamId(),
                 userService.getTeamName(user.getTeamId()),
                 user.isActive(),
+                userService.memberSinceForCaller(user),
+                userService.memberUntilForCaller(user),
                 created.getTemporaryPassword(),
                 created.getParentTemporaryPassword());
     }

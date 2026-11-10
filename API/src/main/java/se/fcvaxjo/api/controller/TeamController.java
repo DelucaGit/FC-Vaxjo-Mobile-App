@@ -127,6 +127,8 @@ public class TeamController {
                 userService.parentPhoneForCaller(user.getParentId()),
                 user.getTeamId(),
                 teamService.getTeamName(user.getTeamId()),
-                user.isActive());
+                user.isActive(),
+                userService.memberSinceForCaller(user),
+                userService.memberUntilForCaller(user));
     }
 }

@@ -1,5 +1,8 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
+import java.time.LocalDate;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,18 +32,21 @@ public class AdminSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final String bootstrapEmail;
     private final String bootstrapPassword;
+    private final Clock clock;
 
     public AdminSeeder(
             UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             @Value("${app.seed.admin-email}") String bootstrapEmail,
-            @Value("${app.seed.admin-password:}") String bootstrapPassword) {
+            @Value("${app.seed.admin-password:}") String bootstrapPassword,
+            Clock clock) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.bootstrapEmail = bootstrapEmail;
         this.bootstrapPassword = bootstrapPassword;
+        this.clock = clock;
     }
 
     @Override
@@ -61,6 +67,7 @@ public class AdminSeeder implements CommandLineRunner {
         admin.setEmail(bootstrapEmail);
         admin.setRoleId(adminRole.getId());
         admin.setActive(true);
+        admin.setMemberSince(LocalDate.now(clock));
         PasswordChange.storeHash(admin, passwordEncoder.encode(bootstrapPassword));
         admin.setMustChangePassword(true);
         userRepository.save(admin);

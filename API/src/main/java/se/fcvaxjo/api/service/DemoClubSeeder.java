@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -66,6 +67,7 @@ public class DemoClubSeeder implements CommandLineRunner {
     private final String adminEmail;
     private final String adminPassword;
     private final boolean resetPasswords;
+    private final Clock clock;
 
     public DemoClubSeeder(
             UserRepository userRepository,
@@ -80,7 +82,8 @@ public class DemoClubSeeder implements CommandLineRunner {
             @Value("${app.seed.demo-password:}") String demoPassword,
             @Value("${app.seed.admin-email}") String adminEmail,
             @Value("${app.seed.admin-password:}") String adminPassword,
-            @Value("${app.seed.reset-passwords:false}") boolean resetPasswords) {
+            @Value("${app.seed.reset-passwords:false}") boolean resetPasswords,
+            Clock clock) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
@@ -94,6 +97,7 @@ public class DemoClubSeeder implements CommandLineRunner {
         this.adminEmail = adminEmail;
         this.adminPassword = adminPassword;
         this.resetPasswords = resetPasswords;
+        this.clock = clock;
     }
 
     @Override
@@ -355,6 +359,8 @@ public class DemoClubSeeder implements CommandLineRunner {
                 existing.setMustChangePassword(true);
             }
             existing.setActive(true);
+            // #85: an active member has no end date. Keep memberSince as it is.
+            existing.setMemberUntil(null);
             if (teamId != null) {
                 existing.setTeamId(teamId);
             }
@@ -372,6 +378,7 @@ public class DemoClubSeeder implements CommandLineRunner {
             user.setParentId(parentId);
             user.setTeamId(teamId);
             user.setActive(true);
+            user.setMemberSince(LocalDate.now(clock));
             PasswordChange.storeHash(user, passwordEncoder.encode(demoPassword));
             user.setMustChangePassword(true);
             return userRepository.save(user);
