@@ -24,9 +24,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest request, HttpServletRequest http) {
-        // getRemoteAddr() is the address that connected to us. X-Forwarded-For is ignored on purpose,
-        // because any caller can fake it. Follow-up: behind Railway's proxy every request may share
-        // the proxy's IP, so trusted forwarded headers must be set up when we move there.
+        // Never read X-Real-IP or X-Forwarded-For here: any caller can fake them. In prod, Tomcat's
+        // RemoteIpValve puts X-Real-IP into getRemoteAddr(), but only when the request came through
+        // a trusted internal proxy (application-prod.properties, ADR 0008).
         return authService.login(request.getEmail(), request.getPassword(), http.getRemoteAddr());
     }
 

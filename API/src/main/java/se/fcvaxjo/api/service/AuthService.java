@@ -68,7 +68,7 @@ public class AuthService {
             loginLimiter.recordFailure(email, clientIp);
             throw new UnauthorizedException(INVALID_LOGIN_MESSAGE);
         }
-        loginLimiter.recordSuccess(email);
+        loginLimiter.recordSuccess(email, clientIp);
 
         String roleName = userService.getRoleName(user.getRoleId());
         String token = jwtService.createToken(user.getId(), user.getEmail(), roleName);

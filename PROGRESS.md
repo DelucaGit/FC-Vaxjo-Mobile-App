@@ -784,8 +784,20 @@ Why: the players are children. A consent can be forgotten or set by mistake, and
 
 # Login lockout (#64, 10/11-2026)
 
-Decision: after 5 failed logins per email or per IP, `POST /api/auth/login` answers 429 `{"message":"För många inloggningsförsök. Försök igen om 15 minuter."}` for 15 minutes, even with the right password. A failure is forgotten 15 minutes after the latest one. A successful login clears the email's count (not the IP's). Unknown emails are counted too, so the lockout does not reveal which emails exist. The counts live in memory (`LoginAttemptLimiter`, a `ConcurrentHashMap`, old entries pruned on each failure), so a restart clears them. Time comes from a `Clock` bean (`ClockConfig`, `systemUTC`); `ClubApiTest` swaps in `TestClock` and clears the limiter before each test. The app shows the Swedish text on any 429 from login.
+Decision (full reasoning in ADR 0008): `POST /api/auth/login` answers 429 `{"message":"För många inloggningsförsök. Försök igen om 15 minuter."}` for 15 minutes, even with the right password, after:
+- 5 failures for the same email from the same IP (the main rule),
+- 30 failures from one IP across any emails,
+- 20 failures for one email across any IPs.
 
-Why: the API will be public on Railway, and nothing stopped password guessing.
+A failure is forgotten 15 minutes after the latest one. A successful login clears the email+IP and email counts (not the IP's). Unknown emails are counted too, so the lockout does not reveal which emails exist. The counts live in memory (`LoginAttemptLimiter`, a `ConcurrentHashMap`, old entries pruned on each failure), so a restart clears them. IPs are stored only as HMAC-SHA256 with a random key made at startup (`ClientIpPrivacy`), never logged raw (only /24 or /48), never in a response. Time comes from a `Clock` bean (`ClockConfig`, `systemUTC`); `ClubApiTest` swaps in `TestClock` and clears the limiter before each test. The app shows the Swedish text on any 429 from login.
 
-Follow-up: the IP is `getRemoteAddr()`. `X-Forwarded-For` is not trusted, because anyone can fake it. Behind Railway's proxy all requests may share one IP, so the per-IP count must be set up with trusted forwarded headers when the API moves.
+Client IP: `AuthController` uses `getRemoteAddr()` and never reads forwarded headers. In `prod`, `server.forward-headers-strategy=native` with `remote-ip-header=X-Real-IP` lets Tomcat's RemoteIpValve set it from Railway's `X-Real-IP`, but only for requests from Spring Boot's default internal-proxies list (left unchanged). Fallback: if the IP is still internal (private, loopback, 100.64/10, link-local), the IP rules are skipped and the email alone locks after 5, with one warning per hour in the log. Locally (127.0.0.1) this fallback is always on.
+
+Why: the API will be public on Railway, and nothing stopped password guessing. A plain per-IP rule behind Railway's proxy would have locked out the whole club. Scaling beyond one instance is issue #77.
+
+## Kontrollera efter första Railway-deploy (#64, #69)
+- [ ] Logga trunkerad `getRemoteAddr()` en gång från 4G och en gång från wifi, kontrollera att det är telefonens nät och inte 100.64.x. Ta sedan bort loggraden.
+- [ ] `curl` mot login med falsk `X-Real-IP` och `X-Forwarded-For`: spärren ska följa din riktiga IP, inte headern.
+- [ ] Spärra dig själv från 4G (5 fel), kontrollera att samma konto från wifi fortfarande får 401/200.
+- [ ] Ingen publik TCP-proxy är påslagen i Railway (den skulle gå förbi edge-proxyn och `X-Real-IP`).
+- [ ] Varningen "client IP is internal" syns inte i loggen.
