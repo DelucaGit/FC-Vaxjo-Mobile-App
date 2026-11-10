@@ -36,6 +36,7 @@ public class MyScheduleService {
     private final UserService userService;
     private final TeamService teamService;
     private final TrainingAttendanceRoster roster;
+    private final MatchAttendanceRoster matchRoster;
 
     public MyScheduleService(
             UserRepository userRepository,
@@ -45,7 +46,8 @@ public class MyScheduleService {
             TeamCoachRepository teamCoachRepository,
             UserService userService,
             TeamService teamService,
-            TrainingAttendanceRoster roster) {
+            TrainingAttendanceRoster roster,
+            MatchAttendanceRoster matchRoster) {
         this.userRepository = userRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
@@ -54,6 +56,7 @@ public class MyScheduleService {
         this.userService = userService;
         this.teamService = teamService;
         this.roster = roster;
+        this.matchRoster = matchRoster;
     }
 
     public List<AppUser> listMyChildren() {
@@ -110,7 +113,11 @@ public class MyScheduleService {
         if (target == null || target.getTeamId() == null) {
             return List.of();
         }
-        return matchRepository.findByTeamIdOrderByKickoffAtDesc(target.getTeamId());
+        List<Match> matches = new ArrayList<>();
+        for (Match listed : matchRepository.findByTeamIdOrderByKickoffAtDesc(target.getTeamId())) {
+            matches.add(matchRoster.freezeIfDue(listed));
+        }
+        return matches;
     }
 
     /**

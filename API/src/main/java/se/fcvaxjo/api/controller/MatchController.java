@@ -15,11 +15,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import se.fcvaxjo.api.DTO.AttendanceResponse;
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.MatchResponse;
 import se.fcvaxjo.api.DTO.MatchResultResponse;
 import se.fcvaxjo.api.DTO.SetMatchResultRequest;
+import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
+import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.MatchAttendance;
 import se.fcvaxjo.api.service.MatchService;
 
 /**
@@ -76,6 +80,43 @@ public class MatchController {
         return toResponse(updated);
     }
 
+    /** Same JSON as training attendance (AttendanceResponse): no email, no phone. */
+    @GetMapping("/{id}/attendance")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public List<AttendanceResponse> listAttendance(@PathVariable Long id) {
+        List<AttendanceResponse> responses = new ArrayList<>();
+        for (MatchAttendance row : matchService.listAttendance(id)) {
+            responses.add(toAttendanceResponse(row));
+        }
+        return responses;
+    }
+
+    /**
+     * "Klar": freezes the attendance list. Same roles and team scope as marking.
+     * Returns the match with attendanceLockedAt set. Calling it again is a no-op.
+     */
+    @PutMapping("/{id}/attendance/lock")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public MatchResponse lockAttendance(@PathVariable Long id) {
+        return toResponse(matchService.lockAttendance(id));
+    }
+
+    @PutMapping("/{id}/attendance/{playerId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public AttendanceResponse updateAttendance(
+            @PathVariable Long id,
+            @PathVariable Long playerId,
+            @RequestBody UpdateAttendanceRequest request) {
+        MatchAttendance updated = matchService.updateAttendance(id, playerId, request.getStatus());
+        return toAttendanceResponse(updated);
+    }
+
+    private AttendanceResponse toAttendanceResponse(MatchAttendance row) {
+        AppUser player = matchService.getPlayer(row.getPlayerUserId());
+        String status = row.getStatus() == null ? null : row.getStatus().name();
+        return new AttendanceResponse(player.getId(), player.getName(), player.getPlayerNumber(), status);
+    }
+
     private MatchResponse toResponse(Match match) {
         return new MatchResponse(
                 match.getId(),
@@ -86,7 +127,8 @@ public class MatchController {
                 match.getVenue(),
                 match.getHomeAway().name(),
                 resultOf(match),
-                match.getCreatedByUserId());
+                match.getCreatedByUserId(),
+                match.getAttendanceLockedAt());
     }
 
     /** Both score columns empty means the match has no result yet. */

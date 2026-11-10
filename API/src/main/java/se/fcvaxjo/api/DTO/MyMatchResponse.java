@@ -23,4 +23,6 @@ public class MyMatchResponse {
     private String venue;
     private String homeAway;
     private MatchResultResponse result;
+    /** Null while the attendance list is open. Set when it is frozen. */
+    private LocalDateTime attendanceLockedAt;
 }

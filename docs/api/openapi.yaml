@@ -1070,6 +1070,111 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/matches/{id}/attendance:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    get:
+      tags: [Matches]
+      operationId: listMatchAttendance
+      summary: Lista närvaro för en match
+      description: |
+        Samma regel som för träningar (ADR 0010, #67).
+        Öppen match (`attendanceLockedAt` null): lagets aktiva spelare (roll PLAYER) just nu, med sparad
+        status eller `status: null`. En spelare som har slutat eller bytt lag syns inte längre.
+        Fryst match: exakt de sparade raderna. Den som har slutat finns kvar, den som har kommit senare syns inte.
+        Automatisk frysning: om klockan är mer än 8 timmar efter `kickoffAt` (svensk tid; en match har ingen
+        sluttid, så ca 2 timmar match + 6 timmar) fryses matchen först, med de rader som redan är sparade.
+        Inget läggs till och inget tas bort.
+        Fel: "Match not found" (404 för ADMIN och CHAIRMAN), "Player not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403 för en COACH när matchen
+        saknas eller hör till ett annat lag); PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.listAttendance → MatchService.listAttendance
+      responses:
+        '200':
+          description: Närvarorader.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/attendance/lock:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    put:
+      tags: [Matches]
+      operationId: lockMatchAttendance
+      summary: Frys matchens närvarolista ("Klar")
+      description: |
+        Alla spelare på den levande listan måste ha en status först. Finns minst en omarkerad spelare
+        (`status: null`) ges 400 och listan förblir öppen. Ett lag utan spelare kan frysas direkt.
+        Sparar en rad för varje spelare på den levande listan, tar bort sparade rader för spelare som
+        inte längre är med på listan och sätter `attendanceLockedAt`. Ingen body.
+        Att frysa en redan fryst match ändrar inget (200, samma `attendanceLockedAt`).
+        Samma roller och lagavgränsning som att markera närvaro.
+        Fel: "All players must be marked before the attendance list can be frozen" (400);
+        "Match not found" (404 för ADMIN och CHAIRMAN);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.lockAttendance → MatchService.lockAttendance
+      responses:
+        '200':
+          description: Matchen med `attendanceLockedAt` satt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/attendance/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+      - name: playerId
+        in: path
+        required: true
+        description: Spelarens användar-id.
+        schema: { type: integer, format: int64 }
+    put:
+      tags: [Matches]
+      operationId: updateMatchAttendance
+      summary: Markera matchnärvaro för en spelare
+      description: |
+        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
+        i matchens lag just nu; raden skapas om den saknas. Fryst match (även automatiskt fryst) nekas.
+        Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
+        "This player is not on the attendance list for this match",
+        "The attendance list for this match is frozen and can no longer be changed" (400);
+        "Match not found" (404 för ADMIN och CHAIRMAN);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.updateAttendance → MatchService.updateAttendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAttendanceRequest' }
+      responses:
+        '200':
+          description: Uppdaterad närvarorad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/my/matches:
     get:
       tags: [MySchedule]
@@ -1698,6 +1803,11 @@ components:
             - $ref: '#/components/schemas/MatchResult'
             - type: 'null'
         createdByUserId: { type: integer, format: int64 }
+        attendanceLockedAt:
+          description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
     MyMatchResponse:
       type: object
       description: |
@@ -1716,6 +1826,11 @@ components:
           description: null tills resultatet satts.
           oneOf:
             - $ref: '#/components/schemas/MatchResult'
+            - type: 'null'
+        attendanceLockedAt:
+          description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
             - type: 'null'
 
     MyChildResponse:
