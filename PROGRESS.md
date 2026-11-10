@@ -766,6 +766,12 @@ Decision: `PUT /api/matches/{id}/result` with both goals `null` clears the resul
 
 Why: a coach must be able to undo a wrongly typed score without a new endpoint.
 
+## Reactivating a cancelled training (#62)
+
+Decision: `PUT /api/trainings/{id}/cancellation` with `{"cancelled": false}` sets the status back to SCHEDULED and clears `cancelReason`. Attendance can be marked again. A missing `cancelled` still means cancel, so older calls keep working. Reactivating a training that is not cancelled is harmless (200, nothing changes). The same roles and teams that may cancel may reactivate.
+
+Why: a coach must be able to undo a cancel when the training happens after all. Before this, `cancelled=false` was silently ignored and the training was cancelled. The app has no cancel button yet, so `UI/` is not changed.
+
 # No player data is public (#61, decided 5/11-2026)
 
 Decision (Marcel): no player data is ever shown publicly, not even with a parent's consent. This replaces "Public reads need the parent's consent" above. `GET /api/public/teams/{id}/players` and `PUT /api/users/{id}/public-consent` are removed, together with `publicConsentAt`, their services, DTOs and tests. ADR 0007 is rewritten as "Inga spelardata publikt", and ADR 0003 and 0004 hold without exceptions. Public reads are teams, upcoming matches and match history.

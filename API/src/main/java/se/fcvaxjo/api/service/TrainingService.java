@@ -144,6 +144,18 @@ public class TrainingService {
         return trainingRepository.save(training);
     }
 
+    /**
+     * Undoes a cancel: SCHEDULED again and the reason is cleared, so attendance can be marked.
+     * Calling it on a training that is not cancelled changes nothing (idempotent, 200).
+     */
+    @Transactional
+    public Training reactivateTraining(Long id) {
+        Training training = getById(id);
+        training.setStatus(TrainingStatus.SCHEDULED);
+        training.setCancelReason(null);
+        return trainingRepository.save(training);
+    }
+
     public List<TrainingAttendance> listAttendance(Long trainingId) {
         Training training = getById(trainingId);
         return attendanceRepository.findByTrainingId(training.getId());

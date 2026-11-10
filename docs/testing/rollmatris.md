@@ -116,6 +116,7 @@ Kod idag: stämmer efter S1-11. Närvarosvaret har spelarens namn, inte e-post o
 
 `PUT /api/trainings/{id}` ändrar tid, plats och titel. Laget ändras inte.
 `PUT /api/trainings/{id}/cancellation` sätter CANCELLED och en valfri orsak. Raden raderas inte. Närvaron ligger kvar, men ny närvaro är 400 "This training is cancelled".
+Samma URL med `cancelled=false` aktiverar träningen igen: SCHEDULED och tom orsak, och närvaro går att markera igen. Samma roller och lag som när den ställs in; COACH för annat lag och PLAYER/PARENT får 403.
 PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Personal ser `status` i lagets lista.
 
 Kod idag: stämmer. Anonymt anrop är 401.

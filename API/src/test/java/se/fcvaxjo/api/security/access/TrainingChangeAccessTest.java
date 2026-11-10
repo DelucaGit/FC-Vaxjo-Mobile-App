@@ -16,6 +16,7 @@ import se.fcvaxjo.api.support.SampleRequests;
  * Editing and cancelling a training uses the same writers as creating one.
  * The row is not deleted. Attendance stays, and it cannot be marked after cancel.
  * Players and parents see CANCELLED on their own schedule.
+ * Sending cancelled=false reactivates it: SCHEDULED again, reason cleared.
  */
 class TrainingChangeAccessTest extends ClubApiTest {
 
@@ -170,6 +171,74 @@ class TrainingChangeAccessTest extends ClubApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Flyttad testtraning")))
                 .andExpect(content().string(containsString("Nya hallen")));
+    }
+
+    @Test
+    void coach_canReactivateOwnTeam_statusScheduledAndReasonEmpty() throws Exception {
+        put(Actor.COACH_ALFA, cancel(), SampleRequests.cancellation("Hallen stangd"))
+                .andExpect(status().isOk());
+
+        put(Actor.COACH_ALFA, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SCHEDULED"))
+                .andExpect(jsonPath("$.cancelReason").value(org.hamcrest.Matchers.nullValue()));
+
+        get(Actor.PLAYER_ALFA, "/api/my/trainings")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].trainingStatus").value("SCHEDULED"));
+    }
+
+    @Test
+    void reactivatedTraining_acceptsAttendanceAgain() throws Exception {
+        put(Actor.COACH_ALFA, cancel(), SampleRequests.cancellation("Hallen stangd"))
+                .andExpect(status().isOk());
+        put(Actor.COACH_ALFA, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isOk());
+
+        put(Actor.COACH_ALFA,
+                oneTraining() + "/attendance/" + world.playerAlfaId(),
+                SampleRequests.present())
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void reactivatingAScheduledTraining_isHarmless() throws Exception {
+        put(Actor.ADMIN, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SCHEDULED"));
+    }
+
+    @Test
+    void chairman_canReactivate() throws Exception {
+        put(Actor.ADMIN, cancel(), SampleRequests.cancellation("Regn"))
+                .andExpect(status().isOk());
+        put(Actor.CHAIRMAN, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SCHEDULED"));
+    }
+
+    @Test
+    void coachFromOtherTeam_cannotReactivate() throws Exception {
+        put(Actor.ADMIN, cancel(), SampleRequests.cancellation("Regn"))
+                .andExpect(status().isOk());
+        put(Actor.COACH_BETA, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void player_cannotReactivate() throws Exception {
+        put(Actor.ADMIN, cancel(), SampleRequests.cancellation("Regn"))
+                .andExpect(status().isOk());
+        put(Actor.PLAYER_ALFA, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parent_cannotReactivate() throws Exception {
+        put(Actor.ADMIN, cancel(), SampleRequests.cancellation("Regn"))
+                .andExpect(status().isOk());
+        put(Actor.PARENT_ALFA, cancel(), SampleRequests.reactivation())
+                .andExpect(status().isForbidden());
     }
 
     private String oneTraining() {
