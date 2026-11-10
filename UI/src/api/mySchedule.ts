@@ -1,5 +1,7 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
+import { HomeAway, MatchResult } from './matches';
+import { childQuery, requestJson } from './request';
 
 export type MyChild = {
   id: number;
@@ -15,9 +17,28 @@ export type MyTraining = {
   startsAt: string;
   endsAt: string;
   title: string;
+  venue?: string | null;
   playerUserId: number;
   playerName: string;
+  /** The player's own attendance mark. */
   status: 'PRESENT' | 'ABSENT' | 'EXCUSED' | null;
+  /** SCHEDULED or CANCELLED. */
+  trainingStatus?: 'SCHEDULED' | 'CANCELLED';
+  cancelReason?: string | null;
+  attendanceLockedAt?: string | null;
+};
+
+/** MyMatchResponse: the team's matches. No attendance row for the player. */
+export type MyMatch = {
+  id: number;
+  teamId: number;
+  teamName: string;
+  opponent: string;
+  kickoffAt: string;
+  venue: string;
+  homeAway: HomeAway;
+  result: MatchResult | null;
+  attendanceLockedAt: string | null;
 };
 
 export async function listMyChildren(): Promise<MyChild[]> {
@@ -55,4 +76,9 @@ export async function listMyCoaches(childId?: number): Promise<MyCoach[]> {
     throw new Error(await readErrorMessage(response));
   }
   return response.json();
+}
+
+/** PLAYER leaves childId out. PARENT must pass the child's id. */
+export function listMyMatches(childId?: number): Promise<MyMatch[]> {
+  return requestJson(`/my/matches${childQuery(childId)}`);
 }

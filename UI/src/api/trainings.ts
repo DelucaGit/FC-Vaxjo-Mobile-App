@@ -1,5 +1,9 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
+import { requestJson, withJson } from './request';
+
+/** SCHEDULED is the normal state. CANCELLED keeps the row and a reason. */
+export type TrainingStatus = 'SCHEDULED' | 'CANCELLED';
 
 export type Training = {
   id: number;
@@ -8,7 +12,12 @@ export type Training = {
   startsAt: string;
   endsAt: string;
   title: string;
+  venue: string | null;
+  status: TrainingStatus;
+  cancelReason: string | null;
   createdByUserId: number;
+  /** Set when attendance is frozen. null while it is still open. */
+  attendanceLockedAt: string | null;
 };
 
 export type AttendanceRow = {
@@ -25,6 +34,15 @@ export type CreateTrainingInput = {
   startsAt: string;
   endsAt: string;
   title?: string | null;
+  venue?: string | null;
+};
+
+/** PUT /trainings/{id} replaces these four fields. */
+export type UpdateTrainingInput = {
+  startsAt: string;
+  endsAt: string;
+  title?: string | null;
+  venue?: string | null;
 };
 
 export async function listTrainings(teamId: number): Promise<Training[]> {
@@ -80,4 +98,34 @@ export async function updateAttendance(
     throw new Error(await readErrorMessage(response));
   }
   return response.json();
+}
+
+/** Same call as listAttendance, named to match listMatchAttendance. */
+export const listTrainingAttendance = listAttendance;
+
+/** Same call as updateAttendance, named to match markMatchAttendance. */
+export const markTrainingAttendance = updateAttendance;
+
+export function updateTraining(id: number, input: UpdateTrainingInput): Promise<Training> {
+  return requestJson(`/trainings/${id}`, withJson('PUT', input));
+}
+
+/**
+ * cancelled: true cancels (reason is shown to players and parents).
+ * cancelled: false makes the training active again.
+ */
+export function setTrainingCancelled(
+  id: number,
+  cancelled: boolean,
+  reason?: string | null,
+): Promise<Training> {
+  return requestJson(
+    `/trainings/${id}/cancellation`,
+    withJson('PUT', { cancelled, reason: reason ?? null }),
+  );
+}
+
+/** Freezes the list. After this, marking answers 400. */
+export function lockTrainingAttendance(id: number): Promise<Training> {
+  return requestJson(`/trainings/${id}/attendance/lock`, withJson('PUT'));
 }

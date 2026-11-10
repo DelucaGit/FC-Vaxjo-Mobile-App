@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
+import { requestJson } from './request';
 import { ClubUser } from './users';
 
 export type Team = {
@@ -26,6 +27,10 @@ export async function listMyTeams(): Promise<Team[]> {
     throw new Error(await readErrorMessage(response));
   }
   return response.json();
+}
+
+export function getTeam(id: number): Promise<Team> {
+  return requestJson(`/teams/${id}`);
 }
 
 export async function createTeam(name: string): Promise<Team> {
