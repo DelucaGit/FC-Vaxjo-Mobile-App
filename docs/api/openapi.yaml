@@ -719,7 +719,10 @@ paths:
         Skapar träningen. Inga närvarorader kopieras: medan träningen är öppen följer närvarolistan lagets spelare (#86).
         `title` blir "Training" om den saknas/är tom. `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa träningen på vilket lag som helst, utan rad i `team_coaches`.
-        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        Starttiden får inte ligga före nu (datum och klockslag, svensk tid Europe/Stockholm), annars 400 (#115).
+        ADMIN är undantagen och får sätta vilken tid som helst.
+        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service om COACH inte tränar laget, kontrolleras först);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize`;
         "Team not found" (404).
@@ -774,7 +777,10 @@ paths:
         Byter `startsAt`, `endsAt`, `title` och `venue`. Laget ändras inte, så närvaroraderna ligger kvar.
         Samma skrivare som när träningen skapas. En inställd träning kan fortfarande rättas.
         Tom `title` blir "Training". Tom `venue` rensar platsen.
-        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        En ny `startsAt` får inte ligga före nu (svensk tid), annars 400 (#115). ADMIN är undantagen.
+        Kontrollen görs bara när `startsAt` ändras: att byta plats på en gammal träning med samma tid går igenom.
+        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN);
         "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 från `@PreAuthorize`.
@@ -985,7 +991,10 @@ paths:
         Resultatet är valfritt. Båda måltalen utelämnas, eller båda skickas.
         Ett ensamt måltal är 400. `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa matchen på vilket lag som helst.
+        `kickoffAt` får inte ligga före nu (datum och klockslag, svensk tid Europe/Stockholm), annars 400 (#115).
+        ADMIN är undantagen och får sätta vilken tid som helst. Det finns ingen PUT för att flytta en match än.
         Fel: "teamId is required", "opponent is required", "kickoffAt is required",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
         "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY",
         "goalsFor and goalsAgainst must both be set, or both left empty",
         "goalsFor and goalsAgainst cannot be negative" (400);

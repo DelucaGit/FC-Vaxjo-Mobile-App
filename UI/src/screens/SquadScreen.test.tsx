@@ -9,9 +9,6 @@ import {
 } from '../components/teams/testData';
 import SquadScreen from './SquadScreen';
 
-// The first render loads the icon and navigation code, which can pass 5 s on a busy machine.
-jest.setTimeout(20000);
-
 jest.mock('../api/teams');
 // Outside a navigator, run the focus effect like a normal effect.
 jest.mock('@react-navigation/native', () => {

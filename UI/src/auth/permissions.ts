@@ -36,6 +36,14 @@ export function isClubWide(role: string | null | undefined): boolean {
   return role === 'ADMIN' || role === 'CHAIRMAN';
 }
 
+/**
+ * A training or match start that has already passed (issue #115).
+ * Only ADMIN, so old history can be fixed. Same rule as the API.
+ */
+export function canSetPastActivityTime(role: string | null | undefined): boolean {
+  return role === 'ADMIN';
+}
+
 /** Club-wide roles see every team; everyone else only their linked teams. */
 export function visibleTeams<T extends { id: number }>(viewer: Viewer, allTeams: readonly T[]): T[] {
   if (isClubWide(viewer.role)) {

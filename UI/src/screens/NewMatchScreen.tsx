@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createMatch, type HomeAway } from '../api/matches';
+import { useAuth } from '../auth/AuthContext';
+import { canSetPastActivityTime } from '../auth/permissions';
 import { Button, Field, Screen, Segmented, type Option } from '../components/ui';
+import { PAST_START_MESSAGE, isPastStart } from '../lib/activities/startTime';
 import { toKickoffAt } from '../lib/matches/kickoff';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, type } from '../theme';
@@ -17,6 +20,7 @@ const HOME_AWAY: readonly Option<HomeAway>[] = [
 /** Ny match (spec section 7). Every field is required; the result is set later. */
 export default function NewMatchScreen({ navigation, route }: Props) {
   const { teamId } = route.params;
+  const { session } = useAuth();
   const [opponent, setOpponent] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('10:00');
@@ -26,8 +30,15 @@ export default function NewMatchScreen({ navigation, route }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const kickoffAt = toKickoffAt(date, time);
+  // Issue #115: only ADMIN may set a kick-off that has already passed.
+  const kickoffPassed =
+    kickoffAt !== null && !canSetPastActivityTime(session?.roleName) && isPastStart(kickoffAt);
   const canSave =
-    opponent.trim() !== '' && venue.trim() !== '' && kickoffAt !== null && homeAway !== null;
+    opponent.trim() !== '' &&
+    venue.trim() !== '' &&
+    kickoffAt !== null &&
+    !kickoffPassed &&
+    homeAway !== null;
 
   async function save() {
     if (!canSave || kickoffAt === null || homeAway === null) {
@@ -84,6 +95,7 @@ export default function NewMatchScreen({ navigation, route }: Props) {
             onChange={setHomeAway}
           />
         </View>
+        {kickoffPassed ? <Text style={styles.error}>{PAST_START_MESSAGE}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
     </Screen>

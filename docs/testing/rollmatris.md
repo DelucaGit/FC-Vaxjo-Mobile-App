@@ -164,6 +164,19 @@ Kod idag: stämmer. Anonymt anrop är 401.
 - Fryst lista: visar exakt de sparade raderna. Markera ger 400 "The attendance list for this match is frozen and can no longer be changed".
 - `attendanceLockedAt` (`null` = öppen) finns i `MatchResponse` och `MyMatchResponse`.
 
+### Starttid som redan passerat (issue #115)
+
+| Anrop med passerad starttid | ADMIN | CHAIRMAN | COACH eget lag | Kod idag |
+|---|---|---|---|---|
+| `POST /api/trainings` | 201 | 400 | 400 | Stämmer |
+| `PUT /api/trainings/{id}` med ny `startsAt` | 200 | 400 | 400 | Stämmer |
+| `PUT /api/trainings/{id}` med samma `startsAt` (bara ny plats) | 200 | 200 | 200 | Stämmer |
+| `POST /api/matches` | 201 | 400 | 400 | Stämmer |
+
+- "Passerad" betyder före nu i svensk tid (Europe/Stockholm), både datum och klockslag.
+- 400-texten är "Starttiden har redan passerat. Välj en tid som inte har varit."
+- Testerna ligger i `ActivityStartInPastTest`.
+
 ### Mitt schema
 
 | Anrop | Mål | Kod idag |
