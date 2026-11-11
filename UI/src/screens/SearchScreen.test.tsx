@@ -12,7 +12,7 @@ jest.mock('../auth/AuthContext', () => ({
 
 const mockedSearch = searchUsers as jest.MockedFunction<typeof searchUsers>;
 
-async function renderSearch(routeNames: string[] = ['Search', 'PlayerProfile']) {
+async function renderSearch(routeNames: string[] = ['Search', 'PlayerView']) {
   const navigation = makeNavigation(routeNames);
   // The screen only uses navigate and getState, so a plain object is enough here.
   await render(<SearchScreen navigation={navigation as never} route={{} as never} />);
@@ -30,7 +30,7 @@ describe('SearchScreen', () => {
     mockSession = makeSession('COACH');
   });
 
-  test('name search sends name and opens the player profile', async () => {
+  test('name search sends name and opens the player view', async () => {
     mockedSearch.mockResolvedValue([
       makeUser({ id: 7, name: 'Elsa Berg', teamName: 'F12', playerNumber: 9 }),
     ]);
@@ -43,7 +43,7 @@ describe('SearchScreen', () => {
     expect(screen.getByText('Spelare · F12')).toBeTruthy();
 
     await fireEvent.press(screen.getByText('Elsa Berg'));
-    expect(navigation.navigate).toHaveBeenCalledWith('PlayerProfile', { userId: 7 });
+    expect(navigation.navigate).toHaveBeenCalledWith('PlayerView', { userId: 7 });
   });
 
   test('shirt number search sends playerNumber as a number', async () => {
@@ -93,7 +93,7 @@ describe('SearchScreen', () => {
   test('a non-player opens UserDetail when the stack has it', async () => {
     mockSession = makeSession('ADMIN');
     mockedSearch.mockResolvedValue([makeUser({ id: 5, name: 'Bo Tränare', roleName: 'COACH' })]);
-    const navigation = await renderSearch(['Search', 'PlayerProfile', 'UserDetail']);
+    const navigation = await renderSearch(['Search', 'PlayerView', 'UserDetail']);
 
     await searchFor('Bo');
     await fireEvent.press(await screen.findByText('Bo Tränare'));

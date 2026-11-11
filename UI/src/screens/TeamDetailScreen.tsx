@@ -60,7 +60,7 @@ export default function TeamDetailScreen({ navigation, route }: Props) {
         <TeamRoster
           coaches={roster.coaches}
           players={roster.players}
-          onPlayerPress={(player) => navigation.navigate('PlayerProfile', { userId: player.id })}
+          onPlayerPress={(player) => navigation.navigate('PlayerView', { userId: player.id })}
           onAddCoach={() => navigation.navigate('AddCoach', { teamId })}
           onRemoveCoach={setCoachToRemove}
         />

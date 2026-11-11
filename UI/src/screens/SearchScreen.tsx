@@ -87,7 +87,7 @@ export default function SearchScreen({ navigation }: Props) {
   const hasUserDetail = navigation.getState().routeNames.includes('UserDetail');
   function openUser(user: ClubUser): (() => void) | undefined {
     if (user.roleName === 'PLAYER') {
-      return () => navigation.navigate('PlayerProfile', { userId: user.id });
+      return () => navigation.navigate('PlayerView', { userId: user.id });
     }
     if (hasUserDetail) {
       return () => navigation.navigate('UserDetail', { userId: user.id });
