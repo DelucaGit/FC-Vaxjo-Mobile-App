@@ -1,7 +1,7 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
 import { HomeAway, MatchResult } from './matches';
-import { childQuery, requestJson } from './request';
+import { queryString, requestJson, type ActivityWhen } from './request';
 
 export type MyChild = {
   id: number;
@@ -49,14 +49,9 @@ export async function listMyChildren(): Promise<MyChild[]> {
   return response.json();
 }
 
-export async function listMyTrainings(childId?: number): Promise<MyTraining[]> {
-  const query =
-    childId != null ? `?childId=${encodeURIComponent(String(childId))}` : '';
-  const response = await apiFetch(`${API_BASE_URL}/my/trainings${query}`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-  return response.json();
+/** PLAYER leaves childId out. PARENT must pass the child's id. Without `when` you get everything. */
+export function listMyTrainings(childId?: number, when?: ActivityWhen): Promise<MyTraining[]> {
+  return requestJson(`/my/trainings${queryString({ childId, when })}`);
 }
 
 export type MyCoach = {
@@ -78,7 +73,7 @@ export async function listMyCoaches(childId?: number): Promise<MyCoach[]> {
   return response.json();
 }
 
-/** PLAYER leaves childId out. PARENT must pass the child's id. */
-export function listMyMatches(childId?: number): Promise<MyMatch[]> {
-  return requestJson(`/my/matches${childQuery(childId)}`);
+/** PLAYER leaves childId out. PARENT must pass the child's id. Without `when` you get everything. */
+export function listMyMatches(childId?: number, when?: ActivityWhen): Promise<MyMatch[]> {
+  return requestJson(`/my/matches${queryString({ childId, when })}`);
 }

@@ -123,12 +123,12 @@ test('a chairman picks among all teams', async () => {
 
   expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
   expect(listMyTeams).not.toHaveBeenCalled();
-  expect(listTrainings).toHaveBeenLastCalledWith(10);
+  expect(listTrainings).toHaveBeenLastCalledWith(10, 'upcoming');
 
   await fireEvent.press(screen.getByRole('radio', { name: 'F2015' }));
   await screen.findByText('Inga aktiviteter');
-  expect(listTrainings).toHaveBeenLastCalledWith(20);
-  expect(listMatches).toHaveBeenLastCalledWith(20);
+  expect(listTrainings).toHaveBeenLastCalledWith(20, 'upcoming');
+  expect(listMatches).toHaveBeenLastCalledWith(20, 'upcoming');
 });
 
 test('shows the error message from the API', async () => {
@@ -139,4 +139,29 @@ test('shows the error message from the API', async () => {
   expect(
     await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),
   ).toBeTruthy();
+});
+
+test('asks only for upcoming activities and does not show past ones', async () => {
+  // The fake API answers like the real one: `upcoming` leaves out what has already been.
+  const coming = {
+    ...training,
+    id: 2,
+    startsAt: '2099-01-05T17:30:00',
+    endsAt: '2099-01-05T19:00:00',
+    title: 'Ny',
+  };
+  jest
+    .mocked(listTrainings)
+    .mockImplementation(
+      async (_teamId, when) => (when === 'upcoming' ? [coming] : [training, coming]) as never,
+    );
+
+  await render(<ActivitiesScreen {...props} />);
+
+  expect(await screen.findByText('Ny')).toBeTruthy();
+  expect(screen.queryByText('Passning')).toBeNull();
+  expect(listTrainings).toHaveBeenCalledWith(10, 'upcoming');
+  expect(listMatches).toHaveBeenCalledWith(10, 'upcoming');
+  // The schedule keeps its create buttons ("Tidigare aktiviteter" has none).
+  expect(screen.getByText('Ny träning')).toBeTruthy();
 });
