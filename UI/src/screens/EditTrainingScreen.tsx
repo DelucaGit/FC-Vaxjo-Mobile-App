@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getTraining, updateTraining } from '../api/trainings';
+import { useAuth } from '../auth/AuthContext';
+import { canSetPastActivityTime } from '../auth/permissions';
 import { Button, Screen } from '../components/ui';
 import { ErrorText, TrainingForm } from '../components/activities/TrainingForm';
 import {
@@ -9,6 +11,7 @@ import {
   toTrainingPayload,
   type TrainingFormValues,
 } from '../components/activities/trainingValues';
+import { PAST_START_MESSAGE, isPastStart } from '../lib/activities/startTime';
 import type { AppStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EditTraining'>;
@@ -16,14 +19,21 @@ type Props = NativeStackScreenProps<AppStackParamList, 'EditTraining'>;
 /** "Redigera träning" (spec section 7): the same fields as "Ny träning", filled in. */
 export default function EditTrainingScreen({ navigation, route }: Props) {
   const { trainingId } = route.params;
+  const { session } = useAuth();
   const [values, setValues] = useState<TrainingFormValues | null>(null);
+  // The start time as saved, so an old training can still get a new place.
+  const [savedStart, setSavedStart] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     getTraining(trainingId)
-      .then((training) => active && setValues(formValuesFrom(training)))
+      .then((training) => {
+        if (!active) return;
+        setValues(formValuesFrom(training));
+        setSavedStart(training.startsAt);
+      })
       .catch((e: Error) => active && setError(e.message));
     return () => {
       active = false;
@@ -31,9 +41,17 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
   }, [trainingId]);
 
   const payload = values ? toTrainingPayload(values) : null;
+  // Issue #115: a new start time may not have passed, except for ADMIN.
+  // An unchanged start is fine, same as the API. Compare to the minute ("2026-11-12T17:30"),
+  // so "17:30" and "17:30:00" count as the same time.
+  const startPassed =
+    payload !== null &&
+    payload.startsAt.slice(0, 16) !== savedStart?.slice(0, 16) &&
+    !canSetPastActivityTime(session?.roleName) &&
+    isPastStart(payload.startsAt);
 
   const save = async () => {
-    if (!payload) return;
+    if (!payload || startPassed) return;
     setSaving(true);
     setError(null);
     try {
@@ -50,10 +68,15 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
       title="Redigera träning"
       onBack={() => navigation.goBack()}
       bottom={
-        <Button title="Spara" style={styles.grow} disabled={!payload || saving} onPress={save} />
+        <Button
+          title="Spara"
+          style={styles.grow}
+          disabled={!payload || startPassed || saving}
+          onPress={save}
+        />
       }
     >
-      <ErrorText message={error} />
+      <ErrorText message={error ?? (startPassed ? PAST_START_MESSAGE : null)} />
       {values ? <TrainingForm values={values} onChange={setValues} /> : null}
     </Screen>
   );
