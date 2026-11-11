@@ -4,9 +4,6 @@ import { getUser } from '../api/users';
 import { makeNavigation, makeSession, makeUser } from '../components/users/testUtils';
 import PlayerViewScreen from './PlayerViewScreen';
 
-// The first render loads the icon and navigation code, which can pass 5 s on a busy machine.
-jest.setTimeout(20000);
-
 jest.mock('../api/users', () => ({ getUser: jest.fn() }));
 jest.mock('../api/teams', () => ({ listMyTeams: jest.fn() }));
 
