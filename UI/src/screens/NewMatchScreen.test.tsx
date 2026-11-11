@@ -2,10 +2,16 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createMatch } from '../api/matches';
 import { readErrorMessage } from '../api/http';
+import { PAST_START_MESSAGE } from '../lib/activities/startTime';
 import type { AppStackParamList } from '../navigation/types';
 import NewMatchScreen from './NewMatchScreen';
 
 jest.mock('../api/matches', () => ({ createMatch: jest.fn() }));
+
+let mockRole = 'COACH';
+jest.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ session: { roleName: mockRole } }),
+}));
 
 type Props = NativeStackScreenProps<AppStackParamList, 'NewMatch'>;
 const mockedCreate = createMatch as jest.Mock;
@@ -21,7 +27,7 @@ function setup() {
 
 async function fillAll() {
   await fireEvent.changeText(screen.getByLabelText('Motståndare'), 'IFK Värnamo');
-  await fireEvent.changeText(screen.getByLabelText('Datum'), '2026-11-21');
+  await fireEvent.changeText(screen.getByLabelText('Datum'), '2099-11-21');
   await fireEvent.changeText(screen.getByLabelText('Plats'), 'Myresjöhus Arena');
   await fireEvent.press(screen.getByRole('radio', { name: 'Borta' }));
 }
@@ -29,7 +35,10 @@ async function fillAll() {
 const saveButton = () => screen.getByRole('button', { name: 'Spara' });
 
 describe('NewMatchScreen', () => {
-  beforeEach(() => mockedCreate.mockReset());
+  beforeEach(() => {
+    mockedCreate.mockReset();
+    mockRole = 'COACH';
+  });
 
   test('kick-off starts at 10:00', async () => {
     const { props } = setup();
@@ -43,7 +52,7 @@ describe('NewMatchScreen', () => {
     expect(saveButton()).toBeDisabled();
 
     await fireEvent.changeText(screen.getByLabelText('Motståndare'), 'IFK Värnamo');
-    await fireEvent.changeText(screen.getByLabelText('Datum'), '2026-11-21');
+    await fireEvent.changeText(screen.getByLabelText('Datum'), '2099-11-21');
     await fireEvent.changeText(screen.getByLabelText('Plats'), 'Myresjöhus Arena');
     expect(saveButton()).toBeDisabled(); // Hemma/Borta not chosen yet
 
@@ -64,7 +73,7 @@ describe('NewMatchScreen', () => {
     expect(mockedCreate).toHaveBeenCalledWith({
       teamId: 3,
       opponent: 'IFK Värnamo',
-      kickoffAt: '2026-11-21T10:00:00',
+      kickoffAt: '2099-11-21T10:00:00',
       venue: 'Myresjöhus Arena',
       homeAway: 'AWAY',
     });
@@ -81,6 +90,51 @@ describe('NewMatchScreen', () => {
 
     expect(await screen.findByText(message)).toBeTruthy();
     expect(message).not.toMatch(/Access Denied/);
+    expect(goBack).not.toHaveBeenCalled();
+  });
+
+  test('a coach cannot save a kick-off that has passed', async () => {
+    const { props } = setup();
+    await render(<NewMatchScreen {...props} />);
+    await fillAll();
+    await fireEvent.changeText(screen.getByLabelText('Datum'), '2011-05-01');
+
+    expect(saveButton()).toBeDisabled();
+    expect(screen.getByText(PAST_START_MESSAGE)).toBeTruthy();
+    await fireEvent.press(saveButton());
+    expect(mockedCreate).not.toHaveBeenCalled();
+  });
+
+  test('a chairman cannot save a kick-off that has passed either', async () => {
+    mockRole = 'CHAIRMAN';
+    const { props } = setup();
+    await render(<NewMatchScreen {...props} />);
+    await fillAll();
+    await fireEvent.changeText(screen.getByLabelText('Datum'), '2011-05-01');
+    expect(saveButton()).toBeDisabled();
+  });
+
+  test('an admin may save a kick-off that has passed', async () => {
+    mockRole = 'ADMIN';
+    mockedCreate.mockResolvedValue({ id: 1 });
+    const { props } = setup();
+    await render(<NewMatchScreen {...props} />);
+    await fillAll();
+    await fireEvent.changeText(screen.getByLabelText('Datum'), '2011-05-01');
+
+    expect(saveButton()).toBeEnabled();
+    expect(screen.queryByText(PAST_START_MESSAGE)).toBeNull();
+  });
+
+  test("the API's Swedish 400 message is shown if it still says no", async () => {
+    const apiMessage = 'Starttiden har redan passerat. Välj en tid som inte har varit.';
+    mockedCreate.mockRejectedValue(new Error(apiMessage));
+    const { goBack, props } = setup();
+    await render(<NewMatchScreen {...props} />);
+    await fillAll();
+    await fireEvent.press(saveButton());
+
+    expect(await screen.findByText(apiMessage)).toBeTruthy();
     expect(goBack).not.toHaveBeenCalled();
   });
 });
