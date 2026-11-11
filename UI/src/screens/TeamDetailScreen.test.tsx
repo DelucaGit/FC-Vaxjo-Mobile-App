@@ -9,9 +9,6 @@ import {
 } from '../components/teams/testData';
 import TeamDetailScreen from './TeamDetailScreen';
 
-// The first render loads the icon and navigation code, which can pass 5 s on a busy machine.
-jest.setTimeout(20000);
-
 jest.mock('../api/teams');
 jest.mock('@react-navigation/native', () => {
   const { useEffect } = jest.requireActual('react');

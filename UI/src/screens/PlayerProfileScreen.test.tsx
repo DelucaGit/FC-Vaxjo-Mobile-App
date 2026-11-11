@@ -14,9 +14,6 @@ jest.mock('../api/users', () => ({
   deletePlayer: jest.fn(),
 }));
 
-// The first render loads many modules; on a busy machine that can pass 5 s.
-jest.setTimeout(20000);
-
 let mockRole = 'COACH';
 jest.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ session: { userId: 1, roleName: mockRole } }),
