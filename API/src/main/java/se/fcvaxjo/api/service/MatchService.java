@@ -47,6 +47,7 @@ public class MatchService {
     private final UserRepository userRepository;
     private final MatchAttendanceRoster roster;
     private final Clock clock;
+    private final ActivityStartRule startRule;
 
     public MatchService(
             MatchRepository matchRepository,
@@ -55,7 +56,8 @@ public class MatchService {
             MatchAttendanceRepository attendanceRepository,
             UserRepository userRepository,
             MatchAttendanceRoster roster,
-            Clock clock) {
+            Clock clock,
+            ActivityStartRule startRule) {
         this.matchRepository = matchRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
@@ -63,6 +65,7 @@ public class MatchService {
         this.userRepository = userRepository;
         this.roster = roster;
         this.clock = clock;
+        this.startRule = startRule;
     }
 
     @Transactional
@@ -85,6 +88,7 @@ public class MatchService {
         if (kickoffAt == null) {
             throw new BadRequestException("kickoffAt is required");
         }
+        startRule.assertNotInPast(currentClubRole(), kickoffAt);
         if (venue == null || venue.isBlank()) {
             throw new BadRequestException("venue is required");
         }

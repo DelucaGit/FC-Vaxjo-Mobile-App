@@ -35,6 +35,7 @@ public class TrainingService {
     private final UserRepository userRepository;
     private final TrainingAttendanceRoster roster;
     private final Clock clock;
+    private final ActivityStartRule startRule;
 
     public TrainingService(
             TrainingRepository trainingRepository,
@@ -43,7 +44,8 @@ public class TrainingService {
             TeamCoachRepository teamCoachRepository,
             UserRepository userRepository,
             TrainingAttendanceRoster roster,
-            Clock clock) {
+            Clock clock,
+            ActivityStartRule startRule) {
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
         this.teamService = teamService;
@@ -51,6 +53,7 @@ public class TrainingService {
         this.userRepository = userRepository;
         this.roster = roster;
         this.clock = clock;
+        this.startRule = startRule;
     }
 
     public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title) {
@@ -75,6 +78,7 @@ public class TrainingService {
         if (!endsAt.isAfter(startsAt)) {
             throw new BadRequestException("endsAt must be after startsAt");
         }
+        startRule.assertNotInPast(currentClubRole(), startsAt);
 
         teamService.getTeamById(teamId);
 
@@ -123,6 +127,7 @@ public class TrainingService {
      * Changes time, place, and title. The team stays, so the attendance rows stay.
      * A frozen list stays frozen even if the time moves.
      * A cancelled training can still be corrected. Marking attendance stays blocked.
+     * A new start time may not be in the past, except for ADMIN (issue #115).
      */
     @Transactional
     public Training updateTraining(
@@ -133,6 +138,10 @@ public class TrainingService {
         }
         if (!endsAt.isAfter(startsAt)) {
             throw new BadRequestException("endsAt must be after startsAt");
+        }
+        // Only a new start time is checked. Fixing the place on an old training still works.
+        if (!startsAt.equals(training.getStartsAt())) {
+            startRule.assertNotInPast(currentClubRole(), startsAt);
         }
         training.setStartsAt(startsAt);
         training.setEndsAt(endsAt);
