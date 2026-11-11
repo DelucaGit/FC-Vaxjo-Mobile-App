@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { listMatchAttendance, listMatches } from '../api/matches';
+import type { ActivityWhen } from '../api/request';
 import { listMyTeams, listTeams, type Team } from '../api/teams';
 import { listTrainingAttendance, listTrainings } from '../api/trainings';
 import { useAuth } from '../auth/AuthContext';
@@ -40,8 +44,28 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Activities'>;
 /** Key for the attendance counts: a training and a match may share an id. */
 const countKey = (item: ActivityItem) => `${item.kind}-${item.id}`;
 
-/** "Aktiviteter" (spec section 7): the chosen team's trainings and matches, per week. */
+/** "Aktiviteter" (spec section 7): the chosen team's today's and coming trainings and matches, per week. */
 export default function ActivitiesScreen({ navigation }: Props) {
+  return (
+    <TeamActivityList title="Aktiviteter" when="upcoming" navigation={navigation} canCreate />
+  );
+}
+
+type ListProps = {
+  title: string;
+  /** upcoming: soonest first. past: "Tidigare aktiviteter", newest first. */
+  when: ActivityWhen;
+  navigation: Pick<NativeStackNavigationProp<AppStackParamList>, 'navigate'>;
+  /** Shows "Ny träning" and "Ny match" at the bottom. */
+  canCreate?: boolean;
+  onBack?: () => void;
+};
+
+/**
+ * One team's trainings and matches, with the same team picker for every role.
+ * Shared by "Aktiviteter" and "Tidigare aktiviteter". A tap opens the activity's detail view.
+ */
+export function TeamActivityList({ title, when, navigation, canCreate = false, onBack }: ListProps) {
   const { session } = useAuth();
   const role = session?.roleName;
   const [teams, setTeams] = useState<Team[] | null>(null);
@@ -70,7 +94,7 @@ export default function ActivitiesScreen({ navigation }: Props) {
     useCallback(() => {
       if (teamId == null) return;
       let active = true;
-      Promise.all([listTrainings(teamId), listMatches(teamId)])
+      Promise.all([listTrainings(teamId, when), listMatches(teamId, when)])
         .then(async ([trainings, matches]) => {
           const merged = [...trainings.map(fromTraining), ...matches.map(fromMatch)];
           if (!active) return;
@@ -101,7 +125,7 @@ export default function ActivitiesScreen({ navigation }: Props) {
       return () => {
         active = false;
       };
-    }, [teamId]),
+    }, [teamId, when]),
   );
 
   const chooseTeam = (id: number) => {
@@ -112,9 +136,10 @@ export default function ActivitiesScreen({ navigation }: Props) {
 
   return (
     <Screen
-      title="Aktiviteter"
+      title={title}
+      onBack={onBack}
       bottom={
-        teamId != null ? (
+        canCreate && teamId != null ? (
           <>
             <Button
               title="Ny träning"
@@ -150,7 +175,7 @@ export default function ActivitiesScreen({ navigation }: Props) {
 
       {items && items.length === 0 ? <Empty text="Inga aktiviteter" /> : null}
       {items
-        ? groupByWeek(items).map((group) => (
+        ? groupByWeek(items, when === 'past').map((group) => (
             <View key={group.key}>
               <WeekLabel date={group.items[0].startsAt} />
               <List>

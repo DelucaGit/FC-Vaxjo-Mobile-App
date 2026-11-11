@@ -31,7 +31,21 @@ export function withJson(method: 'POST' | 'PUT', body?: unknown): RequestInit {
     : { method, body: JSON.stringify(body) };
 }
 
-/** `?childId=7`, or an empty string when there is no child. */
-export function childQuery(childId?: number): string {
-  return childId != null ? `?childId=${encodeURIComponent(String(childId))}` : '';
+
+/**
+ * Filter for the activity lists (GET /trainings, /matches, /my/trainings, /my/matches).
+ * upcoming: from midnight today (Swedish time), soonest first.
+ * past: before midnight today, newest first.
+ */
+export type ActivityWhen = 'upcoming' | 'past';
+
+/**
+ * Builds a query string from the params that have a value:
+ * `{ teamId: 3, when: 'past' }` gives `?teamId=3&when=past`, `{}` gives ''.
+ */
+export function queryString(params: Record<string, string | number | undefined>): string {
+  const parts = Object.entries(params)
+    .filter(([, value]) => value != null)
+    .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`);
+  return parts.length > 0 ? `?${parts.join('&')}` : '';
 }

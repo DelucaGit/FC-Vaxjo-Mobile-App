@@ -1,4 +1,4 @@
-import { requestJson, withJson } from './request';
+import { queryString, requestJson, withJson, type ActivityWhen } from './request';
 import { AttendanceRow, AttendanceStatus } from './trainings';
 
 /** The API sends HOME or AWAY. The app shows "Hemma" / "Borta". */
@@ -36,9 +36,9 @@ export type CreateMatchInput = {
   goalsAgainst?: number | null;
 };
 
-/** ADMIN, CHAIRMAN, or a COACH of the team. */
-export function listMatches(teamId: number): Promise<Match[]> {
-  return requestJson(`/matches?teamId=${encodeURIComponent(String(teamId))}`);
+/** ADMIN, CHAIRMAN, or a COACH of the team. Without `when` you get every match, newest first. */
+export function listMatches(teamId: number, when?: ActivityWhen): Promise<Match[]> {
+  return requestJson(`/matches${queryString({ teamId, when })}`);
 }
 
 export function getMatch(id: number): Promise<Match> {

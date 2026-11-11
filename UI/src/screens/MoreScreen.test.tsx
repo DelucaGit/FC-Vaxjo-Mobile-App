@@ -7,6 +7,11 @@ import MoreScreen from './MoreScreen';
 
 const mockLogout = jest.fn();
 const mockChangePassword = jest.fn();
+let mockRole = 'CHAIRMAN';
+
+beforeEach(() => {
+  mockRole = 'CHAIRMAN';
+});
 
 jest.mock('../api/users', () => ({ getUserById: jest.fn() }));
 jest.mock('../auth/AuthContext', () => ({
@@ -15,7 +20,7 @@ jest.mock('../auth/AuthContext', () => ({
       token: 't',
       userId: 3,
       email: 'anna@fcvaxjo.se',
-      roleName: 'CHAIRMAN',
+      roleName: mockRole,
       mustChangePassword: false,
     },
     loading: false,
@@ -36,13 +41,14 @@ function navProps<K extends 'More' | 'ChangePassword'>() {
 }
 
 describe('MoreScreen', () => {
-  test('shows name and role, and only the two rows', async () => {
+  test('shows name and role, and only the three rows', async () => {
     mockGetUserById.mockResolvedValue({ id: 3, name: 'Anna Ek' });
     const { props } = navProps<'More'>();
     await render(<MoreScreen {...props} />);
 
     expect(await screen.findByText('Anna Ek')).toBeTruthy();
     expect(screen.getByText('Ordförande')).toBeTruthy();
+    expect(screen.getByText('Tidigare aktiviteter')).toBeTruthy();
     expect(screen.getByText('Byt lösenord')).toBeTruthy();
     expect(screen.getByText('Logga ut')).toBeTruthy();
     expect(screen.queryByText('Byt roll')).toBeNull();
@@ -66,6 +72,20 @@ describe('MoreScreen', () => {
 
     expect(navigation.navigate).toHaveBeenCalledWith('ChangePassword');
   });
+
+  test.each(['ADMIN', 'CHAIRMAN', 'COACH', 'PLAYER', 'PARENT'])(
+    '%s sees "Tidigare aktiviteter" and it opens the past-activities screen',
+    async (role) => {
+      mockRole = role;
+      mockGetUserById.mockRejectedValue(new Error('403'));
+      const { navigation, props } = navProps<'More'>();
+      await render(<MoreScreen {...props} />);
+
+      await fireEvent.press(await screen.findByText('Tidigare aktiviteter'));
+
+      expect(navigation.navigate).toHaveBeenCalledWith('PastActivities');
+    },
+  );
 
   test('"Logga ut" logs out', async () => {
     mockGetUserById.mockResolvedValue({ id: 3, name: 'Anna Ek' });
