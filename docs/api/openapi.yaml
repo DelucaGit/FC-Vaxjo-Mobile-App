@@ -717,9 +717,10 @@ paths:
       summary: Skapa träning
       description: |
         Skapar träningen. Inga närvarorader kopieras: medan träningen är öppen följer närvarolistan lagets spelare (#86).
-        `title` blir "Training" om den saknas/är tom. `createdByUserId` sätts till den inloggade.
+        `type` krävs: `FOOTBALL` (Fotbollsträning) eller `FITNESS` (Fysträning) (#118). `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa träningen på vilket lag som helst, utan rad i `team_coaches`.
-        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt",
+        "Träningstyp krävs (FOOTBALL eller FITNESS)", "Okänd träningstyp. Välj FOOTBALL eller FITNESS" (400);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service om COACH inte tränar laget, kontrolleras först);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize`;
         "Team not found" (404).
@@ -769,12 +770,13 @@ paths:
     put:
       tags: [Trainings]
       operationId: updateTraining
-      summary: Ändra tid, plats och titel
+      summary: Ändra tid, plats och träningstyp
       description: |
-        Byter `startsAt`, `endsAt`, `title` och `venue`. Laget ändras inte, så närvaroraderna ligger kvar.
+        Byter `startsAt`, `endsAt`, `type` och `venue`. Laget ändras inte, så närvaroraderna ligger kvar.
         Samma skrivare som när träningen skapas. En inställd träning kan fortfarande rättas.
-        Tom `title` blir "Training". Tom `venue` rensar platsen.
-        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        `type` krävs, precis som vid skapande. Tom `venue` rensar platsen.
+        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt",
+        "Träningstyp krävs (FOOTBALL eller FITNESS)", "Okänd träningstyp. Välj FOOTBALL eller FITNESS" (400);
         "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 från `@PreAuthorize`.
@@ -1694,20 +1696,20 @@ components:
 
     CreateTrainingRequest:
       type: object
-      required: [teamId, startsAt, endsAt]
+      required: [teamId, startsAt, endsAt, type]
       properties:
         teamId: { type: integer, format: int64 }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
-        title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'], description: Plats. Tom eller null sparas som null. }
     UpdateTrainingRequest:
       type: object
-      required: [startsAt, endsAt]
+      required: [startsAt, endsAt, type]
       properties:
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
-        title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'], description: Tom eller null rensar platsen. }
     CancelTrainingRequest:
       type: object
@@ -1721,16 +1723,23 @@ components:
       type: string
       description: SCHEDULED är en vanlig träning. CANCELLED är inställd. Raden raderas inte.
       enum: [SCHEDULED, CANCELLED]
+    TrainingType:
+      type: string
+      description: |
+        Träningens typ (#118). Listan ligger fast i koden. Appen visar det svenska namnet:
+        `FOOTBALL` = Fotbollsträning, `FITNESS` = Fysträning.
+        I svar visas en gammal träning utan typ som `FOOTBALL`. Den gamla kolumnen `title` används inte längre.
+      enum: [FOOTBALL, FITNESS]
     TrainingResponse:
       type: object
-      required: [id, teamId, startsAt, endsAt, title, createdByUserId]
+      required: [id, teamId, startsAt, endsAt, type, createdByUserId]
       properties:
         id: { type: integer, format: int64 }
         teamId: { type: integer, format: int64 }
         teamName: { type: [string, 'null'] }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
-        title: { type: string }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'] }
         status: { $ref: '#/components/schemas/TrainingStatus' }
         cancelReason: { type: [string, 'null'] }
@@ -1852,14 +1861,14 @@ components:
         mobilePhoneNumber: { type: [string, 'null'], x-pii: true }
     MyTrainingResponse:
       type: object
-      required: [id, teamId, startsAt, endsAt, title, playerUserId, playerName]
+      required: [id, teamId, startsAt, endsAt, type, playerUserId, playerName]
       properties:
         id: { type: integer, format: int64 }
         teamId: { type: integer, format: int64 }
         teamName: { type: [string, 'null'] }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
-        title: { type: string }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'] }
         playerUserId: { type: integer, format: int64 }
         playerName: { type: [string, 'null'], x-pii: true }
@@ -1883,14 +1892,14 @@ components:
       type: object
       x-status: planned
       description: Publik träningsvy, utan närvaro, spelare och skapare.
-      required: [id, teamId, startsAt, endsAt, title]
+      required: [id, teamId, startsAt, endsAt, type]
       properties:
         id: { type: integer, format: int64 }
         teamId: { type: integer, format: int64 }
         teamName: { type: string }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
-        title: { type: string }
+        type: { $ref: '#/components/schemas/TrainingType' }
     PublicCoachResponse:
       type: object
       x-status: planned
