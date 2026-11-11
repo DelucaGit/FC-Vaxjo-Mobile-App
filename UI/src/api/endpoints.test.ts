@@ -100,17 +100,17 @@ const cases: Case[] = [
   ['getTraining', () => getTraining(5), 'GET', '/trainings/5'],
   [
     'createTraining',
-    () => createTraining({ teamId: 3, startsAt: time, endsAt: time, title: 'Pass', venue: 'Konstgräs' }),
+    () => createTraining({ teamId: 3, startsAt: time, endsAt: time, type: 'FITNESS' as const, venue: 'Konstgräs' }),
     'POST',
     '/trainings',
-    { teamId: 3, startsAt: time, endsAt: time, title: 'Pass', venue: 'Konstgräs' },
+    { teamId: 3, startsAt: time, endsAt: time, type: 'FITNESS' as const, venue: 'Konstgräs' },
   ],
   [
     'updateTraining',
-    () => updateTraining(5, { startsAt: time, endsAt: time, title: 'Pass', venue: null }),
+    () => updateTraining(5, { startsAt: time, endsAt: time, type: 'FITNESS' as const, venue: null }),
     'PUT',
     '/trainings/5',
-    { startsAt: time, endsAt: time, title: 'Pass', venue: null },
+    { startsAt: time, endsAt: time, type: 'FITNESS' as const, venue: null },
   ],
   [
     'setTrainingCancelled (cancel)',

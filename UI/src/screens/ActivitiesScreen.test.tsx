@@ -33,7 +33,7 @@ const training = {
   teamName: 'P2014',
   startsAt: '2020-11-10T17:30:00',
   endsAt: '2020-11-10T19:00:00',
-  title: 'Passning',
+  type: 'FOOTBALL',
   venue: 'Konstgräset',
   status: 'SCHEDULED',
   cancelReason: null,
@@ -60,7 +60,7 @@ test('lists trainings and matches per week with their status', async () => {
     {
       ...training,
       id: 2,
-      title: 'Teknik',
+      type: 'FITNESS',
       startsAt: '2020-11-11T17:30:00',
       endsAt: '2020-11-11T19:00:00',
       status: 'CANCELLED',
@@ -96,7 +96,7 @@ test('lists trainings and matches per week with their status', async () => {
 
   const cancelled = screen.getByTestId('activity-training-2');
   expect(within(cancelled).getByText('Inställd · Snö')).toBeTruthy();
-  expect(within(cancelled).getByText('Teknik')).toHaveStyle({ textDecorationLine: 'line-through' });
+  expect(within(cancelled).getByText('Fysträning')).toHaveStyle({ textDecorationLine: 'line-through' });
 
   const matchRow = screen.getByTestId('activity-match-1');
   expect(within(matchRow).getByText('Match mot Östers IF')).toBeTruthy();
@@ -111,8 +111,11 @@ test('lists trainings and matches per week with their status', async () => {
 
   await fireEvent.press(matchRow);
   expect(navigation.navigate).toHaveBeenCalledWith('ActivityDetail', { kind: 'match', id: 1 });
-  await fireEvent.press(screen.getByText('Ny träning'));
-  expect(navigation.navigate).toHaveBeenCalledWith('NewTraining', { teamId: 10 });
+  expect(screen.queryByText('Ny träning')).toBeNull();
+  await fireEvent.press(screen.getByText('Lägg till fotbollsträning'));
+  expect(navigation.navigate).toHaveBeenCalledWith('NewTraining', { teamId: 10, type: 'FOOTBALL' });
+  await fireEvent.press(screen.getByText('Lägg till fysträning'));
+  expect(navigation.navigate).toHaveBeenCalledWith('NewTraining', { teamId: 10, type: 'FITNESS' });
   await fireEvent.press(screen.getByText('Ny match'));
   expect(navigation.navigate).toHaveBeenCalledWith('NewMatch', { teamId: 10 });
 });

@@ -25,7 +25,7 @@ const training = {
   teamName: 'P2014',
   startsAt: '2020-11-10T17:30:00',
   endsAt: '2020-11-10T19:00:00',
-  title: 'Passning',
+  type: 'FOOTBALL' as const,
   venue: null,
   status: 'SCHEDULED' as const,
   cancelReason: null,
@@ -42,7 +42,7 @@ test('training: info rows, actions and the Närvaro button', async () => {
   await render(<ActivityDetailScreen {...propsFor('training', 5)} />);
 
   expect(await screen.findByText('1 ej markerade')).toBeTruthy();
-  expect(screen.getByText('Passning')).toBeTruthy();
+  expect(screen.getByText('Fotbollsträning')).toBeTruthy();
   expect(screen.getByText('P2014')).toBeTruthy();
 
   await fireEvent.press(screen.getByText('Redigera träning'));
@@ -63,7 +63,7 @@ test('cancelled training is struck through and can be reactivated', async () => 
   await render(<ActivityDetailScreen {...propsFor('training', 5)} />);
 
   expect(await screen.findByText('Inställd · Snö')).toBeTruthy();
-  expect(screen.getByText('Passning')).toHaveStyle({ textDecorationLine: 'line-through' });
+  expect(screen.getByText('Fotbollsträning')).toHaveStyle({ textDecorationLine: 'line-through' });
   expect(screen.queryByText('Ställ in träning')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Närvaro' })).toBeNull();
 

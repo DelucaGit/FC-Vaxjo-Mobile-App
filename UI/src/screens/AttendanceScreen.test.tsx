@@ -30,7 +30,7 @@ const training: trainings.Training = {
   teamName: 'P12 Alfa',
   startsAt: '2026-11-09T17:30:00',
   endsAt: '2026-11-09T19:00:00',
-  title: 'Träning',
+  type: 'FOOTBALL',
   venue: 'Värendsvallen',
   status: 'SCHEDULED',
   cancelReason: null,
@@ -71,7 +71,7 @@ beforeEach(() => {
 test('shows header, counter and the Klar button locked while players are unmarked', async () => {
   await renderScreen();
 
-  expect(await screen.findByText('Träning')).toBeTruthy();
+  expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
   expect(screen.getByText('Mån 9 nov · 17:30–19:00')).toBeTruthy();
   expect(screen.getByText(/1 närvarande · 0 frånvarande · 0 ursäktad/)).toBeTruthy();
   expect(screen.getByText('2 ej markerade')).toBeTruthy();
@@ -81,7 +81,7 @@ test('shows header, counter and the Klar button locked while players are unmarke
 
 test('marking a player updates the row at once and calls the API', async () => {
   await renderScreen();
-  await screen.findByText('Träning');
+  await screen.findByText('Fotbollsträning');
 
   await fireEvent.press(player(12).getByRole('radio', { name: 'Frånvarande' }));
 
@@ -98,7 +98,7 @@ test('marking a player updates the row at once and calls the API', async () => {
 test('a failed mark goes back and shows the message', async () => {
   t.markTrainingAttendance.mockRejectedValueOnce(new Error('This training is cancelled'));
   await renderScreen();
-  await screen.findByText('Träning');
+  await screen.findByText('Fotbollsträning');
 
   await fireEvent.press(player(12).getByRole('radio', { name: 'Närvarande' }));
 
@@ -113,7 +113,7 @@ test('"Markera alla närvarande" marks the rest, then Klar asks and locks', asyn
     attendanceLockedAt: '2026-11-12T19:05:00',
   });
   await renderScreen();
-  await screen.findByText('Träning');
+  await screen.findByText('Fotbollsträning');
 
   await fireEvent.press(screen.getByRole('button', { name: 'Markera alla närvarande' }));
 
