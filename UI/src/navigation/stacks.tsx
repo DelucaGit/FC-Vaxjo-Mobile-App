@@ -13,6 +13,7 @@ import NewPlayerScreen from '../screens/NewPlayerScreen';
 import NewTeamScreen from '../screens/NewTeamScreen';
 import NewTrainingScreen from '../screens/NewTrainingScreen';
 import NewUserScreen from '../screens/NewUserScreen';
+import PastActivitiesScreen from '../screens/PastActivitiesScreen';
 import PlayerProfileScreen from '../screens/PlayerProfileScreen';
 import PlayerViewScreen from '../screens/PlayerViewScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
@@ -123,6 +124,13 @@ export function MoreStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="More" component={MoreScreen} />
       <Stack.Screen name="ChangePassword" component={MoreChangePasswordScreen} />
+      <Stack.Screen name="PastActivities" component={PastActivitiesScreen} />
+      {/* The detail view and the screens it opens, so a past activity works like on "Aktiviteter". */}
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+      <Stack.Screen name="EditTraining" component={EditTrainingScreen} />
+      <Stack.Screen name="CancelTraining" component={CancelTrainingScreen} />
+      <Stack.Screen name="SetResult" component={SetResultScreen} />
+      <Stack.Screen name="Attendance" component={AttendanceScreen} />
     </Stack.Navigator>
   );
 }

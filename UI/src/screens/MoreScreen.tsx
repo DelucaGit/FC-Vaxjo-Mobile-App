@@ -10,7 +10,10 @@ import { colors, sizes, spacing, type } from '../theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'More'>;
 
-/** "Mer" (spec section 7): name and role at the top, then "Byt lösenord" and "Logga ut". */
+/**
+ * "Mer" (spec section 7): name and role at the top, then
+ * "Tidigare aktiviteter", "Byt lösenord" and "Logga ut". Every role sees all three.
+ */
 export default function MoreScreen({ navigation }: Props) {
   const { session, logout } = useAuth();
   const name = useOwnName(session?.userId);
@@ -22,6 +25,9 @@ export default function MoreScreen({ navigation }: Props) {
         <Text style={type.meta}>{roleLabel(session?.roleName)}</Text>
       </View>
       <List>
+        <Row onPress={() => navigation.navigate('PastActivities')}>
+          <RowTitle>Tidigare aktiviteter</RowTitle>
+        </Row>
         <Row onPress={() => navigation.navigate('ChangePassword')}>
           <RowTitle>Byt lösenord</RowTitle>
         </Row>

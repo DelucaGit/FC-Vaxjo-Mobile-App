@@ -24,12 +24,20 @@ function isoWeekYear(value: string): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 4 - dayOfWeek).getFullYear();
 }
 
-/** Puts trainings and matches in one list, oldest first, split per ISO week. */
-export function groupByWeek(trainings: MyTraining[], matches: MyMatch[]): WeekGroup[] {
+/**
+ * Puts trainings and matches in one list, split per ISO week.
+ * Oldest first (the schedule: soonest first), or newest first for "Tidigare aktiviteter".
+ */
+export function groupByWeek(
+  trainings: MyTraining[],
+  matches: MyMatch[],
+  newestFirst = false,
+): WeekGroup[] {
+  const direction = newestFirst ? -1 : 1;
   const all: Activity[] = [
     ...trainings.map((t): Activity => ({ kind: 'training', startsAt: t.startsAt, training: t })),
     ...matches.map((m): Activity => ({ kind: 'match', startsAt: m.kickoffAt, match: m })),
-  ].sort((a, b) => toDate(a.startsAt).getTime() - toDate(b.startsAt).getTime());
+  ].sort((a, b) => direction * (toDate(a.startsAt).getTime() - toDate(b.startsAt).getTime()));
 
   const groups: WeekGroup[] = [];
   for (const activity of all) {

@@ -82,7 +82,7 @@ class MyScheduleServiceTest {
 
         when(userRepository.findById(20L)).thenReturn(Optional.of(player));
         when(userService.getRoleName(2L)).thenReturn("PLAYER");
-        when(trainingRepository.findByTeamIdOrderByStartsAtDesc(10L))
+        when(trainingRepository.listForTeam(10L, null, null))
                 .thenReturn(List.of(training));
 
         TrainingAttendance row = new TrainingAttendance();
@@ -120,7 +120,7 @@ class MyScheduleServiceTest {
         when(userRepository.findByParentIdAndActiveTrue(50L)).thenReturn(List.of(child));
         when(userService.getRoleName(2L)).thenReturn("PLAYER");
         when(userRepository.findById(20L)).thenReturn(Optional.of(child));
-        when(trainingRepository.findByTeamIdOrderByStartsAtDesc(10L))
+        when(trainingRepository.listForTeam(10L, null, null))
                 .thenReturn(List.of(training));
         when(attendanceRepository.findByTrainingIdAndPlayerUserId(100L, 20L))
                 .thenReturn(Optional.empty());

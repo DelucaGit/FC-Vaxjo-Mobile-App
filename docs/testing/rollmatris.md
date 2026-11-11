@@ -185,6 +185,7 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
 | `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post. `trainingStatus` visar CANCELLED när träningen är inställd | Stämmer |
 | `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
+| `?when=upcoming\|past` på `GET /api/my/trainings`, `/api/my/matches`, `/api/trainings`, `/api/matches` | Filtret smalnar bara av listan. Samma lag- och personregler som utan filter (tränare för annat lag 403, annat barn 403). `upcoming` från midnatt idag (Europe/Stockholm), `past` före. Annat värde 400 | Stämmer (`ActivityWhenFilterTest`) |
 | `GET /api/my/coaches` | PLAYER och PARENT, samma personregler som träningarna (okänt barn 404). Bara de aktiva tränarna i det egna (barnets) laget, med id, namn, e-post och telefon (ADR 0009). Inte andra lags tränare. ADMIN, CHAIRMAN och COACH 403 | Stämmer (`MyCoachesAccessTest`) |
 
 ### Planerade publika anrop
