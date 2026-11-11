@@ -25,6 +25,7 @@ import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.model.TrainingStatus;
+import se.fcvaxjo.api.model.TrainingType;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.RoleRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
@@ -310,7 +311,10 @@ public class DemoClubSeeder implements CommandLineRunner {
             training.setTeamId(team.getId());
             training.setStartsAt(startsAt);
             training.setEndsAt(endsAt);
-            training.setTitle("Training " + i);
+            // Every third demo training is physical training, so both types show up.
+            TrainingType type = i % 3 == 0 ? TrainingType.FITNESS : TrainingType.FOOTBALL;
+            training.setType(type);
+            training.setTitle(type.swedishName());
             training.setCreatedByUserId(coachUserId);
             training.setStatus(TrainingStatus.SCHEDULED);
             Training saved = trainingRepository.save(training);

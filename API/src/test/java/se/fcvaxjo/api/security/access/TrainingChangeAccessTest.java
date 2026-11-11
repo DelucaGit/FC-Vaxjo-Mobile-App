@@ -21,10 +21,10 @@ import se.fcvaxjo.api.support.SampleRequests;
 class TrainingChangeAccessTest extends ClubApiTest {
 
     @Test
-    void admin_canChangeTimePlaceAndTitle() throws Exception {
+    void admin_canChangeTimePlaceAndType() throws Exception {
         put(Actor.ADMIN, oneTraining(), SampleRequests.trainingChange())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Flyttad testtraning"))
+                .andExpect(jsonPath("$.type").value("FITNESS"))
                 .andExpect(jsonPath("$.venue").value("Nya hallen"))
                 .andExpect(jsonPath("$.status").value("SCHEDULED"));
     }
@@ -163,13 +163,13 @@ class TrainingChangeAccessTest extends ClubApiTest {
     }
 
     @Test
-    void player_seesTheNewTitleAfterAnEdit() throws Exception {
+    void player_seesTheNewTypeAfterAnEdit() throws Exception {
         put(Actor.COACH_ALFA, oneTraining(), SampleRequests.trainingChange())
                 .andExpect(status().isOk());
 
         get(Actor.PLAYER_ALFA, "/api/my/trainings")
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Flyttad testtraning")))
+                .andExpect(jsonPath("$[0].type").value("FITNESS"))
                 .andExpect(content().string(containsString("Nya hallen")));
     }
 
