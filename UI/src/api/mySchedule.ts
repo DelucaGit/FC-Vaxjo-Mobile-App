@@ -1,6 +1,7 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
 import { HomeAway, MatchResult } from './matches';
+import type { TrainingType } from './trainingTypes';
 import { queryString, requestJson, type ActivityWhen } from './request';
 
 export type MyChild = {
@@ -16,7 +17,7 @@ export type MyTraining = {
   teamName: string;
   startsAt: string;
   endsAt: string;
-  title: string;
+  type: TrainingType;
   venue?: string | null;
   playerUserId: number;
   playerName: string;

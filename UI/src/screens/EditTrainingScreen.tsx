@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getTraining, updateTraining } from '../api/trainings';
+import { trainingTypeName, type TrainingType } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
 import { Button, Screen } from '../components/ui';
@@ -21,6 +22,8 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
   const { trainingId } = route.params;
   const { session } = useAuth();
   const [values, setValues] = useState<TrainingFormValues | null>(null);
+  // Not editable: kept from the saved training and sent back on PUT.
+  const [trainingType, setTrainingType] = useState<TrainingType | null>(null);
   // The start time as saved, so an old training can still get a new place.
   const [savedStart, setSavedStart] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -31,6 +34,7 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
     getTraining(trainingId)
       .then((training) => {
         if (!active) return;
+        setTrainingType(training.type);
         setValues(formValuesFrom(training));
         setSavedStart(training.startsAt);
       })
@@ -51,11 +55,11 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
     isPastStart(payload.startsAt);
 
   const save = async () => {
-    if (!payload || startPassed) return;
+    if (!payload || !trainingType || startPassed) return;
     setSaving(true);
     setError(null);
     try {
-      await updateTraining(trainingId, payload);
+      await updateTraining(trainingId, { type: trainingType, ...payload });
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -65,7 +69,7 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
 
   return (
     <Screen
-      title="Redigera träning"
+      title={trainingType ? `Redigera ${trainingTypeName(trainingType).toLowerCase()}` : 'Redigera träning'}
       onBack={() => navigation.goBack()}
       bottom={
         <Button

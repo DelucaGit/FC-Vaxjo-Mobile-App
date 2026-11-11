@@ -39,7 +39,7 @@ const training = {
   teamName: 'P2014',
   startsAt: '2026-11-03T17:30:00',
   endsAt: '2026-11-03T19:00:00',
-  title: 'Passning',
+  type: 'FITNESS' as const,
   venue: 'Konstgräset',
   status: 'SCHEDULED',
   cancelReason: null,
@@ -83,11 +83,11 @@ test.each(['COACH', 'CHAIRMAN', 'ADMIN'])(
     expect(listMatches).toHaveBeenCalledWith(10, 'past');
 
     // Newest first: the match (8 Nov) comes before the training (3 Nov).
-    const titles = screen.getAllByText(/Passning|Match mot/).map((n) => n.props.children);
-    expect(titles).toEqual(['Match mot Östers IF', 'Passning']);
+    const titles = screen.getAllByText(/Fysträning|Match mot/).map((n) => n.props.children);
+    expect(titles).toEqual(['Match mot Östers IF', 'Fysträning']);
     expect(screen.getByText('3–1')).toBeTruthy();
-    // No "Ny träning" here: this screen is for looking back.
-    expect(screen.queryByText('Ny träning')).toBeNull();
+    // No create buttons here: this screen is for looking back.
+    expect(screen.queryByText('Lägg till fysträning')).toBeNull();
 
     await fireEvent.press(screen.getByTestId('activity-training-1'));
     expect(navigation.navigate).toHaveBeenCalledWith('ActivityDetail', { kind: 'training', id: 1 });

@@ -9,6 +9,7 @@ import {
   setTrainingCancelled,
   type Training,
 } from '../api/trainings';
+import { trainingTypeName } from '../api/trainingTypes';
 import {
   Button,
   DateText,
@@ -126,7 +127,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
       {training ? (
         <>
           <View style={styles.head}>
-            <Text style={[type.heading, cancelled && styles.struck]}>{training.title}</Text>
+            <Text style={[type.heading, cancelled && styles.struck]}>{trainingTypeName(training.type)}</Text>
             <DateText start={training.startsAt} end={training.endsAt} />
           </View>
           <List>

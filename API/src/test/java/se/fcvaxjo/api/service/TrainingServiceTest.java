@@ -31,6 +31,7 @@ import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.model.TrainingType;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
@@ -101,10 +102,11 @@ class TrainingServiceTest {
             return t;
         });
 
-        Training created = trainingService.createTraining(10L, start, end, "Evening");
+        Training created = trainingService.createTraining(10L, start, end, "FITNESS");
 
         assertEquals(100L, created.getId());
-        assertEquals("Evening", created.getTitle());
+        assertEquals(TrainingType.FITNESS, created.getType());
+        assertEquals("Fysträning", created.getTitle());
         // Issue #86: the list follows the team while open, so nothing is copied on create.
         verify(attendanceRepository, never()).save(any(TrainingAttendance.class));
     }
@@ -152,7 +154,7 @@ class TrainingServiceTest {
         LocalDateTime end = LocalDateTime.of(2026, 10, 27, 15, 0);
 
         assertThrows(BadRequestException.class,
-                () -> trainingService.createTraining(10L, start, end, null));
+                () -> trainingService.createTraining(10L, start, end, "FOOTBALL"));
     }
 
     @Test
@@ -192,7 +194,7 @@ class TrainingServiceTest {
             return training;
         });
 
-        Training created = trainingService.createTraining(10L, start, end, "Chairman evening");
+        Training created = trainingService.createTraining(10L, start, end, "FOOTBALL");
 
         assertEquals(100L, created.getId());
         assertEquals(70L, created.getCreatedByUserId());
@@ -242,7 +244,7 @@ class TrainingServiceTest {
             return training;
         });
 
-        Training created = trainingService.createTraining(10L, start, end, "Own team");
+        Training created = trainingService.createTraining(10L, start, end, "FOOTBALL");
 
         assertEquals(101L, created.getId());
         assertEquals(80L, created.getCreatedByUserId());
@@ -280,7 +282,7 @@ class TrainingServiceTest {
         LocalDateTime start = LocalDateTime.of(2026, 11, 6, 18, 0);
         LocalDateTime end = LocalDateTime.of(2026, 11, 6, 19, 30);
         assertThrows(AccessDeniedException.class,
-                () -> trainingService.createTraining(11L, start, end, "Other team"));
+                () -> trainingService.createTraining(11L, start, end, "FOOTBALL"));
 
         Training training = new Training();
         training.setId(102L);

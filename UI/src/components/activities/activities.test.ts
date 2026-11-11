@@ -15,7 +15,7 @@ const training: Training = {
   teamName: 'P2014',
   startsAt: '2026-11-12T17:30:00',
   endsAt: '2026-11-12T19:00:00',
-  title: 'Träning',
+  type: 'FOOTBALL',
   venue: null,
   status: 'SCHEDULED',
   cancelReason: null,
@@ -37,6 +37,11 @@ const match: Match = {
 };
 
 describe('activityItems', () => {
+  test('training row shows the Swedish type name', () => {
+    expect(fromTraining(training).title).toBe('Fotbollsträning');
+    expect(fromTraining({ ...training, type: 'FITNESS' }).title).toBe('Fysträning');
+  });
+
   test('match row has title, result and place with Hemma/Borta', () => {
     const item = fromMatch(match);
     expect(item.title).toBe('Match mot Östers IF');
@@ -79,7 +84,6 @@ describe('trainingForm', () => {
 
   test('builds local date-times and drops an empty venue', () => {
     expect(toTrainingPayload({ ...NEW_TRAINING_DEFAULTS, date: '2026-11-12' })).toEqual({
-      title: 'Träning',
       startsAt: '2026-11-12T17:30:00',
       endsAt: '2026-11-12T19:00:00',
       venue: null,
@@ -91,12 +95,10 @@ describe('trainingForm', () => {
     expect(toTrainingPayload({ ...base, end: '17:30' })).toBeNull();
     expect(toTrainingPayload({ ...base, date: '2026-02-31' })).toBeNull();
     expect(toTrainingPayload({ ...base, start: '25:00' })).toBeNull();
-    expect(toTrainingPayload({ ...base, title: '  ' })).toBeNull();
   });
 
   test('fills the form from a saved training', () => {
     expect(formValuesFrom({ ...training, venue: 'Konstgräset' })).toEqual({
-      title: 'Träning',
       date: '2026-11-12',
       start: '17:30',
       end: '19:00',

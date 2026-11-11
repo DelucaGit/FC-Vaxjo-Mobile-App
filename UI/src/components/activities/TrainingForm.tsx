@@ -15,7 +15,6 @@ export function TrainingForm({ values, onChange }: Props) {
 
   return (
     <View style={styles.form}>
-      <Field label="Titel" value={values.title} onChangeText={set('title')} />
       <Field
         label="Datum"
         value={values.date}

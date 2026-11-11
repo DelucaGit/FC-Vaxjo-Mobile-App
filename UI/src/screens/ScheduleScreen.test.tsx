@@ -26,7 +26,7 @@ function training(overrides: Partial<MyTraining>): MyTraining {
     teamName: 'P12 Alfa',
     startsAt: '2026-11-09T17:30:00',
     endsAt: '2026-11-09T19:00:00',
-    title: 'Passningsövning',
+    type: 'FOOTBALL',
     venue: 'Värendsvallen',
     playerUserId: 7,
     playerName: 'Elsa Lind',
@@ -66,8 +66,8 @@ afterEach(() => {
 
 test('groups activities under their ISO week, oldest first', async () => {
   mockTrainings.mockResolvedValue([
-    training({ id: 1, startsAt: '2026-11-16T17:30:00', endsAt: '2026-11-16T19:00:00', title: 'Skott' }),
-    training({ id: 2, title: 'Passningsövning' }),
+    training({ id: 1, startsAt: '2026-11-16T17:30:00', endsAt: '2026-11-16T19:00:00', type: 'FITNESS' }),
+    training({ id: 2, type: 'FOOTBALL' }),
   ]);
   mockMatches.mockResolvedValue([match({ id: 3 })]);
 
@@ -75,8 +75,8 @@ test('groups activities under their ISO week, oldest first', async () => {
 
   expect(await screen.findByText('Vecka 46')).toBeTruthy();
   expect(screen.getByText('Vecka 47')).toBeTruthy();
-  const titles = screen.getAllByText(/Passningsövning|Match mot Östers IF|Skott/).map((n) => n.props.children);
-  expect(titles).toEqual(['Passningsövning', 'Match mot Östers IF', 'Skott']);
+  const titles = screen.getAllByText(/Fotbollsträning|Match mot Östers IF|Fysträning/).map((n) => n.props.children);
+  expect(titles).toEqual(['Fotbollsträning', 'Match mot Östers IF', 'Fysträning']);
   // A player sends no childId.
   expect(mockTrainings).toHaveBeenCalledWith(undefined, 'upcoming');
   expect(mockChildren).not.toHaveBeenCalled();
@@ -107,7 +107,7 @@ test('a cancelled training is struck through and shows the reason', async () => 
   await render(<ScheduleScreen />);
 
   expect(await screen.findByText('Inställd · Snö på planen')).toBeTruthy();
-  const title = screen.getByText('Passningsövning');
+  const title = screen.getByText('Fotbollsträning');
   expect(title).toHaveStyle({ textDecorationLine: 'line-through' });
   // No attendance on a cancelled training.
   expect(screen.queryByText('Frånvarande')).toBeNull();
@@ -145,19 +145,19 @@ test('a parent with two children picks one by first name and the schedule follow
   ];
   mockChildren.mockResolvedValue(children);
   mockTrainings.mockImplementation(async (childId) => [
-    training({ id: childId ?? 0, title: childId === 12 ? 'Noahs träning' : 'Elsas träning' }),
+    training({ id: childId ?? 0, type: childId === 12 ? 'FITNESS' : 'FOOTBALL' }),
   ]);
   mockMatches.mockResolvedValue([]);
 
   await render(<ScheduleScreen />);
 
-  expect(await screen.findByText('Elsas träning')).toBeTruthy();
+  expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
   expect(mockTrainings).toHaveBeenCalledWith(11, 'upcoming');
   expect(mockMatches).toHaveBeenCalledWith(11, 'upcoming');
 
   await fireEvent.press(screen.getByText('Noah'));
 
-  expect(await screen.findByText('Noahs träning')).toBeTruthy();
+  expect(await screen.findByText('Fysträning')).toBeTruthy();
   expect(mockTrainings).toHaveBeenLastCalledWith(12, 'upcoming');
   expect(mockMatches).toHaveBeenLastCalledWith(12, 'upcoming');
 });
@@ -201,13 +201,13 @@ test('asks only for upcoming activities and does not show past ones', async () =
     id: 1,
     startsAt: '2026-11-02T17:30:00',
     endsAt: '2026-11-02T19:00:00',
-    title: 'Gammal',
+    type: 'FITNESS',
   });
   const coming = training({
     id: 2,
     startsAt: '2026-11-12T17:30:00',
     endsAt: '2026-11-12T19:00:00',
-    title: 'Ny',
+    type: 'FOOTBALL',
   });
   mockTrainings.mockImplementation(async (_childId, when) =>
     when === 'upcoming' ? [coming] : [past, coming],
@@ -218,8 +218,8 @@ test('asks only for upcoming activities and does not show past ones', async () =
 
   await render(<ScheduleScreen />);
 
-  expect(await screen.findByText('Ny')).toBeTruthy();
-  expect(screen.queryByText('Gammal')).toBeNull();
+  expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
+  expect(screen.queryByText('Fysträning')).toBeNull();
   expect(screen.queryByText('Match mot Östers IF')).toBeNull();
   expect(mockTrainings).toHaveBeenCalledWith(undefined, 'upcoming');
   expect(mockMatches).toHaveBeenCalledWith(undefined, 'upcoming');
@@ -227,14 +227,15 @@ test('asks only for upcoming activities and does not show past ones', async () =
 
 test('keeps the soonest activity first', async () => {
   mockTrainings.mockResolvedValue([
-    training({ id: 1, startsAt: '2026-11-12T17:30:00', endsAt: '2026-11-12T19:00:00', title: 'Torsdag' }),
-    training({ id: 2, startsAt: '2026-11-10T17:30:00', endsAt: '2026-11-10T19:00:00', title: 'Tisdag' }),
+    training({ id: 1, startsAt: '2026-11-12T17:30:00', endsAt: '2026-11-12T19:00:00', type: 'FITNESS' }),
+    training({ id: 2, startsAt: '2026-11-10T17:30:00', endsAt: '2026-11-10T19:00:00', type: 'FOOTBALL' }),
   ]);
   mockMatches.mockResolvedValue([]);
 
   await render(<ScheduleScreen />);
 
-  await screen.findByText('Tisdag');
-  const titles = screen.getAllByText(/Tisdag|Torsdag/).map((n) => n.props.children);
-  expect(titles).toEqual(['Tisdag', 'Torsdag']);
+  // Tuesday's football training comes before Thursday's fitness training.
+  await screen.findByText('Fotbollsträning');
+  const titles = screen.getAllByText(/Fotbollsträning|Fysträning/).map((n) => n.props.children);
+  expect(titles).toEqual(['Fotbollsträning', 'Fysträning']);
 });

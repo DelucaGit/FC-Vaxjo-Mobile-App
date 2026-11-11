@@ -1,6 +1,9 @@
 package se.fcvaxjo.api.security.access;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import se.fcvaxjo.api.model.HomeAway;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Training;
+import se.fcvaxjo.api.model.TrainingType;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.support.Actor;
@@ -29,9 +33,9 @@ import se.fcvaxjo.api.support.ClubFixture;
  */
 class ActivityWhenFilterTest extends ClubApiTest {
 
-    private static final String YESTERDAY_ALFA = "Passerat pass Alfa";
-    private static final String THIS_MORNING_ALFA = "Morgonpass Alfa";
-    private static final String YESTERDAY_BETA = "Passerat pass Beta";
+    // Trainings have no title in the JSON any more (#118), so they are told apart by id.
+    private long yesterdayAlfaId;
+    private long thisMorningAlfaId;
     private static final String OLD_OPPONENT_ALFA = "Gammal motstandare Alfa";
     private static final String OLD_OPPONENT_BETA = "Gammal motstandare Beta";
 
@@ -44,9 +48,9 @@ class ActivityWhenFilterTest extends ClubApiTest {
     @BeforeEach
     void addPastAndTodayActivities() {
         // The fixture's own trainings and matches are later in 2026, so they are upcoming.
-        saveTraining(world.teamAlfaId(), YESTERDAY_ALFA, LocalDateTime.of(2025, 12, 31, 18, 0));
-        saveTraining(world.teamAlfaId(), THIS_MORNING_ALFA, LocalDateTime.of(2026, 1, 1, 8, 0));
-        saveTraining(world.teamBetaId(), YESTERDAY_BETA, LocalDateTime.of(2025, 12, 31, 18, 0));
+        yesterdayAlfaId = saveTraining(world.teamAlfaId(), LocalDateTime.of(2025, 12, 31, 18, 0));
+        thisMorningAlfaId = saveTraining(world.teamAlfaId(), LocalDateTime.of(2026, 1, 1, 8, 0));
+        saveTraining(world.teamBetaId(), LocalDateTime.of(2025, 12, 31, 18, 0));
         saveMatch(world.teamAlfaId(), OLD_OPPONENT_ALFA, LocalDateTime.of(2025, 12, 20, 14, 0));
         saveMatch(world.teamBetaId(), OLD_OPPONENT_BETA, LocalDateTime.of(2025, 12, 20, 14, 0));
     }
@@ -56,9 +60,9 @@ class ActivityWhenFilterTest extends ClubApiTest {
         get(Actor.COACH_ALFA, "/api/trainings?teamId=" + world.teamAlfaId() + "&when=upcoming")
                 .andExpect(status().isOk())
                 // Soonest first: this morning comes before the fixture's November training.
-                .andExpect(jsonPath("$[0].title").value(THIS_MORNING_ALFA))
-                .andExpect(content().string(containsString("Testtraning Alfa")))
-                .andExpect(content().string(not(containsString(YESTERDAY_ALFA))));
+                .andExpect(jsonPath("$[0].id").value(thisMorningAlfaId))
+                .andExpect(jsonPath("$[*].id", hasItem((int) world.trainingAlfaId())))
+                .andExpect(jsonPath("$[*].id", not(hasItem((int) yesterdayAlfaId))));
     }
 
     @Test
@@ -66,7 +70,7 @@ class ActivityWhenFilterTest extends ClubApiTest {
         get(Actor.COACH_ALFA, "/api/trainings?teamId=" + world.teamAlfaId() + "&when=past")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value(YESTERDAY_ALFA));
+                .andExpect(jsonPath("$[0].id").value(yesterdayAlfaId));
     }
 
     @Test
@@ -111,9 +115,9 @@ class ActivityWhenFilterTest extends ClubApiTest {
     void player_upcomingTrainings_ownTeamFromToday() throws Exception {
         get(Actor.PLAYER_ALFA, "/api/my/trainings?when=upcoming")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value(THIS_MORNING_ALFA))
-                .andExpect(content().string(not(containsString(YESTERDAY_ALFA))))
-                .andExpect(content().string(not(containsString("Testtraning Beta"))));
+                .andExpect(jsonPath("$[0].id").value(thisMorningAlfaId))
+                .andExpect(jsonPath("$[*].id", not(hasItem((int) yesterdayAlfaId))))
+                .andExpect(jsonPath("$[*].teamId", everyItem(is((int) world.teamAlfaId()))));
     }
 
     @Test
@@ -129,7 +133,7 @@ class ActivityWhenFilterTest extends ClubApiTest {
         get(Actor.PARENT_ALFA, "/api/my/trainings?childId=" + world.playerAlfaId() + "&when=past")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value(YESTERDAY_ALFA));
+                .andExpect(jsonPath("$[0].id").value(yesterdayAlfaId));
     }
 
     @Test
@@ -138,14 +142,15 @@ class ActivityWhenFilterTest extends ClubApiTest {
                 .andExpect(status().isForbidden());
     }
 
-    private void saveTraining(Long teamId, String title, LocalDateTime startsAt) {
+    private long saveTraining(Long teamId, LocalDateTime startsAt) {
         Training training = new Training();
         training.setTeamId(teamId);
         training.setStartsAt(startsAt);
         training.setEndsAt(startsAt.plusMinutes(90));
-        training.setTitle(title);
+        training.setType(TrainingType.FOOTBALL);
+        training.setTitle(TrainingType.FOOTBALL.swedishName());
         training.setCreatedByUserId(world.adminId());
-        trainings.save(training);
+        return trainings.save(training).getId();
     }
 
     private void saveMatch(Long teamId, String opponent, LocalDateTime kickoffAt) {

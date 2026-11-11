@@ -37,8 +37,20 @@ public class Training {
     @Column(name = "ends_at", nullable = false)
     private LocalDateTime endsAt;
 
+    /**
+     * Old free-text title. The API no longer reads it (issue #118), but the column is
+     * NOT NULL, so new rows store the type's Swedish name here.
+     */
     @Column(nullable = false)
     private String title;
+
+    /**
+     * FOOTBALL or FITNESS. Null on rows saved before issue #118.
+     * Nullable so Hibernate can add the column to existing rows (no Flyway).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column
+    private TrainingType type;
 
     /**
      * Where the session is held. Null when nobody has set a place yet.
@@ -73,5 +85,10 @@ public class Training {
     /** A row saved before this column existed is still a normal training. */
     public TrainingStatus statusOrScheduled() {
         return status == null ? TrainingStatus.SCHEDULED : status;
+    }
+
+    /** A row saved before the type column existed counts as football training. */
+    public TrainingType typeOrFootball() {
+        return type == null ? TrainingType.FOOTBALL : type;
     }
 }

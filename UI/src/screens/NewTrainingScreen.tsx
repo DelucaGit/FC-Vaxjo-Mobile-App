@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createTraining } from '../api/trainings';
+import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
 import { Button, Screen } from '../components/ui';
@@ -12,8 +13,9 @@ import type { AppStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'NewTraining'>;
 
-/** "Ny träning" (spec section 7). */
+/** "Ny träning" (spec section 7). The type comes from the button pressed on "Aktiviteter". */
 export default function NewTrainingScreen({ navigation, route }: Props) {
+  const { teamId, type } = route.params;
   const { session } = useAuth();
   const [values, setValues] = useState(NEW_TRAINING_DEFAULTS);
   const [saving, setSaving] = useState(false);
@@ -30,7 +32,7 @@ export default function NewTrainingScreen({ navigation, route }: Props) {
     setSaving(true);
     setError(null);
     try {
-      await createTraining({ teamId: route.params.teamId, ...payload });
+      await createTraining({ teamId, type, ...payload });
       // Back to "Aktiviteter", which reloads on focus and shows the new training.
       navigation.goBack();
     } catch (e) {
@@ -41,7 +43,7 @@ export default function NewTrainingScreen({ navigation, route }: Props) {
 
   return (
     <Screen
-      title="Ny träning"
+      title={trainingTypeName(type)}
       onBack={() => navigation.goBack()}
       bottom={
         <Button

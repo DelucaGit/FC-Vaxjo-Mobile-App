@@ -90,7 +90,7 @@ public class MyScheduleController {
                     myScheduleService.getTeamName(t.getTeamId()),
                     t.getStartsAt(),
                     t.getEndsAt(),
-                    t.getTitle(),
+                    t.typeOrFootball().name(),
                     t.getVenue(),
                     player.getId(),
                     player.getName(),

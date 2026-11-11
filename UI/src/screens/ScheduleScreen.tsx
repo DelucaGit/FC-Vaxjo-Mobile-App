@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { listMyMatches, listMyTrainings, type MyMatch, type MyTraining } from '../api/my';
 import type { ActivityWhen } from '../api/request';
+import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { ChildPicker, useChildPicker } from '../components/schedule/ChildPicker';
 import { groupByWeek, statusLabel } from '../components/schedule/activities';
@@ -100,7 +101,7 @@ function TrainingRow({ training, now }: { training: MyTraining; now: number }) {
   const past = toDate(training.endsAt).getTime() < now;
   return (
     <Row testID={`training-${training.id}`}>
-      <RowTitle style={cancelled ? styles.cancelledTitle : undefined}>{training.title}</RowTitle>
+      <RowTitle style={cancelled ? styles.cancelledTitle : undefined}>{trainingTypeName(training.type)}</RowTitle>
       <DateText start={training.startsAt} end={training.endsAt} />
       {training.venue ? <RowMeta>{training.venue}</RowMeta> : null}
       {cancelled ? (

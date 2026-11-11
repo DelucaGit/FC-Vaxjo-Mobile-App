@@ -7,6 +7,7 @@ import {
   type AttendanceRow,
   type AttendanceStatus,
 } from '../../api/trainings';
+import { trainingTypeName } from '../../api/trainingTypes';
 import type { ActivityKind } from '../../navigation/types';
 
 export const STATUS_OPTIONS = [
@@ -59,7 +60,7 @@ export function attendanceApi(kind: ActivityKind, id: number): AttendanceApi {
     return {
       loadHeader: async () => {
         const t = await getTraining(id);
-        return { start: t.startsAt, end: t.endsAt, title: t.title, lockedAt: t.attendanceLockedAt };
+        return { start: t.startsAt, end: t.endsAt, title: trainingTypeName(t.type), lockedAt: t.attendanceLockedAt };
       },
       list: () => listTrainingAttendance(id),
       mark: (playerId, status) => markTrainingAttendance(id, playerId, status),

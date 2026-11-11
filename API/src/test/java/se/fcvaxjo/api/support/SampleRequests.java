@@ -93,7 +93,7 @@ public final class SampleRequests {
         request.setTeamId(teamId);
         request.setStartsAt(LocalDateTime.of(2026, 12, 1, 18, 0));
         request.setEndsAt(LocalDateTime.of(2026, 12, 1, 19, 0));
-        request.setTitle("Extra testtraning");
+        request.setType("FOOTBALL");
         request.setVenue("Extra hall");
         return request;
     }
@@ -102,7 +102,7 @@ public final class SampleRequests {
         UpdateTrainingRequest request = new UpdateTrainingRequest();
         request.setStartsAt(LocalDateTime.of(2026, 12, 2, 18, 0));
         request.setEndsAt(LocalDateTime.of(2026, 12, 2, 19, 30));
-        request.setTitle("Flyttad testtraning");
+        request.setType("FITNESS");
         request.setVenue("Nya hallen");
         return request;
     }

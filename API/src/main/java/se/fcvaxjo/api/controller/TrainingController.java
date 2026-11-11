@@ -51,7 +51,7 @@ public class TrainingController {
                 request.getTeamId(),
                 request.getStartsAt(),
                 request.getEndsAt(),
-                request.getTitle(),
+                request.getType(),
                 request.getVenue());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
@@ -75,7 +75,7 @@ public class TrainingController {
     }
 
     /**
-     * Changes time, place, and title. Same writers as create.
+     * Changes time, place, and training type. Same writers as create.
      * The team is not part of the body, so the attendance list stays.
      */
     @PutMapping("/{id}")
@@ -85,7 +85,7 @@ public class TrainingController {
                 id,
                 request.getStartsAt(),
                 request.getEndsAt(),
-                request.getTitle(),
+                request.getType(),
                 request.getVenue());
         return toResponse(updated);
     }
@@ -152,7 +152,7 @@ public class TrainingController {
                 trainingService.getTeamName(training.getTeamId()),
                 training.getStartsAt(),
                 training.getEndsAt(),
-                training.getTitle(),
+                training.typeOrFootball().name(),
                 training.getVenue(),
                 training.statusOrScheduled().name(),
                 training.getCancelReason(),

@@ -20,6 +20,7 @@ import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.model.TrainingStatus;
+import se.fcvaxjo.api.model.TrainingType;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
@@ -56,8 +57,8 @@ public class TrainingService {
         this.startRule = startRule;
     }
 
-    public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title) {
-        return createTraining(teamId, startsAt, endsAt, title, null);
+    public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String type) {
+        return createTraining(teamId, startsAt, endsAt, type, null);
     }
 
     /**
@@ -66,7 +67,7 @@ public class TrainingService {
      */
     @Transactional
     public Training createTraining(
-            Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title, String venue) {
+            Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String type, String venue) {
         assertCanManageTeam(teamId);
 
         if (teamId == null) {
@@ -82,13 +83,13 @@ public class TrainingService {
 
         teamService.getTeamById(teamId);
 
-        String resolvedTitle = resolvedTitle(title);
+        TrainingType resolvedType = TrainingType.fromRequest(type);
 
         Training training = new Training();
         training.setTeamId(teamId);
         training.setStartsAt(startsAt);
         training.setEndsAt(endsAt);
-        training.setTitle(resolvedTitle);
+        setType(training, resolvedType);
         training.setVenue(blankToNull(venue));
         training.setStatus(TrainingStatus.SCHEDULED);
         training.setCreatedByUserId(currentUserId());
@@ -124,14 +125,14 @@ public class TrainingService {
     }
 
     /**
-     * Changes time, place, and title. The team stays, so the attendance rows stay.
+     * Changes time, place, and training type. The team stays, so the attendance rows stay.
      * A frozen list stays frozen even if the time moves.
      * A cancelled training can still be corrected. Marking attendance stays blocked.
      * A new start time may not be in the past, except for ADMIN (issue #115).
      */
     @Transactional
     public Training updateTraining(
-            Long id, LocalDateTime startsAt, LocalDateTime endsAt, String title, String venue) {
+            Long id, LocalDateTime startsAt, LocalDateTime endsAt, String type, String venue) {
         Training training = getById(id);
         if (startsAt == null || endsAt == null) {
             throw new BadRequestException("startsAt and endsAt are required");
@@ -145,7 +146,7 @@ public class TrainingService {
         }
         training.setStartsAt(startsAt);
         training.setEndsAt(endsAt);
-        training.setTitle(resolvedTitle(title));
+        setType(training, TrainingType.fromRequest(type));
         training.setVenue(blankToNull(venue));
         return trainingRepository.save(training);
     }
@@ -318,8 +319,13 @@ public class TrainingService {
         return id;
     }
 
-    private String resolvedTitle(String title) {
-        return (title == null || title.isBlank()) ? "Training" : title.trim();
+    /**
+     * Sets the type. The old title column is NOT NULL, so it gets the Swedish name.
+     * Nothing reads the title any more (issue #118).
+     */
+    private void setType(Training training, TrainingType type) {
+        training.setType(type);
+        training.setTitle(type.swedishName());
     }
 
     private String blankToNull(String value) {

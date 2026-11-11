@@ -1,5 +1,6 @@
 import type { Match } from '../../api/matches';
 import type { AttendanceRow, Training } from '../../api/trainings';
+import { trainingTypeName } from '../../api/trainingTypes';
 import { isoWeek, toDate } from '../../lib/dates';
 import type { ActivityKind } from '../../navigation/types';
 
@@ -10,7 +11,7 @@ import type { ActivityKind } from '../../navigation/types';
 export type ActivityItem = {
   kind: ActivityKind;
   id: number;
-  /** "Träning" (the training's title) or "Match mot Östers IF". */
+  /** "Fotbollsträning" / "Fysträning" (the training type) or "Match mot Östers IF". */
   title: string;
   startsAt: string;
   /** Only trainings have an end time. */
@@ -40,7 +41,7 @@ export function fromTraining(t: Training): ActivityItem {
   return {
     kind: 'training',
     id: t.id,
-    title: t.title,
+    title: trainingTypeName(t.type),
     startsAt: t.startsAt,
     endsAt: t.endsAt,
     place: t.venue || null,
