@@ -24,6 +24,7 @@ import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.MatchAttendance;
+import se.fcvaxjo.api.service.ActivityWhen;
 import se.fcvaxjo.api.service.MatchService;
 
 /**
@@ -59,9 +60,11 @@ public class MatchController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
-    public List<MatchResponse> listByTeam(@RequestParam Long teamId) {
+    public List<MatchResponse> listByTeam(
+            @RequestParam Long teamId,
+            @RequestParam(required = false) String when) {
         List<MatchResponse> responses = new ArrayList<>();
-        for (Match match : matchService.listByTeam(teamId)) {
+        for (Match match : matchService.listByTeam(teamId, ActivityWhen.parse(when))) {
             responses.add(toResponse(match));
         }
         return responses;

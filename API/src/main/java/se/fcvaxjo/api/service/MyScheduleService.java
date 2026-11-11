@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +38,7 @@ public class MyScheduleService {
     private final TeamService teamService;
     private final TrainingAttendanceRoster roster;
     private final MatchAttendanceRoster matchRoster;
+    private final Clock clock;
 
     public MyScheduleService(
             UserRepository userRepository,
@@ -47,7 +49,8 @@ public class MyScheduleService {
             UserService userService,
             TeamService teamService,
             TrainingAttendanceRoster roster,
-            MatchAttendanceRoster matchRoster) {
+            MatchAttendanceRoster matchRoster,
+            Clock clock) {
         this.userRepository = userRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
@@ -57,6 +60,7 @@ public class MyScheduleService {
         this.teamService = teamService;
         this.roster = roster;
         this.matchRoster = matchRoster;
+        this.clock = clock;
     }
 
     public List<AppUser> listMyChildren() {
@@ -76,9 +80,16 @@ public class MyScheduleService {
      * PARENT: must pass childId of a linked child (empty list if no children).
      * Status follows the same rules as the coach's list (issue #86): a training that is due
      * is frozen first, then the player's saved row (if any) gives the status.
+     * when: null lists everything, otherwise only upcoming or past (issue #116).
+     * The person check runs first, so the filter can only narrow the list.
      */
     @Transactional
     public List<ScheduleRow> listMyTrainings(Long childId) {
+        return listMyTrainings(childId, null);
+    }
+
+    @Transactional
+    public List<ScheduleRow> listMyTrainings(Long childId, ActivityWhen when) {
         AppUser target = resolveTargetPlayer(childId);
         if (target == null) {
             return List.of();
@@ -89,7 +100,7 @@ public class MyScheduleService {
         }
 
         List<Training> trainings =
-                trainingRepository.findByTeamIdOrderByStartsAtDesc(target.getTeamId());
+                trainingRepository.listForTeam(target.getTeamId(), when, clock);
         List<ScheduleRow> rows = new ArrayList<>();
         for (Training listed : trainings) {
             Training training = roster.freezeIfDue(listed);
@@ -109,12 +120,17 @@ public class MyScheduleService {
      * PLAYER sees matches for their own team. PARENT must pass a linked child.
      */
     public List<Match> listMyMatches(Long childId) {
+        return listMyMatches(childId, null);
+    }
+
+    /** Same as {@link #listMyMatches(Long)}, narrowed by the ?when= filter (issue #116). */
+    public List<Match> listMyMatches(Long childId, ActivityWhen when) {
         AppUser target = resolveTargetPlayer(childId);
         if (target == null || target.getTeamId() == null) {
             return List.of();
         }
         List<Match> matches = new ArrayList<>();
-        for (Match listed : matchRepository.findByTeamIdOrderByKickoffAtDesc(target.getTeamId())) {
+        for (Match listed : matchRepository.listForTeam(target.getTeamId(), when, clock)) {
             matches.add(matchRoster.freezeIfDue(listed));
         }
         return matches;

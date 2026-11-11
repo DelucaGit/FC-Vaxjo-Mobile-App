@@ -682,7 +682,7 @@ paths:
     get:
       tags: [Trainings]
       operationId: listTrainingsByTeam
-      summary: Lista ett lags träningar (senaste först)
+      summary: Lista ett lags träningar (senaste först, eller filtrerat med when)
       description: |
         ADMIN och CHAIRMAN får lista träningar för vilket lag som helst.
         COACH bara lag där hen finns i `team_coaches`.
@@ -699,6 +699,7 @@ paths:
           in: query
           required: true
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
           description: Träningar.
@@ -947,7 +948,7 @@ paths:
     get:
       tags: [Matches]
       operationId: listMatchesByTeam
-      summary: Lista ett lags matcher (senaste avspark först)
+      summary: Lista ett lags matcher (senaste avspark först, eller filtrerat med when)
       description: |
         ADMIN och CHAIRMAN får lista matcher för vilket lag som helst.
         COACH bara lag där hen finns i `team_coaches`.
@@ -965,6 +966,7 @@ paths:
           in: query
           required: true
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
           description: Matcher.
@@ -1195,9 +1197,10 @@ paths:
           required: false
           description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
-          description: Matcher (senaste avspark först).
+          description: Matcher (senaste avspark först; med `when=upcoming` närmast först).
           content:
             application/json:
               schema:
@@ -1303,9 +1306,10 @@ paths:
           required: false
           description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
-          description: Schemarader (senaste först).
+          description: Schemarader (senaste först; med `when=upcoming` närmast först).
           content:
             application/json:
               schema:
@@ -1456,6 +1460,20 @@ components:
       required: false
       description: Filtrera på lag.
       schema: { type: integer, format: int64 }
+    ActivityWhenQuery:
+      name: when
+      in: query
+      required: false
+      description: |
+        Kommande eller tidigare aktiviteter (issue #116). "Idag" räknas i Europe/Stockholm.
+        - `upcoming`: från och med midnatt idag, närmast först. Dagens aktiviteter syns hela dagen.
+        - `past`: före midnatt idag, senaste först.
+        - Utelämnad: allt, senaste först (som tidigare).
+        Annat värde ger 400 "Ogiltigt värde för when. Använd upcoming eller past."
+        Filtret smalnar bara av listan; lag- och personbehörighet är oförändrad.
+      schema:
+        type: string
+        enum: [upcoming, past]
     UserId:
       name: id
       in: path

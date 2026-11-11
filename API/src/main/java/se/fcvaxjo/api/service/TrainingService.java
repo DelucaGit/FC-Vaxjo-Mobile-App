@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ public class TrainingService {
     private final TeamCoachRepository teamCoachRepository;
     private final UserRepository userRepository;
     private final TrainingAttendanceRoster roster;
+    private final Clock clock;
 
     public TrainingService(
             TrainingRepository trainingRepository,
@@ -40,13 +42,15 @@ public class TrainingService {
             TeamService teamService,
             TeamCoachRepository teamCoachRepository,
             UserRepository userRepository,
-            TrainingAttendanceRoster roster) {
+            TrainingAttendanceRoster roster,
+            Clock clock) {
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
         this.userRepository = userRepository;
         this.roster = roster;
+        this.clock = clock;
     }
 
     public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String title) {
@@ -88,13 +92,21 @@ public class TrainingService {
     }
 
     public List<Training> listByTeam(Long teamId) {
+        return listByTeam(teamId, null);
+    }
+
+    /**
+     * @param when null lists everything, otherwise only upcoming or past (issue #116).
+     *             The team check runs first, so the filter can only narrow the list.
+     */
+    public List<Training> listByTeam(Long teamId, ActivityWhen when) {
         if (teamId == null) {
             throw new BadRequestException("teamId is required");
         }
         assertCanManageTeam(teamId);
         teamService.getTeamById(teamId);
         List<Training> trainings = new ArrayList<>();
-        for (Training training : trainingRepository.findByTeamIdOrderByStartsAtDesc(teamId)) {
+        for (Training training : trainingRepository.listForTeam(teamId, when, clock)) {
             trainings.add(roster.freezeIfDue(training));
         }
         return trainings;

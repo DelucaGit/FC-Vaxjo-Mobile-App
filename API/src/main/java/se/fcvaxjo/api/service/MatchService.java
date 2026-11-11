@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ public class MatchService {
     private final MatchAttendanceRepository attendanceRepository;
     private final UserRepository userRepository;
     private final MatchAttendanceRoster roster;
+    private final Clock clock;
 
     public MatchService(
             MatchRepository matchRepository,
@@ -52,13 +54,15 @@ public class MatchService {
             TeamCoachRepository teamCoachRepository,
             MatchAttendanceRepository attendanceRepository,
             UserRepository userRepository,
-            MatchAttendanceRoster roster) {
+            MatchAttendanceRoster roster,
+            Clock clock) {
         this.matchRepository = matchRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
         this.attendanceRepository = attendanceRepository;
         this.userRepository = userRepository;
         this.roster = roster;
+        this.clock = clock;
     }
 
     @Transactional
@@ -103,6 +107,14 @@ public class MatchService {
     }
 
     public List<Match> listByTeam(Long teamId) {
+        return listByTeam(teamId, null);
+    }
+
+    /**
+     * @param when null lists everything, otherwise only upcoming or past (issue #116).
+     *             The team check runs first, so the filter can only narrow the list.
+     */
+    public List<Match> listByTeam(Long teamId, ActivityWhen when) {
         if (teamId == null) {
             throw new BadRequestException("teamId is required");
         }
@@ -110,7 +122,7 @@ public class MatchService {
         assertCanManageTeam(teamId);
         teamService.getTeamById(teamId);
         List<Match> matches = new ArrayList<>();
-        for (Match match : matchRepository.findByTeamIdOrderByKickoffAtDesc(teamId)) {
+        for (Match match : matchRepository.listForTeam(teamId, when, clock)) {
             matches.add(roster.freezeIfDue(match));
         }
         return matches;
