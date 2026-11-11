@@ -46,6 +46,8 @@ export type AppStackParamList = {
   // Mer
   More: undefined;
   ChangePassword: undefined;
+  /** "Tidigare aktiviteter": every role, newest first. */
+  PastActivities: undefined;
 };
 
 /** All tabs that exist. Which ones a user sees depends on the role (tabsForRole). */
