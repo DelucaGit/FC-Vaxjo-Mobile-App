@@ -58,6 +58,10 @@ class TrainingServiceTest {
     @Mock
     private TrainingAttendanceRoster roster;
 
+    /** The past-start rule is tested over HTTP (ActivityStartInPastTest). */
+    @Mock
+    private ActivityStartRule startRule;
+
     @InjectMocks
     private TrainingService trainingService;
 

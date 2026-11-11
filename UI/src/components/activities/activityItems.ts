@@ -69,10 +69,14 @@ export function fromMatch(m: Match): ActivityItem {
 
 export type WeekGroup = { key: string; items: ActivityItem[] };
 
-/** Sorts by start time and puts the activities of one ISO week together. */
-export function groupByWeek(items: readonly ActivityItem[]): WeekGroup[] {
+/**
+ * Sorts by start time and puts the activities of one ISO week together.
+ * Oldest first (soonest first for upcoming), or newest first for "Tidigare aktiviteter".
+ */
+export function groupByWeek(items: readonly ActivityItem[], newestFirst = false): WeekGroup[] {
+  const direction = newestFirst ? -1 : 1;
   const sorted = [...items].sort(
-    (a, b) => toDate(a.startsAt).getTime() - toDate(b.startsAt).getTime(),
+    (a, b) => direction * (toDate(a.startsAt).getTime() - toDate(b.startsAt).getTime()),
   );
   const groups: WeekGroup[] = [];
   for (const item of sorted) {

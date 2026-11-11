@@ -78,7 +78,7 @@ test('groups activities under their ISO week, oldest first', async () => {
   const titles = screen.getAllByText(/Fotbollsträning|Match mot Östers IF|Fysträning/).map((n) => n.props.children);
   expect(titles).toEqual(['Fotbollsträning', 'Match mot Östers IF', 'Fysträning']);
   // A player sends no childId.
-  expect(mockTrainings).toHaveBeenCalledWith(undefined);
+  expect(mockTrainings).toHaveBeenCalledWith(undefined, 'upcoming');
   expect(mockChildren).not.toHaveBeenCalled();
 });
 
@@ -152,14 +152,14 @@ test('a parent with two children picks one by first name and the schedule follow
   await render(<ScheduleScreen />);
 
   expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
-  expect(mockTrainings).toHaveBeenCalledWith(11);
-  expect(mockMatches).toHaveBeenCalledWith(11);
+  expect(mockTrainings).toHaveBeenCalledWith(11, 'upcoming');
+  expect(mockMatches).toHaveBeenCalledWith(11, 'upcoming');
 
   await fireEvent.press(screen.getByText('Noah'));
 
   expect(await screen.findByText('Fysträning')).toBeTruthy();
-  expect(mockTrainings).toHaveBeenLastCalledWith(12);
-  expect(mockMatches).toHaveBeenLastCalledWith(12);
+  expect(mockTrainings).toHaveBeenLastCalledWith(12, 'upcoming');
+  expect(mockMatches).toHaveBeenLastCalledWith(12, 'upcoming');
 });
 
 test('a parent with one child sees no picker', async () => {
@@ -172,7 +172,7 @@ test('a parent with one child sees no picker', async () => {
 
   expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
   expect(screen.queryByText('Elsa')).toBeNull();
-  expect(mockTrainings).toHaveBeenCalledWith(11);
+  expect(mockTrainings).toHaveBeenCalledWith(11, 'upcoming');
 });
 
 test('a parent without children sees "Inga aktiviteter" and no schedule call', async () => {
@@ -193,4 +193,49 @@ test('shows the Swedish error message from the API', async () => {
 
   expect(await screen.findByText('Du har inte behörighet att göra detta.')).toBeTruthy();
   expect(screen.queryByText('Inga aktiviteter')).toBeNull();
+});
+
+test('asks only for upcoming activities and does not show past ones', async () => {
+  // The fake API answers like the real one: `upcoming` leaves out what has already been.
+  const past = training({
+    id: 1,
+    startsAt: '2026-11-02T17:30:00',
+    endsAt: '2026-11-02T19:00:00',
+    type: 'FITNESS',
+  });
+  const coming = training({
+    id: 2,
+    startsAt: '2026-11-12T17:30:00',
+    endsAt: '2026-11-12T19:00:00',
+    type: 'FOOTBALL',
+  });
+  mockTrainings.mockImplementation(async (_childId, when) =>
+    when === 'upcoming' ? [coming] : [past, coming],
+  );
+  mockMatches.mockImplementation(async (_childId, when) =>
+    when === 'upcoming' ? [] : [match({ id: 3, kickoffAt: '2026-11-01T10:00:00' })],
+  );
+
+  await render(<ScheduleScreen />);
+
+  expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
+  expect(screen.queryByText('Fysträning')).toBeNull();
+  expect(screen.queryByText('Match mot Östers IF')).toBeNull();
+  expect(mockTrainings).toHaveBeenCalledWith(undefined, 'upcoming');
+  expect(mockMatches).toHaveBeenCalledWith(undefined, 'upcoming');
+});
+
+test('keeps the soonest activity first', async () => {
+  mockTrainings.mockResolvedValue([
+    training({ id: 1, startsAt: '2026-11-12T17:30:00', endsAt: '2026-11-12T19:00:00', type: 'FITNESS' }),
+    training({ id: 2, startsAt: '2026-11-10T17:30:00', endsAt: '2026-11-10T19:00:00', type: 'FOOTBALL' }),
+  ]);
+  mockMatches.mockResolvedValue([]);
+
+  await render(<ScheduleScreen />);
+
+  // Tuesday's football training comes before Thursday's fitness training.
+  await screen.findByText('Fotbollsträning');
+  const titles = screen.getAllByText(/Fotbollsträning|Fysträning/).map((n) => n.props.children);
+  expect(titles).toEqual(['Fotbollsträning', 'Fysträning']);
 });

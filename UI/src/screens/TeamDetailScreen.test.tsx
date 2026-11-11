@@ -9,9 +9,6 @@ import {
 } from '../components/teams/testData';
 import TeamDetailScreen from './TeamDetailScreen';
 
-// The first render loads the icon and navigation code, which can pass 5 s on a busy machine.
-jest.setTimeout(20000);
-
 jest.mock('../api/teams');
 jest.mock('@react-navigation/native', () => {
   const { useEffect } = jest.requireActual('react');
@@ -54,7 +51,7 @@ describe('TeamDetailScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('AddCoach', { teamId: 1 });
 
     await fireEvent.press(screen.getByTestId('player-10'));
-    expect(navigation.navigate).toHaveBeenCalledWith('PlayerProfile', { userId: 10 });
+    expect(navigation.navigate).toHaveBeenCalledWith('PlayerView', { userId: 10 });
 
     await fireEvent.press(screen.getByRole('button', { name: 'Ny spelare' }));
     expect(navigation.navigate).toHaveBeenCalledWith('NewPlayer', { teamId: 1 });

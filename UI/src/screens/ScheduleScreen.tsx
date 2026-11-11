@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { listMyMatches, listMyTrainings, type MyMatch, type MyTraining } from '../api/my';
+import type { ActivityWhen } from '../api/request';
 import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { ChildPicker, useChildPicker } from '../components/schedule/ChildPicker';
@@ -13,10 +14,25 @@ import { colors, spacing, type } from '../theme';
 type Data = { trainings: MyTraining[]; matches: MyMatch[]; now: number };
 
 /**
- * "Schema" for PLAYER and PARENT (spec section 7): the team's trainings and
- * matches per week. A parent with several children picks one at the top.
+ * "Schema" for PLAYER and PARENT (spec section 7): today's and coming trainings
+ * and matches per week, soonest first. A parent with several children picks one at the top.
  */
 export default function ScheduleScreen() {
+  return <MyActivityList title="Schema" when="upcoming" />;
+}
+
+type ListProps = {
+  title: string;
+  /** upcoming: the schedule (soonest first). past: "Tidigare aktiviteter" (newest first). */
+  when: ActivityWhen;
+  onBack?: () => void;
+};
+
+/**
+ * The player's or parent's own trainings and matches, per week.
+ * Shared by "Schema" and "Tidigare aktiviteter" so both use the same child picker and rows.
+ */
+export function MyActivityList({ title, when, onBack }: ListProps) {
   const { session } = useAuth();
   const picker = useChildPicker(session?.roleName);
   const isParent = session?.roleName === 'PARENT';
@@ -33,7 +49,7 @@ export default function ScheduleScreen() {
       return;
     }
     let active = true;
-    Promise.all([listMyTrainings(childId), listMyMatches(childId)])
+    Promise.all([listMyTrainings(childId, when), listMyMatches(childId, when)])
       .then(([trainings, matches]) => {
         if (!active) return;
         setData({ trainings, matches, now: Date.now() });
@@ -45,15 +61,15 @@ export default function ScheduleScreen() {
     return () => {
       active = false;
     };
-  }, [picker.loading, noChild, childId]);
+  }, [picker.loading, noChild, childId, when]);
 
   const shownError = picker.error ?? error;
-  const groups = data && !noChild ? groupByWeek(data.trainings, data.matches) : [];
+  const groups = data && !noChild ? groupByWeek(data.trainings, data.matches, when === 'past') : [];
   const loaded = noChild || data != null;
   const now = data?.now ?? 0;
 
   return (
-    <Screen title="Schema">
+    <Screen title={title} onBack={onBack}>
       <ChildPicker state={picker} />
       {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
       {!shownError && loaded && groups.length === 0 ? <Empty text="Inga aktiviteter" /> : null}

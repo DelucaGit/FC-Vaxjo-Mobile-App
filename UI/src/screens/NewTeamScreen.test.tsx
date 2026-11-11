@@ -4,9 +4,6 @@ import { createTeam } from '../api/teams';
 import { FORBIDDEN_TEXT, forbiddenError, makeNavigation } from '../components/teams/testData';
 import NewTeamScreen from './NewTeamScreen';
 
-// The first render loads the icon and navigation code, which can pass 5 s on a busy machine.
-jest.setTimeout(20000);
-
 jest.mock('../api/teams');
 
 type Props = ComponentProps<typeof NewTeamScreen>;

@@ -13,7 +13,9 @@ import NewPlayerScreen from '../screens/NewPlayerScreen';
 import NewTeamScreen from '../screens/NewTeamScreen';
 import NewTrainingScreen from '../screens/NewTrainingScreen';
 import NewUserScreen from '../screens/NewUserScreen';
+import PastActivitiesScreen from '../screens/PastActivitiesScreen';
 import PlayerProfileScreen from '../screens/PlayerProfileScreen';
+import PlayerViewScreen from '../screens/PlayerViewScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SetResultScreen from '../screens/SetResultScreen';
@@ -75,6 +77,7 @@ export function SquadStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Squad" component={SquadScreen} />
+      <Stack.Screen name="PlayerView" component={PlayerViewScreen} />
       <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
       <Stack.Screen name="NewPlayer" component={NewPlayerScreen} />
     </Stack.Navigator>
@@ -85,6 +88,7 @@ export function SearchStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Search" component={SearchScreen} />
+      <Stack.Screen name="PlayerView" component={PlayerViewScreen} />
       <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
     </Stack.Navigator>
   );
@@ -95,6 +99,7 @@ export function TeamsStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Teams" component={TeamsScreen} />
       <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
+      <Stack.Screen name="PlayerView" component={PlayerViewScreen} />
       <Stack.Screen name="NewTeam" component={NewTeamScreen} />
       <Stack.Screen name="AddCoach" component={AddCoachScreen} />
       <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
@@ -119,6 +124,13 @@ export function MoreStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="More" component={MoreScreen} />
       <Stack.Screen name="ChangePassword" component={MoreChangePasswordScreen} />
+      <Stack.Screen name="PastActivities" component={PastActivitiesScreen} />
+      {/* The detail view and the screens it opens, so a past activity works like on "Aktiviteter". */}
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+      <Stack.Screen name="EditTraining" component={EditTrainingScreen} />
+      <Stack.Screen name="CancelTraining" component={CancelTrainingScreen} />
+      <Stack.Screen name="SetResult" component={SetResultScreen} />
+      <Stack.Screen name="Attendance" component={AttendanceScreen} />
     </Stack.Navigator>
   );
 }

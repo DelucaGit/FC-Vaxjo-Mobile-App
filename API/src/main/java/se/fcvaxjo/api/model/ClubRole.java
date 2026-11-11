@@ -68,6 +68,15 @@ public enum ClubRole {
     }
 
     /**
+     * A training or match start that has already passed (issue #115).
+     * Only ADMIN, so history can be fixed. A chairman or coach would
+     * only put mistakes into the schedule and the attendance numbers.
+     */
+    public boolean canSetPastActivityTime() {
+        return this == ADMIN;
+    }
+
+    /**
      * People on every team, not only the teams in team_coaches.
      * ADMIN and CHAIRMAN look after the whole club, so the list, the search
      * and a single user are not limited to one team.

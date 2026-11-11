@@ -82,7 +82,10 @@ const cases: Case[] = [
   // my
   ['listMyTrainings', () => listMyTrainings(), 'GET', '/my/trainings'],
   ['listMyTrainings (child)', () => listMyTrainings(7), 'GET', '/my/trainings?childId=7'],
+  ['listMyTrainings (upcoming)', () => listMyTrainings(undefined, 'upcoming'), 'GET', '/my/trainings?when=upcoming'],
+  ['listMyTrainings (child, past)', () => listMyTrainings(7, 'past'), 'GET', '/my/trainings?childId=7&when=past'],
   ['listMyMatches', () => listMyMatches(), 'GET', '/my/matches'],
+  ['listMyMatches (child, upcoming)', () => listMyMatches(7, 'upcoming'), 'GET', '/my/matches?childId=7&when=upcoming'],
   ['listMyMatches (child)', () => listMyMatches(7), 'GET', '/my/matches?childId=7'],
   ['listMyChildren', () => listMyChildren(), 'GET', '/my/children'],
   ['listMyCoaches (child)', () => listMyCoaches(7), 'GET', '/my/coaches?childId=7'],
@@ -97,6 +100,7 @@ const cases: Case[] = [
   ['removeTeamCoach', () => removeTeamCoach(3, 9), 'DELETE', '/teams/3/coaches/9'],
   // trainings
   ['listTrainings', () => listTrainings(3), 'GET', '/trainings?teamId=3'],
+  ['listTrainings (past)', () => listTrainings(3, 'past'), 'GET', '/trainings?teamId=3&when=past'],
   ['getTraining', () => getTraining(5), 'GET', '/trainings/5'],
   [
     'createTraining',
@@ -137,6 +141,7 @@ const cases: Case[] = [
   ['lockTrainingAttendance', () => lockTrainingAttendance(5), 'PUT', '/trainings/5/attendance/lock'],
   // matches
   ['listMatches', () => listMatches(3), 'GET', '/matches?teamId=3'],
+  ['listMatches (upcoming)', () => listMatches(3, 'upcoming'), 'GET', '/matches?teamId=3&when=upcoming'],
   ['getMatch', () => getMatch(8), 'GET', '/matches/8'],
   [
     'createMatch',

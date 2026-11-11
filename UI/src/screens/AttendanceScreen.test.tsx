@@ -18,9 +18,6 @@ jest.mock('../api/matches', () => ({
   lockMatchAttendance: jest.fn(),
 }));
 
-// The first render loads the icon library, which is slow on a cold cache.
-jest.setTimeout(30000);
-
 const t = jest.mocked(trainings);
 const m = jest.mocked(matches);
 

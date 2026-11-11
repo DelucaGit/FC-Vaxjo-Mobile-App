@@ -24,6 +24,7 @@ import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.service.ActivityWhen;
 import se.fcvaxjo.api.service.TrainingService;
 
 /**
@@ -57,9 +58,11 @@ public class TrainingController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
-    public List<TrainingResponse> listByTeam(@RequestParam Long teamId) {
+    public List<TrainingResponse> listByTeam(
+            @RequestParam Long teamId,
+            @RequestParam(required = false) String when) {
         List<TrainingResponse> responses = new ArrayList<>();
-        for (Training training : trainingService.listByTeam(teamId)) {
+        for (Training training : trainingService.listByTeam(teamId, ActivityWhen.parse(when))) {
             responses.add(toResponse(training));
         }
         return responses;

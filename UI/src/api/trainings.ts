@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
-import { requestJson, withJson } from './request';
+import { queryString, requestJson, withJson, type ActivityWhen } from './request';
 import type { TrainingType } from './trainingTypes';
 
 /** SCHEDULED is the normal state. CANCELLED keeps the row and a reason. */
@@ -46,14 +46,9 @@ export type UpdateTrainingInput = {
   venue?: string | null;
 };
 
-export async function listTrainings(teamId: number): Promise<Training[]> {
-  const response = await apiFetch(
-    `${API_BASE_URL}/trainings?teamId=${encodeURIComponent(String(teamId))}`,
-  );
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-  return response.json();
+/** Without `when` you get every training of the team, newest first. */
+export function listTrainings(teamId: number, when?: ActivityWhen): Promise<Training[]> {
+  return requestJson(`/trainings${queryString({ teamId, when })}`);
 }
 
 export async function createTraining(input: CreateTrainingInput): Promise<Training> {

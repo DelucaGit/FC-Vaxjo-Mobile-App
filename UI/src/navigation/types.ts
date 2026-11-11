@@ -7,7 +7,7 @@ export type ActivityKind = 'training' | 'match';
  * Every screen inside the tabs (spec section 7), with its params.
  *
  * All tab stacks share this one list. Each stack registers only the routes it needs,
- * so e.g. PlayerProfile can be opened from Laget, Lag, Sök and Användare.
+ * so e.g. PlayerView can be opened from Laget, Lag and Sök.
  * Ids are the API's numeric ids.
  */
 export type AppStackParamList = {
@@ -35,6 +35,8 @@ export type AppStackParamList = {
   TeamDetail: { teamId: number };
   NewTeam: undefined;
   AddCoach: { teamId: number };
+  /** A player's details, read only. "Redigera" opens PlayerProfile. */
+  PlayerView: { userId: number };
   PlayerProfile: { userId: number };
   /** teamId preselects the team when opened from a team page. */
   NewPlayer: { teamId?: number } | undefined;
@@ -48,6 +50,8 @@ export type AppStackParamList = {
   // Mer
   More: undefined;
   ChangePassword: undefined;
+  /** "Tidigare aktiviteter": every role, newest first. */
+  PastActivities: undefined;
 };
 
 /** All tabs that exist. Which ones a user sees depends on the role (tabsForRole). */

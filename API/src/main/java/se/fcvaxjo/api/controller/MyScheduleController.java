@@ -22,6 +22,7 @@ import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.Training;
+import se.fcvaxjo.api.service.ActivityWhen;
 import se.fcvaxjo.api.service.MyScheduleService;
 import se.fcvaxjo.api.service.MyScheduleService.ScheduleRow;
 import se.fcvaxjo.api.service.TeamService;
@@ -77,9 +78,10 @@ public class MyScheduleController {
     @GetMapping("/trainings")
     @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
     public List<MyTrainingResponse> listTrainings(
-            @RequestParam(required = false) Long childId) {
+            @RequestParam(required = false) Long childId,
+            @RequestParam(required = false) String when) {
         List<MyTrainingResponse> responses = new ArrayList<>();
-        for (ScheduleRow row : myScheduleService.listMyTrainings(childId)) {
+        for (ScheduleRow row : myScheduleService.listMyTrainings(childId, ActivityWhen.parse(when))) {
             Training t = row.training();
             AppUser player = row.player();
             responses.add(new MyTrainingResponse(
@@ -106,9 +108,11 @@ public class MyScheduleController {
      */
     @GetMapping("/matches")
     @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
-    public List<MyMatchResponse> listMatches(@RequestParam(required = false) Long childId) {
+    public List<MyMatchResponse> listMatches(
+            @RequestParam(required = false) Long childId,
+            @RequestParam(required = false) String when) {
         List<MyMatchResponse> responses = new ArrayList<>();
-        for (Match match : myScheduleService.listMyMatches(childId)) {
+        for (Match match : myScheduleService.listMyMatches(childId, ActivityWhen.parse(when))) {
             responses.add(new MyMatchResponse(
                     match.getId(),
                     match.getTeamId(),
