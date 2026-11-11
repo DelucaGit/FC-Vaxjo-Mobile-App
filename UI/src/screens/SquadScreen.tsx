@@ -61,7 +61,7 @@ export default function SquadScreen({ navigation }: Props) {
         <TeamRoster
           coaches={roster.coaches}
           players={roster.players}
-          onPlayerPress={(player) => navigation.navigate('PlayerProfile', { userId: player.id })}
+          onPlayerPress={(player) => navigation.navigate('PlayerView', { userId: player.id })}
         />
       ) : null}
     </Screen>

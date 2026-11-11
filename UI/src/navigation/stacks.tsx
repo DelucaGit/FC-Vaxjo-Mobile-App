@@ -15,6 +15,7 @@ import NewTrainingScreen from '../screens/NewTrainingScreen';
 import NewUserScreen from '../screens/NewUserScreen';
 import PastActivitiesScreen from '../screens/PastActivitiesScreen';
 import PlayerProfileScreen from '../screens/PlayerProfileScreen';
+import PlayerViewScreen from '../screens/PlayerViewScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SetResultScreen from '../screens/SetResultScreen';
@@ -76,6 +77,7 @@ export function SquadStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Squad" component={SquadScreen} />
+      <Stack.Screen name="PlayerView" component={PlayerViewScreen} />
       <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
       <Stack.Screen name="NewPlayer" component={NewPlayerScreen} />
     </Stack.Navigator>
@@ -86,6 +88,7 @@ export function SearchStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Search" component={SearchScreen} />
+      <Stack.Screen name="PlayerView" component={PlayerViewScreen} />
       <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
     </Stack.Navigator>
   );
@@ -96,6 +99,7 @@ export function TeamsStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Teams" component={TeamsScreen} />
       <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
+      <Stack.Screen name="PlayerView" component={PlayerViewScreen} />
       <Stack.Screen name="NewTeam" component={NewTeamScreen} />
       <Stack.Screen name="AddCoach" component={AddCoachScreen} />
       <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />

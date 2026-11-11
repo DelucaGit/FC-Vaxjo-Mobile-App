@@ -82,12 +82,12 @@ describe('SquadScreen', () => {
     expect(screen.queryByText('Ta bort')).toBeNull();
   });
 
-  test('opens the player profile and Ny spelare', async () => {
+  test('opens the player view and Ny spelare', async () => {
     jest.mocked(listMyTeams).mockResolvedValue([{ id: 5, name: 'P14' }]);
     const navigation = await renderSquad();
 
     await fireEvent.press(await screen.findByTestId('player-10'));
-    expect(navigation.navigate).toHaveBeenCalledWith('PlayerProfile', { userId: 10 });
+    expect(navigation.navigate).toHaveBeenCalledWith('PlayerView', { userId: 10 });
 
     await fireEvent.press(screen.getByRole('button', { name: 'Ny spelare' }));
     expect(navigation.navigate).toHaveBeenCalledWith('NewPlayer', { teamId: 5 });
