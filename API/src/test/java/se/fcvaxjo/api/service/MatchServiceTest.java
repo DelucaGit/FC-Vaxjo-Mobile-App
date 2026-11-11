@@ -56,6 +56,10 @@ class MatchServiceTest {
     @Mock
     private MatchAttendanceRoster roster;
 
+    /** The past-start rule is tested over HTTP (ActivityStartInPastTest). */
+    @Mock
+    private ActivityStartRule startRule;
+
     @InjectMocks
     private MatchService matchService;
 
