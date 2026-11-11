@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { TrainingType } from '../api/trainingTypes';
 
 export type ActivityKind = 'training' | 'match';
 
@@ -17,7 +18,8 @@ export type AppStackParamList = {
   // Tränare / Ordförande / Admin: activities
   Activities: undefined;
   ActivityDetail: { kind: ActivityKind; id: number };
-  NewTraining: { teamId: number };
+  /** type comes from the button the coach pressed on "Aktiviteter". */
+  NewTraining: { teamId: number; type: TrainingType };
   EditTraining: { trainingId: number };
   NewMatch: { teamId: number };
   CancelTraining: { trainingId: number };

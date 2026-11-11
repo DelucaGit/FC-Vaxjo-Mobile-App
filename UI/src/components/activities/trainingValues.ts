@@ -1,9 +1,9 @@
 /**
  * The fields on "Ny träning" and "Redigera träning", and the rule for when "Spara" is allowed.
  * Pure functions so the rule is easy to test without a screen.
+ * The training type is not a field: the screen knows it (button choice or saved training).
  */
 export type TrainingFormValues = {
-  title: string;
   /** "2026-11-12" */
   date: string;
   /** "17:30" */
@@ -15,7 +15,6 @@ export type TrainingFormValues = {
 };
 
 export const NEW_TRAINING_DEFAULTS: TrainingFormValues = {
-  title: 'Träning',
   date: '',
   start: '17:30',
   end: '19:00',
@@ -52,7 +51,6 @@ function toLocalDateTime(date: string, totalMinutes: number): string {
 }
 
 export type TrainingPayload = {
-  title: string;
   startsAt: string;
   endsAt: string;
   venue: string | null;
@@ -60,17 +58,15 @@ export type TrainingPayload = {
 
 /**
  * What the API gets, or null while the form is not ready:
- * title, date, start and end must be filled in, and end must be after start.
+ * date, start and end must be filled in, and end must be after start.
  */
 export function toTrainingPayload(values: TrainingFormValues): TrainingPayload | null {
-  const title = values.title.trim();
   const start = minutes(values.start);
   const end = minutes(values.end);
-  if (!title || !isValidDate(values.date) || start == null || end == null || end <= start) {
+  if (!isValidDate(values.date) || start == null || end == null || end <= start) {
     return null;
   }
   return {
-    title,
     startsAt: toLocalDateTime(values.date, start),
     endsAt: toLocalDateTime(values.date, end),
     venue: values.venue.trim() || null,
@@ -79,13 +75,11 @@ export function toTrainingPayload(values: TrainingFormValues): TrainingPayload |
 
 /** Fills the form from a saved training ("2026-11-12T17:30:00"). */
 export function formValuesFrom(training: {
-  title: string;
   startsAt: string;
   endsAt: string;
   venue: string | null;
 }): TrainingFormValues {
   return {
-    title: training.title,
     date: training.startsAt.slice(0, 10),
     start: training.startsAt.slice(11, 16),
     end: training.endsAt.slice(11, 16),

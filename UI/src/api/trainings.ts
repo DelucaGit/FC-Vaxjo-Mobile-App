@@ -1,6 +1,7 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
 import { requestJson, withJson } from './request';
+import type { TrainingType } from './trainingTypes';
 
 /** SCHEDULED is the normal state. CANCELLED keeps the row and a reason. */
 export type TrainingStatus = 'SCHEDULED' | 'CANCELLED';
@@ -11,7 +12,7 @@ export type Training = {
   teamName: string;
   startsAt: string;
   endsAt: string;
-  title: string;
+  type: TrainingType;
   venue: string | null;
   status: TrainingStatus;
   cancelReason: string | null;
@@ -33,7 +34,7 @@ export type CreateTrainingInput = {
   teamId: number;
   startsAt: string;
   endsAt: string;
-  title?: string | null;
+  type: TrainingType;
   venue?: string | null;
 };
 
@@ -41,7 +42,7 @@ export type CreateTrainingInput = {
 export type UpdateTrainingInput = {
   startsAt: string;
   endsAt: string;
-  title?: string | null;
+  type: TrainingType;
   venue?: string | null;
 };
 

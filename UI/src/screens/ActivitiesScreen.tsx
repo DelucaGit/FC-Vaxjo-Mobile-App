@@ -115,19 +115,25 @@ export default function ActivitiesScreen({ navigation }: Props) {
       title="Aktiviteter"
       bottom={
         teamId != null ? (
-          <>
+          // One button per training type, stacked: the labels are too long for one row.
+          <View style={styles.actions}>
             <Button
-              title="Ny träning"
-              style={styles.half}
-              onPress={() => navigation.navigate('NewTraining', { teamId })}
+              title="Lägg till fotbollsträning"
+              block
+              onPress={() => navigation.navigate('NewTraining', { teamId, type: 'FOOTBALL' })}
+            />
+            <Button
+              title="Lägg till fysträning"
+              block
+              onPress={() => navigation.navigate('NewTraining', { teamId, type: 'FITNESS' })}
             />
             <Button
               title="Ny match"
               variant="secondary"
-              style={styles.half}
+              block
               onPress={() => navigation.navigate('NewMatch', { teamId })}
             />
-          </>
+          </View>
         ) : undefined
       }
     >
@@ -200,7 +206,7 @@ function ActivityRow({ item, count, onPress }: RowProps) {
 }
 
 const styles = StyleSheet.create({
-  half: { flex: 1 },
+  actions: { flex: 1, gap: spacing.sm },
   picker: { paddingHorizontal: spacing.page, paddingTop: spacing.page },
   teamName: { paddingHorizontal: spacing.page, paddingTop: spacing.page },
   struck: { textDecorationLine: 'line-through', color: colors.textMuted },
