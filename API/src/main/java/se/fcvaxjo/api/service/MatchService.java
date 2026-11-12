@@ -160,6 +160,37 @@ public class MatchService {
     }
 
     /**
+     * Changes opponent, kickoff, place, and home/away (issue #127).
+     * The team stays, so the attendance rows and the result stay too.
+     * Same rules as create. A new kickoff may not be in the past, except for ADMIN (#115).
+     * Only a new kickoff is checked, so fixing the place on an old match still works.
+     */
+    @Transactional
+    public Match updateMatch(
+            Long id, String opponent, LocalDateTime kickoffAt, String venue, String homeAwayName) {
+        Match match = getById(id);
+        if (opponent == null || opponent.isBlank()) {
+            throw new BadRequestException("opponent is required");
+        }
+        if (kickoffAt == null) {
+            throw new BadRequestException("kickoffAt is required");
+        }
+        if (!kickoffAt.equals(match.getKickoffAt())) {
+            startRule.assertNotInPast(currentClubRole(), kickoffAt);
+        }
+        if (venue == null || venue.isBlank()) {
+            throw new BadRequestException("venue is required");
+        }
+        HomeAway homeAway = parseHomeAway(homeAwayName);
+
+        match.setOpponent(opponent.trim());
+        match.setKickoffAt(kickoffAt);
+        match.setVenue(venue.trim());
+        match.setHomeAway(homeAway);
+        return matchRepository.save(match);
+    }
+
+    /**
      * Sets the score, or clears it when both numbers are null
      * (for a result that was typed in wrong). One number alone is 400.
      */
