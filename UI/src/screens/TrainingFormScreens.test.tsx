@@ -1,12 +1,20 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { createTraining, getTraining, setTrainingCancelled, updateTraining } from '../api/trainings';
+import {
+  createTraining,
+  createTrainingSeries,
+  getTraining,
+  setTrainingCancelled,
+  updateTraining,
+} from '../api/trainings';
 import CancelTrainingScreen from './CancelTrainingScreen';
 import EditTrainingScreen from './EditTrainingScreen';
 import NewTrainingScreen from './NewTrainingScreen';
 import { PAST_START_MESSAGE } from '../lib/activities/startTime';
+import { NONE_CREATED_MESSAGE, TOO_MANY_MESSAGE } from '../lib/activities/trainingSeries';
 
 jest.mock('../api/trainings', () => ({
   createTraining: jest.fn(),
+  createTrainingSeries: jest.fn(),
   getTraining: jest.fn(),
   updateTraining: jest.fn(),
   setTrainingCancelled: jest.fn(),
@@ -139,6 +147,107 @@ describe('NewTrainingScreen', () => {
 
     expect(await screen.findByText(apiMessage)).toBeTruthy();
     expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+});
+
+describe('NewTrainingScreen, Upprepa varje vecka (#132)', () => {
+  // 2099-11-02 is a Monday, 2099-11-15 a Sunday: two whole weeks.
+  const fillSeries = async () => {
+    await render(<NewTrainingScreen {...props({ teamId: 10, type: 'FOOTBALL' })} />);
+    await fireEvent.changeText(screen.getByLabelText('Datum'), '2099-11-02');
+    await fireEvent(screen.getByLabelText('Upprepa varje vecka'), 'valueChange', true);
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Mån' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Tor' }));
+    await fireEvent.changeText(screen.getByLabelText('Slutdatum'), '2099-11-15');
+  };
+
+  test('the toggle shows the weekdays and the end date, off by default', async () => {
+    await render(<NewTrainingScreen {...props({ teamId: 10, type: 'FOOTBALL' })} />);
+    expect(screen.queryByLabelText('Slutdatum')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Mån' })).toBeNull();
+
+    await fireEvent(screen.getByLabelText('Upprepa varje vecka'), 'valueChange', true);
+
+    for (const day of ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']) {
+      expect(screen.getByRole('checkbox', { name: day })).toBeTruthy();
+    }
+    expect(screen.getByLabelText('Slutdatum')).toBeTruthy();
+    // The first date is now the start of the series.
+    expect(screen.getByLabelText('Startdatum')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Spara' })).toBeDisabled();
+  });
+
+  test('counts the trainings and saves the series', async () => {
+    jest.mocked(createTrainingSeries).mockResolvedValue([saved, saved, saved, saved]);
+    await fillSeries();
+
+    expect(screen.getByText('4 träningar skapas')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Tor' }));
+    expect(screen.getByText('2 träningar skapas')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Tor' }));
+
+    await fireEvent.changeText(screen.getByLabelText('Plats (valfri)'), ' Konstgräset ');
+    await fireEvent.press(screen.getByRole('button', { name: 'Spara' }));
+
+    expect(createTrainingSeries).toHaveBeenCalledWith({
+      teamId: 10,
+      type: 'FOOTBALL',
+      weekdays: ['MONDAY', 'THURSDAY'],
+      startTime: '17:30',
+      endTime: '19:00',
+      venue: 'Konstgräset',
+      fromDate: '2099-11-02',
+      toDate: '2099-11-15',
+    });
+    expect(createTraining).not.toHaveBeenCalled();
+    await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+  });
+
+  test('more than 60 trainings shows a message and locks Spara', async () => {
+    await fillSeries();
+    await fireEvent.changeText(screen.getByLabelText('Slutdatum'), '2101-12-31');
+
+    expect(screen.getByText(TOO_MANY_MESSAGE)).toBeTruthy();
+    expect(screen.queryByText(/träningar skapas/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Spara' })).toBeDisabled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Spara' }));
+    expect(createTrainingSeries).not.toHaveBeenCalled();
+  });
+
+  test('an empty answer stays on the screen with a message', async () => {
+    jest.mocked(createTrainingSeries).mockResolvedValue([]);
+    await fillSeries();
+    await fireEvent.press(screen.getByRole('button', { name: 'Spara' }));
+
+    expect(await screen.findByText(NONE_CREATED_MESSAGE)).toBeTruthy();
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
+  test("the API's error message is shown", async () => {
+    jest.mocked(createTrainingSeries).mockRejectedValue(new Error('Serverfel'));
+    await fillSeries();
+    await fireEvent.press(screen.getByRole('button', { name: 'Spara' }));
+
+    expect(await screen.findByText('Serverfel')).toBeTruthy();
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
+  test('turning the toggle off again saves one training as before', async () => {
+    jest.mocked(createTraining).mockResolvedValue(saved);
+    await fillSeries();
+    await fireEvent(screen.getByLabelText('Upprepa varje vecka'), 'valueChange', false);
+
+    expect(screen.queryByLabelText('Slutdatum')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Spara' }));
+
+    expect(createTraining).toHaveBeenCalledWith({
+      teamId: 10,
+      type: 'FOOTBALL',
+      startsAt: '2099-11-02T17:30:00',
+      endsAt: '2099-11-02T19:00:00',
+      venue: null,
+    });
+    expect(createTrainingSeries).not.toHaveBeenCalled();
   });
 });
 

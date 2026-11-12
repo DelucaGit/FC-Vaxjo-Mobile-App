@@ -86,8 +86,8 @@ test.each(['COACH', 'CHAIRMAN', 'ADMIN'])(
     const titles = screen.getAllByText(/Fysträning|Match mot/).map((n) => n.props.children);
     expect(titles).toEqual(['Match mot Östers IF', 'Fysträning']);
     expect(screen.getByText('3–1')).toBeTruthy();
-    // No create buttons here: this screen is for looking back.
-    expect(screen.queryByText('Lägg till fysträning')).toBeNull();
+    // No plus button here: this screen is for looking back.
+    expect(screen.queryByRole('button', { name: 'Lägg till aktivitet' })).toBeNull();
 
     await fireEvent.press(screen.getByTestId('activity-training-1'));
     expect(navigation.navigate).toHaveBeenCalledWith('ActivityDetail', { kind: 'training', id: 1 });

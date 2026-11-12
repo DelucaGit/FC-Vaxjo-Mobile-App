@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, sizes, spacing, type } from '../../theme';
+
+const logo = require('../../../assets/fc-logo.png');
 
 type Props = {
   title: string;
@@ -12,6 +14,8 @@ type Props = {
   right?: ReactNode;
   /** Fixed bar under the content, e.g. one or two buttons. */
   bottom?: ReactNode;
+  /** Floats on top of the content and does not scroll with it, e.g. a `FabMenu`. */
+  overlay?: ReactNode;
   /** Set to false when the content scrolls by itself (a FlatList). */
   scroll?: boolean;
   children?: ReactNode;
@@ -21,10 +25,19 @@ type Props = {
  * Frame for every screen (spec section 4): header, scrolling content, fixed bottom bar.
  * The bottom menu is drawn by the tab navigator, not here.
  */
-export function Screen({ title, onBack, right, bottom, scroll = true, children }: Props) {
+export function Screen({
+  title,
+  onBack,
+  right,
+  bottom,
+  overlay,
+  scroll = true,
+  children,
+}: Props) {
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.header}>
+        {/* Left: the back arrow, or else the club's logo and name. */}
         {onBack ? (
           <Pressable
             accessibilityRole="button"
@@ -35,20 +48,45 @@ export function Screen({ title, onBack, right, bottom, scroll = true, children }
           >
             <ChevronLeft size={sizes.icon} color={colors.text} strokeWidth={2} />
           </Pressable>
-        ) : null}
+        ) : (
+          <View style={styles.brand}>
+            <Image
+              source={logo}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel="FC Växjö"
+              accessibilityIgnoresInvertColors
+              style={styles.logo}
+            />
+            {/* Hidden from screen readers: the logo already says "FC Växjö". */}
+            <Text
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              numberOfLines={1}
+              style={styles.brandName}
+            >
+              FC Växjö
+            </Text>
+          </View>
+        )}
+        {/* Right: the title takes the space that is left, and it is the part that shrinks ("…"). */}
         <Text accessibilityRole="header" numberOfLines={1} style={[type.screenTitle, styles.title]}>
           {title}
         </Text>
         {right ? <View style={styles.right}>{right}</View> : null}
       </View>
 
-      {scroll ? (
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={styles.content}>{children}</View>
-      )}
+      {/* A wrapper, so the overlay covers the content area but not the header or bottom bar. */}
+      <View style={styles.body}>
+        {scroll ? (
+          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={styles.content}>{children}</View>
+        )}
+        {overlay}
+      </View>
 
       {bottom ? <View style={styles.bottom}>{bottom}</View> : null}
     </SafeAreaView>
@@ -66,9 +104,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: sizes.divider,
     borderBottomColor: colors.border,
   },
-  back: { marginLeft: -spacing.xs, marginRight: spacing.sm },
-  title: { flex: 1 },
+  back: { marginLeft: -spacing.xs },
+  // flexShrink 0: the logo and name never get squeezed; the title gives way instead.
+  brand: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  logo: { width: 32, height: 32 },
+  brandName: { ...type.heading, marginLeft: spacing.sm },
+  // flex 1 + minWidth 0: the title fills the free space and can shrink below its text width.
+  title: { flex: 1, minWidth: 0, marginLeft: spacing.md, textAlign: 'right' },
   right: { marginLeft: spacing.sm },
+  body: { flex: 1 },
   content: { flex: 1, backgroundColor: colors.background },
   bottom: {
     flexDirection: 'row',
