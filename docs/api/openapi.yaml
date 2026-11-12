@@ -438,6 +438,41 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/users/{id}/password-reset:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [Users]
+      operationId: resetUserPassword
+      summary: Återställ en användares lösenord
+      description: |
+        Skapar ett nytt tillfälligt lösenord på samma sätt som när ett konto skapas,
+        sparar bara hashen och sätter `mustChangePassword = true`. Lösenordet i klartext
+        finns bara i det här svaret (#128).
+        Alla äldre JWT:er för kontot slutar fungera: `passwordChangedAt` flyttas, och
+        filtret svarar 401 på en token som utfärdades en tidigare sekund.
+
+        Ingen får återställa sitt eget lösenord. Svaret är 403
+        "You cannot reset your own password. Use change password instead".
+        CHAIRMAN får inte återställa ADMIN eller CHAIRMAN. Svaret är 403
+        "CHAIRMAN cannot reset the password of an ADMIN or CHAIRMAN".
+        COACH, PLAYER och PARENT får 403 "Access Denied" på controllern.
+        Saknat id och inaktivt konto är 404 "User not found".
+      x-roles: [ADMIN, CHAIRMAN]
+      x-scope: |
+        ADMIN får återställa alla utom sig själv.
+        CHAIRMAN får återställa alla utom ADMIN och CHAIRMAN (samma regel som rollbyte), alltså inte sig själv.
+      x-source: UserController.resetPassword → UserService.resetPassword
+      responses:
+        '200':
+          description: Nytt tillfälligt lösenord. Visas en gång.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordResetResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/users/{id}/player:
     parameters:
       - $ref: '#/components/parameters/UserId'
@@ -1726,6 +1761,12 @@ components:
       properties:
         id: { type: integer, format: int64 }
         roleName: { $ref: '#/components/schemas/RoleName' }
+    PasswordResetResponse:
+      type: object
+      required: [id, temporaryPassword]
+      properties:
+        id: { type: integer, format: int64 }
+        temporaryPassword: { type: string, description: Temporärt lösenord i klartext; visas en gång., x-secret: true }
     UpdatePlayerRequest:
       type: object
       required: [name, email, teamId]

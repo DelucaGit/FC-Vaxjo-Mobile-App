@@ -6,11 +6,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import se.fcvaxjo.api.DTO.CreateUserRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
+import se.fcvaxjo.api.security.JwtService;
 import se.fcvaxjo.api.support.Actor;
 import se.fcvaxjo.api.support.ClubApiTest;
 import se.fcvaxjo.api.support.ClubFixture;
@@ -148,6 +152,124 @@ class UserDirectoryAccessTest extends ClubApiTest {
     void parent_cannotChangeRole() throws Exception {
         put(Actor.PARENT_BETA, "/api/users/" + world.extraPlayerId() + "/role", SampleRequests.role("COACH"))
                 .andExpect(status().isForbidden());
+    }
+
+    // ---- POST /api/users/{id}/password-reset (#128) ----
+
+    @Autowired
+    private JwtService jwtService;
+
+    private String resetPath(long userId) {
+        return "/api/users/" + userId + "/password-reset";
+    }
+
+    @Test
+    void admin_canResetCoachPassword() throws Exception {
+        post(Actor.ADMIN, resetPath(world.coachAlfaId()), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(world.coachAlfaId()))
+                .andExpect(jsonPath("$.temporaryPassword").isNotEmpty());
+    }
+
+    @Test
+    void admin_canResetChairmanPassword() throws Exception {
+        post(Actor.ADMIN, resetPath(world.chairmanId()), null)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void admin_cannotResetOwnPassword() throws Exception {
+        // Own password goes through change-password, which asks for the current one.
+        post(Actor.ADMIN, resetPath(world.adminId()), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void chairman_canResetCoachPassword() throws Exception {
+        post(Actor.CHAIRMAN, resetPath(world.coachAlfaId()), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.temporaryPassword").isNotEmpty());
+    }
+
+    @Test
+    void chairman_canResetPlayerPassword() throws Exception {
+        post(Actor.CHAIRMAN, resetPath(world.playerAlfaId()), null)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void chairman_cannotResetAdminPassword() throws Exception {
+        // Same rule as role change: a chairman may not act on ADMIN or CHAIRMAN.
+        post(Actor.CHAIRMAN, resetPath(world.adminId()), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void chairman_cannotResetOwnPassword() throws Exception {
+        post(Actor.CHAIRMAN, resetPath(world.chairmanId()), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void coach_cannotResetPassword() throws Exception {
+        post(Actor.COACH_ALFA, resetPath(world.playerAlfaId()), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void player_cannotResetPassword() throws Exception {
+        post(Actor.PLAYER_ALFA, resetPath(world.parentAlfaId()), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parent_cannotResetPassword() throws Exception {
+        post(Actor.PARENT_ALFA, resetPath(world.playerAlfaId()), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anon_cannotResetPassword() throws Exception {
+        post(Actor.ANON, resetPath(world.coachAlfaId()), null)
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void admin_resetUnknownUser_isNotFound() throws Exception {
+        post(Actor.ADMIN, resetPath(999_999L), null)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void reset_stopsOldTokenAndNewPasswordMustBeChanged() throws Exception {
+        // The token check compares whole seconds (S1-9). Wait until a later
+        // second than the fixture token, so the reset is clearly after it.
+        waitUntilALaterSecondThan(jwtService.getIssuedAt(token(Actor.COACH_ALFA)));
+
+        String body = post(Actor.CHAIRMAN, resetPath(world.coachAlfaId()), null)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String temporaryPassword = json.readTree(body).get("temporaryPassword").asString();
+
+        get(Actor.COACH_ALFA, "/api/teams")
+                .andExpect(status().isUnauthorized());
+
+        post(Actor.ANON, "/api/auth/login",
+                SampleRequests.login(ClubFixture.EMAIL_COACH_ALFA, sharedLogin))
+                .andExpect(status().isUnauthorized());
+
+        post(Actor.ANON, "/api/auth/login",
+                SampleRequests.login(ClubFixture.EMAIL_COACH_ALFA, temporaryPassword))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mustChangePassword").value(true));
+    }
+
+    private void waitUntilALaterSecondThan(Instant issuedAt) throws InterruptedException {
+        long nextSecondStart = (issuedAt.getEpochSecond() + 1) * 1000L;
+        long pauseMs = nextSecondStart - System.currentTimeMillis() + 50;
+        if (pauseMs > 0) {
+            Thread.sleep(pauseMs);
+        }
     }
 
     @Test
