@@ -17,7 +17,7 @@ import {
   type ParentChoice,
   type ParentOption,
 } from '../components/players/ParentPicker';
-import { Button, Field, Screen, SectionLabel, SelectField } from '../components/ui';
+import { Button, Field, Screen, SectionLabel, SelectField, useToast } from '../components/ui';
 import { parseShirtNumber, playerSaveErrorMessage } from '../lib/players/errors';
 import { loadVisibleTeams } from '../lib/players/teams';
 import type { AppStackParamList } from '../navigation/types';
@@ -27,6 +27,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'NewPlayer'>;
 
 /** Ny spelare (spec section 7): a player always gets exactly one parent. */
 export default function NewPlayerScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const role = useAuth().session?.roleName;
   const startTeamId = route.params?.teamId ?? null;
 
@@ -87,6 +88,7 @@ export default function NewPlayerScreen({ navigation, route }: Props) {
         ...parentLink,
       });
       setCreated(createdAccounts(user));
+      toast.show('Spelaren är tillagd');
     } catch (e) {
       setError(playerSaveErrorMessage(e));
       setSaving(false);

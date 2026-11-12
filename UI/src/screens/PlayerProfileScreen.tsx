@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { Team } from '../api/teams';
 import { deletePlayer, getUser, updatePlayer, type ClubUser } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
-import { Button, Confirm, Field, Screen, SectionLabel, SelectField } from '../components/ui';
+import { Button, Confirm, Field, Screen, SectionLabel, SelectField, useToast } from '../components/ui';
 import { parseShirtNumber, playerSaveErrorMessage } from '../lib/players/errors';
 import { loadVisibleTeams } from '../lib/players/teams';
 import type { AppStackParamList } from '../navigation/types';
@@ -17,6 +17,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'PlayerProfile'>;
  * The parent's contact details are edited here too and saved on the parent.
  */
 export default function PlayerProfileScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { userId } = route.params;
   const role = useAuth().session?.roleName;
 
@@ -88,6 +89,7 @@ export default function PlayerProfileScreen({ navigation, route }: Props) {
             }
           : {}),
       });
+      toast.show('Spelaren är sparad');
       navigation.goBack();
     } catch (e) {
       setError(playerSaveErrorMessage(e));
@@ -101,6 +103,7 @@ export default function PlayerProfileScreen({ navigation, route }: Props) {
     setError(null);
     try {
       await deletePlayer(userId);
+      toast.show('Spelaren är borttagen');
       navigation.goBack();
     } catch (e) {
       setError(playerSaveErrorMessage(e));

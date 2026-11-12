@@ -5,7 +5,7 @@ import { createTraining, createTrainingSeries, type CreateTrainingSeriesInput } 
 import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Screen } from '../components/ui';
+import { Button, Screen, useToast } from '../components/ui';
 import { REPEAT_OFF, RepeatWeekly, type RepeatValues } from '../components/activities/RepeatWeekly';
 import { ErrorText, TrainingForm } from '../components/activities/TrainingForm';
 import {
@@ -52,6 +52,7 @@ function toSeriesInput(
 
 /** "Ny träning" (spec section 7). The type comes from the button pressed on "Aktiviteter". */
 export default function NewTrainingScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { teamId, type } = route.params;
   const { session } = useAuth();
   const [values, setValues] = useState(NEW_TRAINING_DEFAULTS);
@@ -91,6 +92,7 @@ export default function NewTrainingScreen({ navigation, route }: Props) {
         setSaving(false);
         return;
       }
+      toast.show('Träningarna är sparade');
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -110,6 +112,7 @@ export default function NewTrainingScreen({ navigation, route }: Props) {
     try {
       await createTraining({ teamId, type, ...payload });
       // Back to "Aktiviteter", which reloads on focus and shows the new training.
+      toast.show('Träningen är sparad');
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);

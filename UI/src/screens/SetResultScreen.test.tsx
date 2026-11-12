@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getMatch, setMatchResult, type Match } from '../api/matches';
 import { readErrorMessage } from '../api/http';
 import type { AppStackParamList } from '../navigation/types';
+import { ToastProvider } from '../components/ui';
 import SetResultScreen from './SetResultScreen';
 
 jest.mock('../api/matches', () => ({ getMatch: jest.fn(), setMatchResult: jest.fn() }));
@@ -44,7 +45,11 @@ describe('SetResultScreen', () => {
   test('labels the fields with our team and the opponent; Spara locked until both are filled', async () => {
     mockedGet.mockResolvedValue(match);
     const { props } = setup();
-    await render(<SetResultScreen {...props} />);
+    await render(
+      <ToastProvider>
+        <SetResultScreen {...props} />
+      </ToastProvider>,
+    );
 
     const ours = await screen.findByLabelText('P14');
     expect(screen.getByLabelText('IFK Värnamo')).toBeTruthy();
@@ -64,7 +69,11 @@ describe('SetResultScreen', () => {
     mockedGet.mockResolvedValue(match);
     mockedSet.mockResolvedValue({ ...match, result: { goalsFor: 2, goalsAgainst: 1 } });
     const { goBack, props } = setup();
-    await render(<SetResultScreen {...props} />);
+    await render(
+      <ToastProvider>
+        <SetResultScreen {...props} />
+      </ToastProvider>,
+    );
 
     await fireEvent.changeText(await screen.findByLabelText('P14'), '2');
     await fireEvent.changeText(screen.getByLabelText('IFK Värnamo'), '1');
@@ -72,13 +81,18 @@ describe('SetResultScreen', () => {
 
     expect(mockedSet).toHaveBeenCalledWith(9, 2, 1);
     expect(goBack).toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Resultatet är sparat');
   });
 
   test('an existing result is filled in and can be removed', async () => {
     mockedGet.mockResolvedValue({ ...match, result: { goalsFor: 3, goalsAgainst: 0 } });
     mockedSet.mockResolvedValue(match);
     const { goBack, props } = setup();
-    await render(<SetResultScreen {...props} />);
+    await render(
+      <ToastProvider>
+        <SetResultScreen {...props} />
+      </ToastProvider>,
+    );
 
     expect((await screen.findByLabelText('P14')).props.value).toBe('3');
     expect(screen.getByLabelText('IFK Värnamo').props.value).toBe('0');
@@ -86,6 +100,7 @@ describe('SetResultScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Ta bort resultat' }));
     expect(mockedSet).toHaveBeenCalledWith(9, null, null);
     expect(goBack).toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Resultatet är borttaget');
   });
 
   test('shows the backend error message', async () => {
@@ -94,7 +109,11 @@ describe('SetResultScreen', () => {
       new Error('goalsFor and goalsAgainst must both be set, or both left empty'),
     );
     const { goBack, props } = setup();
-    await render(<SetResultScreen {...props} />);
+    await render(
+      <ToastProvider>
+        <SetResultScreen {...props} />
+      </ToastProvider>,
+    );
 
     await fireEvent.changeText(await screen.findByLabelText('P14'), '2');
     await fireEvent.changeText(screen.getByLabelText('IFK Värnamo'), '1');
@@ -104,6 +123,7 @@ describe('SetResultScreen', () => {
       await screen.findByText('goalsFor and goalsAgainst must both be set, or both left empty'),
     ).toBeTruthy();
     expect(goBack).not.toHaveBeenCalled();
+    expect(screen.queryByText('Resultatet är sparat')).toBeNull();
   });
 
   test('a 403 shows the Swedish message', async () => {
@@ -111,7 +131,11 @@ describe('SetResultScreen', () => {
     mockedGet.mockResolvedValue(match);
     mockedSet.mockRejectedValue(new Error(message));
     const { props } = setup();
-    await render(<SetResultScreen {...props} />);
+    await render(
+      <ToastProvider>
+        <SetResultScreen {...props} />
+      </ToastProvider>,
+    );
 
     await fireEvent.changeText(await screen.findByLabelText('P14'), '2');
     await fireEvent.changeText(screen.getByLabelText('IFK Värnamo'), '1');

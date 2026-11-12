@@ -11,6 +11,7 @@ export default function CancelTrainingScreen({ navigation, route }: Props) {
     <CancelActivityForm
       title="Ställ in träning"
       cancel={(reason) => setTrainingCancelled(route.params.trainingId, true, reason)}
+      doneMessage="Träningen är inställd"
       onBack={() => navigation.goBack()}
     />
   );

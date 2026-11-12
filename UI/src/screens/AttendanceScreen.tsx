@@ -9,7 +9,7 @@ import {
   type ActivityHeader,
 } from '../components/attendance/attendance';
 import { PlayerAttendanceRow } from '../components/attendance/PlayerAttendanceRow';
-import { Button, Confirm, DateText, Empty, List, Screen } from '../components/ui';
+import { Button, Confirm, DateText, Empty, List, Screen, useToast } from '../components/ui';
 import {
   ATTENDANCE_NOT_OPEN_MESSAGE,
   isAttendanceOpen,
@@ -26,6 +26,7 @@ function messageOf(error: unknown): string {
 
 /** Närvaro (spec section 7): mark each player, then lock the list with "Klar". */
 export default function AttendanceScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { kind, id } = route.params;
   const api = useMemo(() => attendanceApi(kind, id), [kind, id]);
 
@@ -107,6 +108,7 @@ export default function AttendanceScreen({ navigation, route }: Props) {
     try {
       const lockedAt = await api.lock();
       setHeader((current) => (current ? { ...current, lockedAt } : current));
+      toast.show('Närvaron är klar');
     } catch (e) {
       setError(messageOf(e));
     } finally {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../auth/AuthContext';
-import { Button, Field } from '../ui';
+import { Button, Field, useToast } from '../ui';
 import { accountErrorMessage, PASSWORDS_DIFFER_MESSAGE } from '../../lib/account/messages';
 import { colors, spacing, type } from '../../theme';
 
@@ -16,6 +16,7 @@ type Props = {
  * "Spara" stays locked until all three are filled and the two new ones match.
  */
 export function ChangePasswordForm({ onSaved }: Props) {
+  const toast = useToast();
   const { changePassword } = useAuth();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -32,6 +33,7 @@ export function ChangePasswordForm({ onSaved }: Props) {
     setError(null);
     try {
       await changePassword(current, next);
+      toast.show('Lösenordet är bytt');
       onSaved?.();
     } catch (err) {
       setError(accountErrorMessage(err));

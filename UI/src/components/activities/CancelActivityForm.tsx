@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Screen, TextArea } from '../ui';
+import { Button, Screen, TextArea, useToast } from '../ui';
 import { ErrorText } from './TrainingForm';
 import { spacing } from '../../theme';
 
@@ -9,6 +9,8 @@ type Props = {
   title: string;
   /** Calls the API. The reason is null when the field is left empty. */
   cancel: (reason: string | null) => Promise<unknown>;
+  /** Shown at the bottom after it worked, e.g. "Träningen är inställd". */
+  doneMessage: string;
   onBack: () => void;
 };
 
@@ -17,7 +19,8 @@ type Props = {
  * An optional reason, and a button that is the confirmation step.
  * Players and parents see the reason in their schedule.
  */
-export default function CancelActivityForm({ title, cancel, onBack }: Props) {
+export default function CancelActivityForm({ title, cancel, doneMessage, onBack }: Props) {
+  const toast = useToast();
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +30,7 @@ export default function CancelActivityForm({ title, cancel, onBack }: Props) {
     setError(null);
     try {
       await cancel(reason.trim() || null);
+      toast.show(doneMessage);
       // Back to the detail screen, which reloads on focus and shows "Inställd".
       onBack();
     } catch (e) {

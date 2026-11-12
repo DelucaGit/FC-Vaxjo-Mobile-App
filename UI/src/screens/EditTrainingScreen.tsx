@@ -5,7 +5,7 @@ import { getTraining, updateTraining } from '../api/trainings';
 import { trainingTypeName, type TrainingType } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Screen } from '../components/ui';
+import { Button, Screen, useToast } from '../components/ui';
 import { ErrorText, TrainingForm } from '../components/activities/TrainingForm';
 import {
   formValuesFrom,
@@ -19,6 +19,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'EditTraining'>;
 
 /** "Redigera träning" (spec section 7): the same fields as "Ny träning", filled in. */
 export default function EditTrainingScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { trainingId } = route.params;
   const { session } = useAuth();
   const [values, setValues] = useState<TrainingFormValues | null>(null);
@@ -60,6 +61,7 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
     setError(null);
     try {
       await updateTraining(trainingId, { type: trainingType, ...payload });
+      toast.show('Träningen är sparad');
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);

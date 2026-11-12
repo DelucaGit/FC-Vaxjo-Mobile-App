@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { ToastProvider } from './src/components/ui';
 import MainTabs from './src/navigation/MainTabs';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -53,11 +54,14 @@ export default function App() {
       <StatusBar style="dark" />
       {/* If a font fails to load, the app still starts with the system font. */}
       {fontsLoaded || fontError ? (
-        <AuthProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </AuthProvider>
+        // ToastProvider sits above the navigators, so "Träningen är sparad" stays after goBack().
+        <ToastProvider>
+          <AuthProvider>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          </AuthProvider>
+        </ToastProvider>
       ) : (
         <Loading />
       )}

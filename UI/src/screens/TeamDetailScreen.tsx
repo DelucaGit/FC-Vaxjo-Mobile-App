@@ -6,7 +6,7 @@ import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
 import { TeamRoster } from '../components/teams/TeamRoster';
 import { useTeamRoster } from '../components/teams/useTeamRoster';
-import { Button, Confirm, Screen } from '../components/ui';
+import { Button, Confirm, Screen, useToast } from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'TeamDetail'>;
@@ -16,6 +16,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'TeamDetail'>;
  * added ("Lägg till tränare") and removed ("Ta bort" with a confirm dialog).
  */
 export default function TeamDetailScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { teamId } = route.params;
   const [teamName, setTeamName] = useState('Lag');
   const [actionError, setActionError] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export default function TeamDetailScreen({ navigation, route }: Props) {
     try {
       await removeTeamCoach(teamId, coach.id);
       setActionError(null);
+      toast.show('Tränaren är borttagen');
       await roster.reload();
     } catch (e) {
       setActionError(errorMessage(e));

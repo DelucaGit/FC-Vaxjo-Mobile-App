@@ -19,7 +19,7 @@ import {
   type ParentChoice,
   type ParentOption,
 } from '../components/players/ParentPicker';
-import { Button, Field, Screen, SectionLabel, Segmented, SelectField } from '../components/ui';
+import { Button, Field, Screen, SectionLabel, Segmented, SelectField, useToast } from '../components/ui';
 import { parseShirtNumber, playerSaveErrorMessage } from '../lib/players/errors';
 import { loadVisibleTeams } from '../lib/players/teams';
 import type { AppStackParamList } from '../navigation/types';
@@ -36,6 +36,7 @@ const MAX_SEGMENTS = 3;
  * a coach gets teams later ("Lägg till tränare"), a parent only base fields.
  */
 export default function NewUserScreen({ navigation }: Props) {
+  const toast = useToast();
   const role = useAuth().session?.roleName;
   const roles = assignableRoles(role);
   const roleOptions = roles.map((r) => ({ label: roleLabel(r), value: r }));
@@ -101,6 +102,7 @@ export default function NewUserScreen({ navigation }: Props) {
     try {
       const user = await createUser(request);
       setCreated(createdAccounts(user));
+      toast.show('Användaren är skapad');
     } catch (e) {
       setError(playerSaveErrorMessage(e));
       setSaving(false);

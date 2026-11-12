@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createTeam } from '../api/teams';
 import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
-import { Button, Field, Screen } from '../components/ui';
+import { Button, Field, Screen, useToast } from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 import { spacing } from '../theme';
 
@@ -12,6 +12,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'NewTeam'>;
 
 /** Nytt lag (spec section 7): "Spara" stays locked until the name is filled in. */
 export default function NewTeamScreen({ navigation }: Props) {
+  const toast = useToast();
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +22,7 @@ export default function NewTeamScreen({ navigation }: Props) {
     setSaving(true);
     try {
       await createTeam(trimmed);
+      toast.show('Laget är skapat');
       navigation.goBack();
     } catch (e) {
       setError(errorMessage(e));
