@@ -4,6 +4,7 @@ import { listMyMatches, listMyTrainings, type MyMatch, type MyTraining } from '.
 import type { ActivityWhen } from '../api/request';
 import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
+import { cancelledLabel } from '../components/activities/activityItems';
 import { ChildPicker, useChildPicker } from '../components/schedule/ChildPicker';
 import { groupByWeek, statusLabel } from '../components/schedule/activities';
 import { DateText, Empty, List, Row, RowMeta, RowTitle, Screen, WeekLabel } from '../components/ui';
@@ -105,9 +106,7 @@ function TrainingRow({ training, now }: { training: MyTraining; now: number }) {
       <DateText start={training.startsAt} end={training.endsAt} />
       {training.venue ? <RowMeta>{training.venue}</RowMeta> : null}
       {cancelled ? (
-        <RowMeta style={styles.warning}>
-          {training.cancelReason ? `Inställd · ${training.cancelReason}` : 'Inställd'}
-        </RowMeta>
+        <RowMeta style={styles.warning}>{cancelledLabel(training.cancelReason ?? null)}</RowMeta>
       ) : past ? (
         <RowMeta>{statusLabel(training.status)}</RowMeta>
       ) : null}
@@ -116,7 +115,8 @@ function TrainingRow({ training, now }: { training: MyTraining; now: number }) {
 }
 
 function MatchRow({ match }: { match: MyMatch }) {
-  const result = match.result
+  const cancelled = match.status === 'CANCELLED';
+  const result = match.result && !cancelled
     ? `${match.result.goalsFor}–${match.result.goalsAgainst}`
     : null;
   return (
@@ -124,9 +124,12 @@ function MatchRow({ match }: { match: MyMatch }) {
       testID={`match-${match.id}`}
       right={result ? <Text style={type.rowTitle}>{result}</Text> : undefined}
     >
-      <RowTitle>{`Match mot ${match.opponent}`}</RowTitle>
+      <RowTitle style={cancelled ? styles.cancelledTitle : undefined}>{`Match mot ${match.opponent}`}</RowTitle>
       <DateText start={match.kickoffAt} />
       <RowMeta>{`${match.venue} · ${match.homeAway === 'HOME' ? 'Hemma' : 'Borta'}`}</RowMeta>
+      {cancelled ? (
+        <RowMeta style={styles.warning}>{cancelledLabel(match.cancelReason ?? null)}</RowMeta>
+      ) : null}
     </Row>
   );
 }

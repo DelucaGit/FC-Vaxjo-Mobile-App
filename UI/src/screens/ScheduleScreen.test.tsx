@@ -113,6 +113,20 @@ test('a cancelled training is struck through and shows the reason', async () => 
   expect(screen.queryByText('Frånvarande')).toBeNull();
 });
 
+test('a cancelled match is struck through, shows the reason and hides the result', async () => {
+  mockTrainings.mockResolvedValue([]);
+  mockMatches.mockResolvedValue([
+    match({ id: 1, status: 'CANCELLED', cancelReason: 'Regn', result: { goalsFor: 2, goalsAgainst: 0 } }),
+  ]);
+
+  await render(<ScheduleScreen />);
+
+  const row = await screen.findByTestId('match-1');
+  expect(within(row).getByText('Inställd · Regn')).toBeTruthy();
+  expect(within(row).getByText('Match mot Östers IF')).toHaveStyle({ textDecorationLine: 'line-through' });
+  expect(within(row).queryByText('2–0')).toBeNull();
+});
+
 test('a match shows result, venue and home/away, and no attendance', async () => {
   mockTrainings.mockResolvedValue([]);
   mockMatches.mockResolvedValue([

@@ -3,6 +3,7 @@ import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ActivityDetailScreen from '../screens/ActivityDetailScreen';
 import AddCoachScreen from '../screens/AddCoachScreen';
 import AttendanceScreen from '../screens/AttendanceScreen';
+import CancelMatchScreen from '../screens/CancelMatchScreen';
 import CancelTrainingScreen from '../screens/CancelTrainingScreen';
 import CoachesScreen from '../screens/CoachesScreen';
 import EditMatchScreen from '../screens/EditMatchScreen';
@@ -69,6 +70,7 @@ export function ActivitiesStack() {
       <Stack.Screen name="EditMatch" component={EditMatchScreen} />
       <Stack.Screen name="NewMatch" component={NewMatchScreen} />
       <Stack.Screen name="CancelTraining" component={CancelTrainingScreen} />
+      <Stack.Screen name="CancelMatch" component={CancelMatchScreen} />
       <Stack.Screen name="SetResult" component={SetResultScreen} />
       <Stack.Screen name="Attendance" component={AttendanceScreen} />
     </Stack.Navigator>
@@ -132,6 +134,7 @@ export function MoreStack() {
       <Stack.Screen name="EditTraining" component={EditTrainingScreen} />
       <Stack.Screen name="EditMatch" component={EditMatchScreen} />
       <Stack.Screen name="CancelTraining" component={CancelTrainingScreen} />
+      <Stack.Screen name="CancelMatch" component={CancelMatchScreen} />
       <Stack.Screen name="SetResult" component={SetResultScreen} />
       <Stack.Screen name="Attendance" component={AttendanceScreen} />
     </Stack.Navigator>

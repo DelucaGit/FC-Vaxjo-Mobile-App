@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
-import { HomeAway, MatchResult } from './matches';
+import { HomeAway, MatchResult, MatchStatus } from './matches';
 import type { TrainingType } from './trainingTypes';
 import { queryString, requestJson, type ActivityWhen } from './request';
 
@@ -39,6 +39,9 @@ export type MyMatch = {
   venue: string;
   homeAway: HomeAway;
   result: MatchResult | null;
+  /** SCHEDULED or CANCELLED. For matches the field is plain `status` (trainings use trainingStatus). */
+  status?: MatchStatus;
+  cancelReason?: string | null;
   attendanceLockedAt: string | null;
 };
 

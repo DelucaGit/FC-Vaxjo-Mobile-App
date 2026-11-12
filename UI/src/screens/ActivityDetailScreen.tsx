@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getMatch, listMatchAttendance, type Match } from '../api/matches';
+import { getMatch, listMatchAttendance, setMatchCancelled, type Match } from '../api/matches';
 import {
   getTraining,
   listTrainingAttendance,
@@ -85,7 +85,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
   const reactivate = async () => {
     setBusy(true);
     try {
-      await setTrainingCancelled(id, false);
+      await (kind === 'training' ? setTrainingCancelled(id, false) : setMatchCancelled(id, false));
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -96,7 +96,10 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
 
   const training = data?.kind === 'training' ? data.training : null;
   const match = data?.kind === 'match' ? data.match : null;
-  const cancelled = training?.status === 'CANCELLED';
+  const cancelled = (training ?? match)?.status === 'CANCELLED';
+  const cancelReason = training?.cancelReason ?? match?.cancelReason ?? null;
+  // Matches check the role, like "Ändra". Only staff reach trainings here.
+  const canManage = kind === 'training' || canManageActivities(session?.roleName);
   const lockedAt = training?.attendanceLockedAt ?? match?.attendanceLockedAt ?? null;
 
   let attendance: string | null = null;
@@ -106,6 +109,13 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
     attendance = unmarkedLabel(count);
   }
 
+  const statusRow = (
+    <InfoRow
+      label="Status"
+      value={<Text style={[type.body, styles.warning]}>{cancelledLabel(cancelReason)}</Text>}
+    />
+  );
+
   return (
     <Screen
       title={kind === 'training' ? 'Träning' : 'Match'}
@@ -113,7 +123,9 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
       bottom={
         data ? (
           cancelled ? (
-            <Button title="Återaktivera" block style={styles.grow} disabled={busy} onPress={reactivate} />
+            canManage ? (
+              <Button title="Återaktivera" block style={styles.grow} disabled={busy} onPress={reactivate} />
+            ) : undefined
           ) : (
             <Button
               title="Närvaro"
@@ -136,18 +148,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
           <List>
             <InfoRow label="Lag" value={training.teamName} />
             <InfoRow label="Plats" value={training.venue || '–'} />
-            {cancelled ? (
-              <InfoRow
-                label="Status"
-                value={
-                  <Text style={[type.body, styles.warning]}>
-                    {cancelledLabel(training.cancelReason)}
-                  </Text>
-                }
-              />
-            ) : attendance ? (
-              <InfoRow label="Närvaro" value={attendance} />
-            ) : null}
+            {cancelled ? statusRow : attendance ? <InfoRow label="Närvaro" value={attendance} /> : null}
           </List>
           <SectionLabel title="Åtgärder" />
           <List>
@@ -166,26 +167,40 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
       {match ? (
         <>
           <View style={styles.head}>
-            <Text style={type.heading}>{matchTitle(match)}</Text>
+            <Text style={[type.heading, cancelled && styles.struck]}>{matchTitle(match)}</Text>
             <DateText start={match.kickoffAt} />
           </View>
           <List>
             <InfoRow label="Lag" value={match.teamName} />
             <InfoRow label="Plats" value={match.venue} />
             <InfoRow label="Hemma/Borta" value={homeAwayLabel(match.homeAway)} />
-            <InfoRow label="Resultat" value={resultLabel(match.result) ?? '–'} />
-            {attendance ? <InfoRow label="Närvaro" value={attendance} /> : null}
+            {/* While cancelled the API refuses result and attendance, so neither is shown. */}
+            {cancelled ? (
+              statusRow
+            ) : (
+              <>
+                <InfoRow label="Resultat" value={resultLabel(match.result) ?? '–'} />
+                {attendance ? <InfoRow label="Närvaro" value={attendance} /> : null}
+              </>
+            )}
           </List>
           <SectionLabel title="Åtgärder" />
           <List>
-            {canManageActivities(session?.roleName) ? (
+            {canManage ? (
               <Row onPress={() => navigation.navigate('EditMatch', { matchId: id })}>
                 <RowTitle>Ändra</RowTitle>
               </Row>
             ) : null}
-            <Row onPress={() => navigation.navigate('SetResult', { matchId: id })}>
-              <RowTitle>Ange resultat</RowTitle>
-            </Row>
+            {!cancelled ? (
+              <Row onPress={() => navigation.navigate('SetResult', { matchId: id })}>
+                <RowTitle>Ange resultat</RowTitle>
+              </Row>
+            ) : null}
+            {canManage && !cancelled ? (
+              <Row onPress={() => navigation.navigate('CancelMatch', { matchId: id })}>
+                <RowTitle style={styles.danger}>Ställ in match</RowTitle>
+              </Row>
+            ) : null}
           </List>
         </>
       ) : null}

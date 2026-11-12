@@ -53,6 +53,7 @@ export function fromTraining(t: Training): ActivityItem {
 }
 
 export function fromMatch(m: Match): ActivityItem {
+  const cancelled = m.status === 'CANCELLED';
   return {
     kind: 'match',
     id: m.id,
@@ -60,9 +61,10 @@ export function fromMatch(m: Match): ActivityItem {
     startsAt: m.kickoffAt,
     endsAt: null,
     place: `${m.venue} · ${homeAwayLabel(m.homeAway)}`,
-    result: resultLabel(m.result),
-    cancelled: false,
-    cancelReason: null,
+    // A cancelled match shows "Inställd" instead of a score.
+    result: cancelled ? null : resultLabel(m.result),
+    cancelled,
+    cancelReason: m.cancelReason ?? null,
     attendanceLockedAt: m.attendanceLockedAt,
   };
 }

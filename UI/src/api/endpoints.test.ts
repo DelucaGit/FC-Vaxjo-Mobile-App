@@ -7,6 +7,7 @@ import {
   listMatches,
   lockMatchAttendance,
   markMatchAttendance,
+  setMatchCancelled,
   setMatchResult,
 } from './matches';
 import {
@@ -177,6 +178,20 @@ const cases: Case[] = [
     { teamId: 3, opponent: 'IFK', kickoffAt: time, venue: 'Arena', homeAway: 'HOME' },
   ],
   ['setMatchResult', () => setMatchResult(8, 3, 1), 'PUT', '/matches/8/result', { goalsFor: 3, goalsAgainst: 1 }],
+  [
+    'setMatchCancelled (cancel)',
+    () => setMatchCancelled(8, true, 'Regn'),
+    'PUT',
+    '/matches/8/cancellation',
+    { cancelled: true, reason: 'Regn' },
+  ],
+  [
+    'setMatchCancelled (reactivate)',
+    () => setMatchCancelled(8, false),
+    'PUT',
+    '/matches/8/cancellation',
+    { cancelled: false, reason: null },
+  ],
   ['listMatchAttendance', () => listMatchAttendance(8), 'GET', '/matches/8/attendance'],
   [
     'markMatchAttendance',
