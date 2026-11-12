@@ -68,6 +68,10 @@ public class UserService {
             "CHAIRMAN may only change a PLAYER to COACH";
     private static final String CANNOT_CHANGE_OWN_ROLE =
             "You cannot change your own role";
+    private static final String CANNOT_RESET_OWN_PASSWORD =
+            "You cannot reset your own password. Use change password instead";
+    private static final String CHAIRMAN_CANNOT_RESET_CLUB_LEAD =
+            "CHAIRMAN cannot reset the password of an ADMIN or CHAIRMAN";
 
     private static final String READ_OWN_RECORD =
             "You can only read your own user record";
@@ -842,6 +846,47 @@ public class UserService {
             return;
         }
         throw new AccessDeniedException(CHAIRMAN_MAY_ONLY_PROMOTE_PLAYER);
+    }
+
+    /**
+     * Gives the user a new temporary password, made the same way as on create.
+     * The hash is stored through {@link PasswordChange}, which moves
+     * {@code passwordChangedAt}, so every older token stops working.
+     * The user must pick a new password at the next login.
+     * Returns the plain password. It is shown once and never stored.
+     *
+     * ADMIN may reset anyone except themselves. CHAIRMAN may not reset an
+     * ADMIN or a CHAIRMAN (the same rule as role change), which also covers
+     * their own account. An inactive account answers 404, as on read.
+     */
+    @Transactional
+    public String resetPassword(Long id) {
+        AppUser user = getUserById(id);
+        if (!user.isActive()) {
+            throw userNotFound();
+        }
+        assertCallerMayResetPassword(user);
+
+        String temporaryPassword = generateTemporaryPassword();
+        PasswordChange.storeHash(user, passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+        return temporaryPassword;
+    }
+
+    private void assertCallerMayResetPassword(AppUser target) {
+        if (target.getId().equals(currentUserId())) {
+            throw new AccessDeniedException(CANNOT_RESET_OWN_PASSWORD);
+        }
+        if (hasRole("ADMIN")) {
+            return;
+        }
+        if (!hasRole("CHAIRMAN")) {
+            throw new AccessDeniedException("Only ADMIN or CHAIRMAN can reset passwords");
+        }
+        if (isClubLeadRole(getRoleName(target.getRoleId()))) {
+            throw new AccessDeniedException(CHAIRMAN_CANNOT_RESET_CLUB_LEAD);
+        }
     }
 
     /**

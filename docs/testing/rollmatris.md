@@ -95,6 +95,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `DELETE /api/users/{id}` | 204 | 204 | 204 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `PUT /api/users/{id}/role` | 200 vilken roll som helst | 200 bara PLAYER till COACH, inte egen roll, inte ADMIN/CHAIRMAN | 403 | 403 | 403 | 403 | 403 | Stämmer efter S1-8 |
+| `POST /api/users/{id}/password-reset` | 200 alla utom sig själv (403) | 200 utom ADMIN, CHAIRMAN och sig själv (403) | 403 | 403 | 403 | 403 | 403 | Nytt tillfälligt lösenord visas en gång, `mustChangePassword` blir true, gammal token ger 401. Saknat eller inaktivt id är 404. #128 |
 
 Beslut (b), stängt: en tränare får skapa en förälder bara tillsammans med en aktiv spelare i ett lag hen tränar (`newParent` på den spelaren). Allt annat om den föräldern är 400, inklusive en fristående `PARENT`. ADMIN och CHAIRMAN får skapa en förälder utan barn. En inaktiv förälder syns inte i `parentName`, `parentEmail` eller `parentMobilePhoneNumber`. Att koppla en spelare till en inaktiv förälder, eller till någon som inte är PARENT, är 400.
 
