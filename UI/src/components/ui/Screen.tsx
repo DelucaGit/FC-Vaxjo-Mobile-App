@@ -14,6 +14,8 @@ type Props = {
   right?: ReactNode;
   /** Fixed bar under the content, e.g. one or two buttons. */
   bottom?: ReactNode;
+  /** Floats on top of the content and does not scroll with it, e.g. a `FabMenu`. */
+  overlay?: ReactNode;
   /** Set to false when the content scrolls by itself (a FlatList). */
   scroll?: boolean;
   children?: ReactNode;
@@ -23,7 +25,15 @@ type Props = {
  * Frame for every screen (spec section 4): header, scrolling content, fixed bottom bar.
  * The bottom menu is drawn by the tab navigator, not here.
  */
-export function Screen({ title, onBack, right, bottom, scroll = true, children }: Props) {
+export function Screen({
+  title,
+  onBack,
+  right,
+  bottom,
+  overlay,
+  scroll = true,
+  children,
+}: Props) {
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.header}>
@@ -66,13 +76,17 @@ export function Screen({ title, onBack, right, bottom, scroll = true, children }
         {right ? <View style={styles.right}>{right}</View> : null}
       </View>
 
-      {scroll ? (
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={styles.content}>{children}</View>
-      )}
+      {/* A wrapper, so the overlay covers the content area but not the header or bottom bar. */}
+      <View style={styles.body}>
+        {scroll ? (
+          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={styles.content}>{children}</View>
+        )}
+        {overlay}
+      </View>
 
       {bottom ? <View style={styles.bottom}>{bottom}</View> : null}
     </SafeAreaView>
@@ -98,6 +112,7 @@ const styles = StyleSheet.create({
   // flex 1 + minWidth 0: the title fills the free space and can shrink below its text width.
   title: { flex: 1, minWidth: 0, marginLeft: spacing.md, textAlign: 'right' },
   right: { marginLeft: spacing.sm },
+  body: { flex: 1 },
   content: { flex: 1, backgroundColor: colors.background },
   bottom: {
     flexDirection: 'row',

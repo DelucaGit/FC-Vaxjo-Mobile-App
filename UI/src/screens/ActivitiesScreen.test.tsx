@@ -112,12 +112,58 @@ test('lists trainings and matches per week with their status', async () => {
   await fireEvent.press(matchRow);
   expect(navigation.navigate).toHaveBeenCalledWith('ActivityDetail', { kind: 'match', id: 1 });
   expect(screen.queryByText('Ny träning')).toBeNull();
-  await fireEvent.press(screen.getByText('Lägg till fotbollsträning'));
-  expect(navigation.navigate).toHaveBeenCalledWith('NewTraining', { teamId: 10, type: 'FOOTBALL' });
-  await fireEvent.press(screen.getByText('Lägg till fysträning'));
-  expect(navigation.navigate).toHaveBeenCalledWith('NewTraining', { teamId: 10, type: 'FITNESS' });
-  await fireEvent.press(screen.getByText('Ny match'));
-  expect(navigation.navigate).toHaveBeenCalledWith('NewMatch', { teamId: 10 });
+});
+
+describe('the plus button', () => {
+  const openMenu = async () => {
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByText('Inga aktiviteter');
+    await fireEvent.press(screen.getByRole('button', { name: 'Lägg till aktivitet' }));
+  };
+
+  test('is closed at first and shows the three choices on a tap', async () => {
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByText('Inga aktiviteter');
+    expect(screen.queryByText('Lägg till fotbollsträning')).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Lägg till aktivitet' }));
+    expect(screen.getByText('Lägg till fotbollsträning')).toBeTruthy();
+    expect(screen.getByText('Lägg till fysträning')).toBeTruthy();
+    expect(screen.getByText('Ny match')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Stäng' })).toBeTruthy();
+  });
+
+  test.each([
+    ['Lägg till fotbollsträning', 'NewTraining', { teamId: 10, type: 'FOOTBALL' }],
+    ['Lägg till fysträning', 'NewTraining', { teamId: 10, type: 'FITNESS' }],
+    ['Ny match', 'NewMatch', { teamId: 10 }],
+  ])('"%s" opens %s and closes the menu', async (label, route, params) => {
+    await openMenu();
+    await fireEvent.press(screen.getByText(label));
+    expect(navigation.navigate).toHaveBeenCalledWith(route, params);
+    expect(screen.queryByText(label)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lägg till aktivitet' })).toBeTruthy();
+  });
+
+  test('the × closes the menu', async () => {
+    await openMenu();
+    await fireEvent.press(screen.getByRole('button', { name: 'Stäng' }));
+    expect(screen.queryByText('Ny match')).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalled();
+  });
+
+  test('a tap on the dark area closes the menu', async () => {
+    await openMenu();
+    await fireEvent.press(screen.getByTestId('fab-backdrop'));
+    expect(screen.queryByText('Ny match')).toBeNull();
+  });
+
+  test('is missing when there is no team to create for', async () => {
+    jest.mocked(listMyTeams).mockResolvedValue([]);
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByText('Inga lag');
+    expect(screen.queryByRole('button', { name: 'Lägg till aktivitet' })).toBeNull();
+  });
 });
 
 test('a chairman picks among all teams', async () => {
@@ -165,6 +211,6 @@ test('asks only for upcoming activities and does not show past ones', async () =
   expect(screen.queryByText('Fotbollsträning')).toBeNull();
   expect(listTrainings).toHaveBeenCalledWith(10, 'upcoming');
   expect(listMatches).toHaveBeenCalledWith(10, 'upcoming');
-  // The schedule keeps its create buttons ("Tidigare aktiviteter" has none).
-  expect(screen.getByText('Lägg till fotbollsträning')).toBeTruthy();
+  // The schedule keeps its plus button ("Tidigare aktiviteter" has none).
+  expect(screen.getByRole('button', { name: 'Lägg till aktivitet' })).toBeTruthy();
 });
