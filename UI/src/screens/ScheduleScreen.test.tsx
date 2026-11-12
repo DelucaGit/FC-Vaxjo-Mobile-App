@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import type { MyChild, MyMatch, MyTraining } from '../api/my';
 import { listMyChildren, listMyMatches, listMyTrainings } from '../api/my';
+import { pullToRefresh } from '../test/pullToRefresh';
 import ScheduleScreen from './ScheduleScreen';
 
 const mockSession = { roleName: 'PLAYER', userId: 7 };
@@ -149,6 +150,31 @@ test('shows "Inga aktiviteter" when the list is empty', async () => {
   await render(<ScheduleScreen />);
 
   expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+});
+
+test('pulling the list down loads the schedule again', async () => {
+  mockTrainings.mockResolvedValue([]);
+  mockMatches.mockResolvedValue([]);
+  await render(<ScheduleScreen />);
+  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+
+  mockMatches.mockResolvedValue([match({ id: 3 })]);
+  await pullToRefresh();
+
+  expect(await screen.findByText('Match mot Östers IF')).toBeTruthy();
+  expect(mockMatches).toHaveBeenCalledTimes(2);
+});
+
+test('a failed refresh shows the same Swedish error message', async () => {
+  mockTrainings.mockResolvedValue([]);
+  mockMatches.mockResolvedValue([]);
+  await render(<ScheduleScreen />);
+  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+
+  mockTrainings.mockRejectedValue(new Error('Du har inte behörighet att göra detta.'));
+  await pullToRefresh();
+
+  expect(await screen.findByText('Du har inte behörighet att göra detta.')).toBeTruthy();
 });
 
 test('a parent with two children picks one by first name and the schedule follows', async () => {

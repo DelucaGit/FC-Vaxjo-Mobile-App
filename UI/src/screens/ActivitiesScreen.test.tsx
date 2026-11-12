@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react-native
 import { listMatchAttendance, listMatches } from '../api/matches';
 import { listMyTeams, listTeams } from '../api/teams';
 import { listTrainingAttendance, listTrainings } from '../api/trainings';
+import { pullToRefresh } from '../test/pullToRefresh';
 import ActivitiesScreen from './ActivitiesScreen';
 
 jest.mock('../api/teams', () => ({ listTeams: jest.fn(), listMyTeams: jest.fn() }));
@@ -198,6 +199,31 @@ test('a chairman picks among all teams', async () => {
   await screen.findByText('Inga aktiviteter');
   expect(listTrainings).toHaveBeenLastCalledWith(20, 'upcoming');
   expect(listMatches).toHaveBeenLastCalledWith(20, 'upcoming');
+});
+
+test('pulling the list down loads the activities again', async () => {
+  await render(<ActivitiesScreen {...props} />);
+  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+
+  jest.mocked(listTrainings).mockResolvedValue([training] as never);
+  await pullToRefresh();
+
+  expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
+  expect(screen.queryByText('Inga aktiviteter')).toBeNull();
+});
+
+test('a failed refresh shows the same error message', async () => {
+  await render(<ActivitiesScreen {...props} />);
+  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+
+  jest.mocked(listTrainings).mockRejectedValue(
+    new Error('Den här funktionen är inte tillgänglig för din roll än.'),
+  );
+  await pullToRefresh();
+
+  expect(
+    await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),
+  ).toBeTruthy();
 });
 
 test('shows the error message from the API', async () => {

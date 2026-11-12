@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { listMyCoaches, type MyCoach } from '../api/my';
 import { getUserById } from '../api/users';
@@ -13,6 +13,7 @@ import {
   Screen,
   SectionLabel,
   TelLink,
+  useRefresh,
 } from '../components/ui';
 import { colors, spacing, type } from '../theme';
 
@@ -35,40 +36,53 @@ export default function CoachesScreen() {
   // A parent without children has no team to ask about.
   const noChild = isParent && !picker.loading && child == null;
 
+  /**
+   * `isActive` lets the effect ignore an answer for a child that is no longer chosen.
+   * Written with .then (not async/await) so the lint rule can see that setState runs later.
+   */
+  const load = useCallback(
+    (isActive: () => boolean = () => true) => {
+      if (picker.loading || noChild) {
+        return Promise.resolve();
+      }
+      // /api/my/coaches has no team name. A parent has it on the child; a player
+      // reads it from their own user (GET /api/users/{own id} is allowed).
+      const teamName: Promise<string | null> = isParent
+        ? Promise.resolve(child?.teamName ?? null)
+        : userId != null
+          ? // The label is a nice-to-have: without it the coaches still show.
+            getUserById(userId)
+              .then((me) => me.teamName)
+              .catch(() => null)
+          : Promise.resolve(null);
+      return Promise.all([teamName, listMyCoaches(child?.id)])
+        .then(([name, coaches]) => {
+          if (!isActive()) return;
+          setData({ teamName: name, coaches });
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Något gick fel');
+        });
+    },
+    [picker.loading, noChild, isParent, child, userId],
+  );
+
   useEffect(() => {
-    if (picker.loading || noChild) {
-      return;
-    }
-    // /api/my/coaches has no team name. A parent has it on the child; a player
-    // reads it from their own user (GET /api/users/{own id} is allowed).
-    const teamName: Promise<string | null> = isParent
-      ? Promise.resolve(child?.teamName ?? null)
-      : userId != null
-        ? // The label is a nice-to-have: without it the coaches still show.
-          getUserById(userId)
-            .then((me) => me.teamName)
-            .catch(() => null)
-        : Promise.resolve(null);
     let active = true;
-    Promise.all([teamName, listMyCoaches(child?.id)])
-      .then(([name, coaches]) => {
-        if (!active) return;
-        setData({ teamName: name, coaches });
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Något gick fel');
-      });
+    void load(() => active);
     return () => {
       active = false;
     };
-  }, [picker.loading, noChild, isParent, child, userId]);
+  }, [load]);
+  // Pulling the list down runs the same load again.
+  const refresh = useRefresh(load);
 
   const shownError = picker.error ?? error;
   const coaches = noChild ? [] : data?.coaches;
 
   return (
-    <Screen title="Tränare">
+    <Screen title="Tränare" refresh={refresh}>
       <ChildPicker state={picker} />
       {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
       {!shownError && coaches && coaches.length === 0 ? <Empty text="Inga tränare" /> : null}

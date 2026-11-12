@@ -7,6 +7,7 @@ import {
   makeNavigation,
   makeUser,
 } from '../components/teams/testData';
+import { pullToRefresh } from '../test/pullToRefresh';
 import SquadScreen from './SquadScreen';
 
 jest.mock('../api/teams');
@@ -91,6 +92,23 @@ describe('SquadScreen', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Ny spelare' }));
     expect(navigation.navigate).toHaveBeenCalledWith('NewPlayer', { teamId: 5 });
+  });
+
+  test('pulling the list down loads the players again and keeps the chosen team', async () => {
+    jest.mocked(listMyTeams).mockResolvedValue([
+      { id: 5, name: 'P14' },
+      { id: 6, name: 'F12' },
+    ]);
+    await renderSquad();
+    await screen.findByText('Elsa Ek');
+    await fireEvent.press(screen.getByRole('radio', { name: 'F12' }));
+
+    jest.mocked(listTeamPlayers).mockResolvedValue([makeUser({ id: 11, name: 'Leo Ek' })]);
+    await pullToRefresh();
+
+    expect(await screen.findByText('Leo Ek')).toBeTruthy();
+    expect(listMyTeams).toHaveBeenCalledTimes(2);
+    expect(listTeamPlayers).toHaveBeenLastCalledWith(6);
   });
 
   test('shows the Swedish message on 403', async () => {

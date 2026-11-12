@@ -3,6 +3,7 @@ import { readErrorMessage } from '../api/http';
 import * as matches from '../api/matches';
 import * as trainings from '../api/trainings';
 import type { AttendanceRow } from '../api/trainings';
+import { pullToRefresh } from '../test/pullToRefresh';
 import AttendanceScreen from './AttendanceScreen';
 
 jest.mock('../api/trainings', () => ({
@@ -238,6 +239,33 @@ test('a 403 shows the Swedish message', async () => {
   const forbidden = await readErrorMessage(new Response('Access Denied', { status: 403 }));
   t.listTrainingAttendance.mockRejectedValue(new Error(forbidden));
   await renderScreen();
+
+  expect(
+    await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),
+  ).toBeTruthy();
+});
+
+test('pulling the list down loads the attendance again', async () => {
+  await renderScreen();
+  expect(await screen.findByText('2 ej markerade')).toBeTruthy();
+
+  // Another coach marked Bo in the meantime.
+  t.listTrainingAttendance.mockResolvedValue(
+    rows().map((row) => (row.playerUserId === 12 ? { ...row, status: 'ABSENT' } : row)),
+  );
+  await pullToRefresh();
+
+  expect(await screen.findByText('1 ej markerade')).toBeTruthy();
+  expect(t.listTrainingAttendance).toHaveBeenCalledTimes(2);
+});
+
+test('a failed refresh shows the same Swedish message', async () => {
+  await renderScreen();
+  expect(await screen.findByText('2 ej markerade')).toBeTruthy();
+
+  const forbidden = await readErrorMessage(new Response('Access Denied', { status: 403 }));
+  t.listTrainingAttendance.mockRejectedValue(new Error(forbidden));
+  await pullToRefresh();
 
   expect(
     await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),

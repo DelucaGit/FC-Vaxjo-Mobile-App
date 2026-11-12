@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { listUsers } from '../api/users';
 import { makeNavigation, makeUser } from '../components/users/testUtils';
+import { pullToRefresh } from '../test/pullToRefresh';
 import UsersScreen from './UsersScreen';
 
 jest.mock('../api/users', () => ({ listUsers: jest.fn() }));
@@ -47,6 +48,18 @@ describe('UsersScreen', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Sök'), 'xyz');
     expect(screen.getByText('Inga träffar')).toBeTruthy();
+  });
+
+  test('pulling the list down loads the users again', async () => {
+    await renderUsers();
+    await screen.findByText('Elsa Berg');
+
+    mockedList.mockResolvedValue([makeUser({ id: 3, name: 'Ny Spelare' })]);
+    await pullToRefresh();
+
+    expect(await screen.findByText('Ny Spelare')).toBeTruthy();
+    expect(screen.queryByText('Elsa Berg')).toBeNull();
+    expect(mockedList).toHaveBeenCalledTimes(2);
   });
 
   test('a row opens UserDetail and the bottom button opens NewUser', async () => {

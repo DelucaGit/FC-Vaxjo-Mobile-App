@@ -7,6 +7,7 @@ import {
   makeNavigation,
   makeUser,
 } from '../components/teams/testData';
+import { pullToRefresh } from '../test/pullToRefresh';
 import TeamDetailScreen from './TeamDetailScreen';
 
 jest.mock('../api/teams');
@@ -55,6 +56,27 @@ describe('TeamDetailScreen', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Ny spelare' }));
     expect(navigation.navigate).toHaveBeenCalledWith('NewPlayer', { teamId: 1 });
+  });
+
+  test('pulling the list down loads the coaches and players again', async () => {
+    await renderDetail();
+    await screen.findByText('Elsa Ek');
+
+    jest.mocked(listTeamPlayers).mockResolvedValue([player, makeUser({ id: 11, name: 'Leo Ek' })]);
+    await pullToRefresh();
+
+    expect(await screen.findByText('Leo Ek')).toBeTruthy();
+    expect(screen.getByText('Spelare (2)')).toBeTruthy();
+  });
+
+  test('a failed refresh shows the same Swedish message', async () => {
+    await renderDetail();
+    await screen.findByText('Elsa Ek');
+
+    jest.mocked(listTeamPlayers).mockRejectedValue(await forbiddenError());
+    await pullToRefresh();
+
+    expect(await screen.findByText(FORBIDDEN_TEXT)).toBeTruthy();
   });
 
   test('removes a coach after the confirm dialog', async () => {
