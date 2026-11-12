@@ -125,6 +125,16 @@ PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Pers
 
 Kod idag: stämmer. Anonymt anrop är 401.
 
+#### Träningsserie (issue #129)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `POST /api/trainings/series` | 201 | 201 | 201 | 403 | 403 | 403 | 401 | Stämmer (`TrainingSeriesAccessTest`) |
+
+- Skapar vanliga, separata träningar, en per datum i `fromDate`–`toDate` vars veckodag finns i `weekdays`. Ingen serie sparas.
+- Passerade datum (svensk tid) hoppas över för alla roller, även ADMIN. Svaret är bara de skapade träningarna.
+- Fler än 60 träningar, `toDate` före `fromDate`, tom `weekdays` eller `endTime` som inte är efter `startTime` ger 400. Allt i en transaktion: vid fel skapas inget.
+
 #### Frysta närvarolistor (issue #86, ADR 0010)
 
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
