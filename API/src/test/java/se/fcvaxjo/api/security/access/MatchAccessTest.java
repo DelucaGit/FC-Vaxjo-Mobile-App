@@ -7,8 +7,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDateTime;
+
 import org.junit.jupiter.api.Test;
 
+import se.fcvaxjo.api.DTO.UpdateMatchRequest;
 import se.fcvaxjo.api.service.MatchService;
 import se.fcvaxjo.api.support.Actor;
 import se.fcvaxjo.api.support.ClubApiTest;
@@ -178,6 +181,94 @@ class MatchAccessTest extends ClubApiTest {
     void anonymous_cannotCreateMatch() throws Exception {
         post(Actor.ANON, "/api/matches", SampleRequests.match(world.teamAlfaId()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ---- edit a match (issue #127) ----
+
+    @Test
+    void admin_canEditMatch() throws Exception {
+        put(Actor.ADMIN, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.opponent").value("Flyttad motstandare"))
+                .andExpect(jsonPath("$.kickoffAt").value(containsString("2026-12-21T15:00")))
+                .andExpect(jsonPath("$.venue").value("Ny plan"))
+                .andExpect(jsonPath("$.homeAway").value("AWAY"))
+                .andExpect(jsonPath("$.teamId").value(world.teamAlfaId()));
+    }
+
+    @Test
+    void chairman_canEditMatch() throws Exception {
+        put(Actor.CHAIRMAN, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void coach_canEditOwnTeamMatch() throws Exception {
+        put(Actor.COACH_ALFA, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.opponent").value("Flyttad motstandare"));
+        get(Actor.COACH_ALFA, oneAlfaMatch())
+                .andExpect(jsonPath("$.venue").value("Ny plan"));
+    }
+
+    @Test
+    void coachFromOtherTeam_cannotEditMatch() throws Exception {
+        put(Actor.COACH_BETA, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(MatchService.MANAGE_DENIED));
+        get(Actor.COACH_ALFA, oneAlfaMatch())
+                .andExpect(jsonPath("$.opponent").value(ClubFixture.OPPONENT_ALFA));
+    }
+
+    @Test
+    void coach_editMissingMatch_usesTheSameForbiddenAnswer() throws Exception {
+        put(Actor.COACH_ALFA, "/api/matches/" + UNKNOWN_ID, SampleRequests.matchChange())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(MatchService.MANAGE_DENIED));
+    }
+
+    @Test
+    void admin_editMissingMatch_isNotFound() throws Exception {
+        put(Actor.ADMIN, "/api/matches/" + UNKNOWN_ID, SampleRequests.matchChange())
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void player_cannotEditMatch() throws Exception {
+        put(Actor.PLAYER_ALFA, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parent_cannotEditMatch() throws Exception {
+        put(Actor.PARENT_ALFA, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anonymous_cannotEditMatch() throws Exception {
+        put(Actor.ANON, oneAlfaMatch(), SampleRequests.matchChange())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void coach_cannotMoveMatchIntoThePast() throws Exception {
+        put(Actor.COACH_ALFA, oneAlfaMatch(), matchMovedToYesterday())
+                .andExpect(status().isBadRequest());
+        get(Actor.COACH_ALFA, oneAlfaMatch())
+                .andExpect(jsonPath("$.opponent").value(ClubFixture.OPPONENT_ALFA));
+    }
+
+    @Test
+    void chairman_cannotMoveMatchIntoThePast() throws Exception {
+        put(Actor.CHAIRMAN, oneAlfaMatch(), matchMovedToYesterday())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void admin_canMoveMatchIntoThePast() throws Exception {
+        put(Actor.ADMIN, oneAlfaMatch(), matchMovedToYesterday())
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -362,6 +453,13 @@ class MatchAccessTest extends ClubApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.goalsFor").value(1))
                 .andExpect(jsonPath("$.result.goalsAgainst").value(0));
+    }
+
+    /** The test clock stands on 2026-01-01, so 2025-12-31 has passed. */
+    private UpdateMatchRequest matchMovedToYesterday() {
+        UpdateMatchRequest request = SampleRequests.matchChange();
+        request.setKickoffAt(LocalDateTime.of(2025, 12, 31, 18, 0));
+        return request;
     }
 
     private String alfaMatches() {

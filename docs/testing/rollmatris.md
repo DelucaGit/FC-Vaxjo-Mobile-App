@@ -140,7 +140,9 @@ Kod idag: stämmer. Anonymt anrop är 401.
 ### Matcher
 
 `x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.
-Det gäller lista, hämta, skapa, sätta resultat och tömma resultat.
+Det gäller lista, hämta, skapa, ändra, sätta resultat och tömma resultat.
+
+`PUT /api/matches/{id}` (issue #127) ändrar motståndare, avspark, plats och hemma/borta. Laget kan inte bytas. ADMIN, CHAIRMAN och COACH för eget lag 200. COACH för annat lag, PLAYER och PARENT 403. Anonym 401. Testerna ligger i `MatchAccessTest`.
 
 `PUT /api/matches/{id}/result` med båda målen `null` tömmer resultatet. Bara ett mål satt ger 400. Samma roller och lag som får sätta resultatet får tömma det. En COACH från ett annat lag får 403 och resultatet ligger kvar.
 
@@ -173,6 +175,7 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `PUT /api/trainings/{id}` med ny `startsAt` | 200 | 400 | 400 | Stämmer |
 | `PUT /api/trainings/{id}` med samma `startsAt` (bara ny plats) | 200 | 200 | 200 | Stämmer |
 | `POST /api/matches` | 201 | 400 | 400 | Stämmer |
+| `PUT /api/matches/{id}` med ny `kickoffAt` | 200 | 400 | 400 | Stämmer (`MatchAccessTest`) |
 
 - "Passerad" betyder före nu i svensk tid (Europe/Stockholm), både datum och klockslag.
 - 400-texten är "Starttiden har redan passerat. Välj en tid som inte har varit."

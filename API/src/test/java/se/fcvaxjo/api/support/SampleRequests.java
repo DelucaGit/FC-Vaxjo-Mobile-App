@@ -14,6 +14,7 @@ import se.fcvaxjo.api.DTO.SetMatchResultRequest;
 import se.fcvaxjo.api.DTO.LoginRequest;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
+import se.fcvaxjo.api.DTO.UpdateMatchRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 
@@ -127,6 +128,16 @@ public final class SampleRequests {
         request.setKickoffAt(LocalDateTime.of(2026, 12, 20, 13, 0));
         request.setVenue("Extra plan");
         request.setHomeAway("HOME");
+        return request;
+    }
+
+    /** Body for PUT /api/matches/{id}: a moved match with new details. */
+    public static UpdateMatchRequest matchChange() {
+        UpdateMatchRequest request = new UpdateMatchRequest();
+        request.setOpponent("Flyttad motstandare");
+        request.setKickoffAt(LocalDateTime.of(2026, 12, 21, 15, 0));
+        request.setVenue("Ny plan");
+        request.setHomeAway("AWAY");
         return request;
     }
 

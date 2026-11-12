@@ -21,6 +21,7 @@ import se.fcvaxjo.api.DTO.MatchResponse;
 import se.fcvaxjo.api.DTO.MatchResultResponse;
 import se.fcvaxjo.api.DTO.SetMatchResultRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
+import se.fcvaxjo.api.DTO.UpdateMatchRequest;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.MatchAttendance;
@@ -74,6 +75,19 @@ public class MatchController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public MatchResponse getById(@PathVariable Long id) {
         return toResponse(matchService.getById(id));
+    }
+
+    /** Edit a match (issue #127). The team cannot be changed. */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public MatchResponse update(@PathVariable Long id, @RequestBody UpdateMatchRequest request) {
+        Match updated = matchService.updateMatch(
+                id,
+                request.getOpponent(),
+                request.getKickoffAt(),
+                request.getVenue(),
+                request.getHomeAway());
+        return toResponse(updated);
     }
 
     @PutMapping("/{id}/result")
