@@ -80,6 +80,20 @@ test('lists trainings and matches per week with their status', async () => {
       createdByUserId: 1,
       attendanceLockedAt: '2020-11-21T19:05:00',
     },
+    {
+      id: 2,
+      teamId: 10,
+      teamName: 'P2014',
+      opponent: 'IFK Värnamo',
+      kickoffAt: '2020-11-22T10:00:00',
+      venue: 'Värendsvallen',
+      homeAway: 'HOME',
+      result: null,
+      status: 'CANCELLED',
+      cancelReason: 'Regn',
+      createdByUserId: 1,
+      attendanceLockedAt: null,
+    },
   ]);
   jest.mocked(listTrainingAttendance).mockResolvedValue([
     { playerUserId: 1, playerName: 'A', playerNumber: 7, status: 'PRESENT' },
@@ -103,6 +117,12 @@ test('lists trainings and matches per week with their status', async () => {
   expect(within(matchRow).getByText('3–1')).toBeTruthy();
   expect(within(matchRow).getByText('Värendsvallen · Borta')).toBeTruthy();
   expect(within(matchRow).getByText('Närvaro låst')).toBeTruthy();
+
+  const cancelledMatch = screen.getByTestId('activity-match-2');
+  expect(within(cancelledMatch).getByText('Inställd · Regn')).toBeTruthy();
+  expect(within(cancelledMatch).getByText('Match mot IFK Värnamo')).toHaveStyle({
+    textDecorationLine: 'line-through',
+  });
 
   // Only the started, open, active training needs an attendance call.
   expect(listTrainingAttendance).toHaveBeenCalledTimes(1);

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { getMatch, listMatchAttendance } from '../api/matches';
+import { getMatch, listMatchAttendance, setMatchCancelled } from '../api/matches';
 import { getTraining, listTrainingAttendance, setTrainingCancelled } from '../api/trainings';
 import ActivityDetailScreen from './ActivityDetailScreen';
 
@@ -8,7 +8,11 @@ jest.mock('../api/trainings', () => ({
   listTrainingAttendance: jest.fn(),
   setTrainingCancelled: jest.fn(),
 }));
-jest.mock('../api/matches', () => ({ getMatch: jest.fn(), listMatchAttendance: jest.fn() }));
+jest.mock('../api/matches', () => ({
+  getMatch: jest.fn(),
+  listMatchAttendance: jest.fn(),
+  setMatchCancelled: jest.fn(),
+}));
 let mockRole = 'COACH';
 jest.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ session: { roleName: mockRole } }),
@@ -119,4 +123,52 @@ test('match: "Ändra" is hidden for a role that may not change matches', async (
 
   expect(await screen.findByText('Match mot Östers IF')).toBeTruthy();
   expect(screen.queryByText('Ändra')).toBeNull();
+  expect(screen.queryByText('Ställ in match')).toBeNull();
+});
+
+test('match: a coach can open "Ställ in match"', async () => {
+  mockRole = 'COACH';
+  jest.mocked(getMatch).mockResolvedValue(match);
+
+  await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
+
+  await fireEvent.press(await screen.findByText('Ställ in match'));
+  expect(navigation.navigate).toHaveBeenCalledWith('CancelMatch', { matchId: 3 });
+});
+
+test('cancelled match: struck through, no result or attendance, and can be reactivated', async () => {
+  mockRole = 'COACH';
+  const open = { ...match, attendanceLockedAt: null, status: 'SCHEDULED' as const };
+  const cancelled = { ...open, status: 'CANCELLED' as const, cancelReason: 'Regn' };
+  jest.mocked(getMatch).mockResolvedValueOnce(cancelled).mockResolvedValueOnce(open);
+  jest.mocked(listMatchAttendance).mockResolvedValue([]);
+  jest.mocked(setMatchCancelled).mockResolvedValue(open);
+
+  await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
+
+  expect(await screen.findByText('Inställd · Regn')).toBeTruthy();
+  expect(screen.getByText('Match mot Östers IF')).toHaveStyle({ textDecorationLine: 'line-through' });
+  expect(screen.queryByRole('button', { name: 'Närvaro' })).toBeNull();
+  expect(screen.queryByText('Ange resultat')).toBeNull();
+  expect(screen.queryByText('Resultat')).toBeNull();
+  expect(screen.queryByText('Ställ in match')).toBeNull();
+  // Editing is still allowed while cancelled.
+  expect(screen.getByText('Ändra')).toBeTruthy();
+
+  await fireEvent.press(screen.getByText('Återaktivera'));
+
+  expect(setMatchCancelled).toHaveBeenCalledWith(3, false);
+  expect(await screen.findByRole('button', { name: 'Närvaro' })).toBeTruthy();
+  expect(screen.queryByText('Inställd · Regn')).toBeNull();
+  expect(screen.getByText('Ange resultat')).toBeTruthy();
+});
+
+test('cancelled match: a player gets no "Återaktivera"', async () => {
+  mockRole = 'PLAYER';
+  jest.mocked(getMatch).mockResolvedValue({ ...match, status: 'CANCELLED', cancelReason: null });
+
+  await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
+
+  expect(await screen.findByText('Inställd')).toBeTruthy();
+  expect(screen.queryByText('Återaktivera')).toBeNull();
 });

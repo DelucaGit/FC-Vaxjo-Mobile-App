@@ -4,6 +4,9 @@ import { AttendanceRow, AttendanceStatus } from './trainings';
 /** The API sends HOME or AWAY. The app shows "Hemma" / "Borta". */
 export type HomeAway = 'HOME' | 'AWAY';
 
+/** SCHEDULED (the match is on) or CANCELLED ("Inställd"). */
+export type MatchStatus = 'SCHEDULED' | 'CANCELLED';
+
 /** Our goals first, the opponent's second. null on a match not played yet. */
 export type MatchResult = {
   goalsFor: number;
@@ -20,6 +23,10 @@ export type Match = {
   venue: string;
   homeAway: HomeAway;
   result: MatchResult | null;
+  /** Not marked required in the API contract, so a missing value counts as SCHEDULED. */
+  status?: MatchStatus;
+  /** Optional reason, only on a cancelled match. */
+  cancelReason?: string | null;
   createdByUserId: number;
   /** Set when attendance is frozen. null while it is still open. */
   attendanceLockedAt: string | null;
@@ -86,4 +93,20 @@ export type UpdateMatchInput = {
 /** ADMIN, CHAIRMAN, or a COACH of the team. A new kick-off may not have passed (except ADMIN). */
 export function updateMatch(id: number, input: UpdateMatchInput): Promise<Match> {
   return requestJson(`/matches/${id}`, withJson('PUT', input));
+}
+
+/**
+ * cancelled: true cancels (reason is shown to players and parents).
+ * cancelled: false makes the match active again.
+ * While cancelled, attendance and result answer 400. The match can still be edited.
+ */
+export function setMatchCancelled(
+  id: number,
+  cancelled: boolean,
+  reason?: string | null,
+): Promise<Match> {
+  return requestJson(
+    `/matches/${id}/cancellation`,
+    withJson('PUT', { cancelled, reason: reason ?? null }),
+  );
 }
