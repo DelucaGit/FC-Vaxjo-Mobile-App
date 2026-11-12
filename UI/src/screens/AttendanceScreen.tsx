@@ -10,6 +10,10 @@ import {
 } from '../components/attendance/attendance';
 import { PlayerAttendanceRow } from '../components/attendance/PlayerAttendanceRow';
 import { Button, Confirm, DateText, Empty, List, Screen } from '../components/ui';
+import {
+  ATTENDANCE_NOT_OPEN_MESSAGE,
+  isAttendanceOpen,
+} from '../lib/activities/attendanceWindow';
 import { lockedLabel } from '../lib/dates';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, type } from '../theme';
@@ -33,6 +37,11 @@ export default function AttendanceScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [locking, setLocking] = useState(false);
+  /**
+   * Issue #124: marking opens 30 min before start. The API has the same rule and decides.
+   * Checked once when the screen loads; reopening the screen checks again.
+   */
+  const [windowOpen, setWindowOpen] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -41,6 +50,7 @@ export default function AttendanceScreen({ navigation, route }: Props) {
         if (active) {
           setHeader(loadedHeader);
           setRows(loadedRows);
+          setWindowOpen(isAttendanceOpen(loadedHeader.start));
         }
       })
       .catch((e: unknown) => {
@@ -121,8 +131,11 @@ export default function AttendanceScreen({ navigation, route }: Props) {
     );
   }
 
+  const notOpenYet = !locked && !windowOpen;
+  // No mark buttons when the list is locked or not open yet.
+  const readOnly = locked || notOpenYet;
   const left = counts.unmarked;
-  const bottom = locked ? undefined : (
+  const bottom = readOnly ? undefined : (
     <Button
       title={left > 0 ? `${left} spelare kvar att markera` : 'Klar'}
       disabled={left > 0 || saving > 0 || locking}
@@ -146,6 +159,8 @@ export default function AttendanceScreen({ navigation, route }: Props) {
             <Lock size={16} color={colors.textMuted} strokeWidth={2} />
             <Text style={type.meta}>{lockedLabel(header.lockedAt as string)}</Text>
           </View>
+        ) : notOpenYet ? (
+          <Text style={type.meta}>{ATTENDANCE_NOT_OPEN_MESSAGE}</Text>
         ) : (
           <Button
             title="Markera alla närvarande"
@@ -165,7 +180,7 @@ export default function AttendanceScreen({ navigation, route }: Props) {
             <PlayerAttendanceRow
               key={row.playerUserId}
               row={row}
-              locked={locked}
+              locked={readOnly}
               onChange={(next) => void mark(row.playerUserId, row.status, next)}
             />
           ))}

@@ -190,6 +190,7 @@ class TrainingChangeAccessTest extends ClubApiTest {
 
     @Test
     void reactivatedTraining_acceptsAttendanceAgain() throws Exception {
+        moveClockTo(FIXTURE_TRAINING_START);
         put(Actor.COACH_ALFA, cancel(), SampleRequests.cancellation("Hallen stangd"))
                 .andExpect(status().isOk());
         put(Actor.COACH_ALFA, cancel(), SampleRequests.reactivation())

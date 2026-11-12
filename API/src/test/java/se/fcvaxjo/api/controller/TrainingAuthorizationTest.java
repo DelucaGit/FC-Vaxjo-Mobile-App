@@ -5,6 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,9 @@ class TrainingAuthorizationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private Clock clock;
 
     @Autowired
     private JwtService jwtService;
@@ -213,11 +220,18 @@ class TrainingAuthorizationTest {
     }
 
     /** The label only names the test case. The body always sends type FOOTBALL. */
+    /**
+     * The training starts 10 minutes from now, so it is not in the past and
+     * attendance is already open (it opens 30 minutes before start, issue #124).
+     */
     private String trainingJson(long teamId, String label) {
+        LocalDateTime startsAt = LocalDateTime.ofInstant(clock.instant(), ZoneId.of("Europe/Stockholm"))
+                .plusMinutes(10)
+                .truncatedTo(ChronoUnit.SECONDS);
         return "{"
                 + "\"teamId\":" + teamId + ","
-                + "\"startsAt\":\"2099-11-06T18:00:00\","
-                + "\"endsAt\":\"2099-11-06T19:30:00\","
+                + "\"startsAt\":\"" + startsAt + "\","
+                + "\"endsAt\":\"" + startsAt.plusMinutes(90) + "\","
                 + "\"type\":\"FOOTBALL\""
                 + "}";
     }

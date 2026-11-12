@@ -143,6 +143,7 @@ Kod idag: stämmer. Anonymt anrop är 401.
 
 - Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. `POST /api/trainings` kopierar inte spelare.
 - "Klar" kräver att alla på listan är markerade, annars 400 "All players must be marked before the attendance list can be frozen". Lag utan spelare kan frysas. Redan fryst: 200 och inget ändras.
+- Närvarofönster (issue #124): markera och "Klar" går först från 30 minuter före `startsAt` (Europe/Stockholm), för alla roller. Tidigare: 400 "Närvaron öppnar 30 minuter före start.". Stämmer (`TrainingAttendanceFreezeTest`, styrbar klocka: 31 min före 400; 30 min före, under passet och vid 6-timmarsgränsen 200).
 - Automatisk frysning vid första läsning eller skrivning när nu (Europe/Stockholm) är mer än 6 timmar efter `endsAt`. Bara sparade rader följer med, omarkerade läggs inte till. Inställda träningar fryses inte automatiskt.
 - Fryst lista: markera närvaro ger 400. Spelare som slutat ligger kvar, nya spelare syns inte. Ändrad tid låser inte upp.
 - `attendanceLockedAt` (`null` = öppen) finns i `TrainingResponse` och `MyTrainingResponse`.
@@ -173,6 +174,7 @@ Kod idag: stämmer. Anonymt anrop är 401.
 - Okänt match-id: ADMIN och CHAIRMAN 404, COACH 403 (samma som matchens andra anrop).
 - Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. Markera en spelare som inte står på listan ger 400. Raden skapas första gången spelaren markeras.
 - "Klar" kräver att alla på listan är markerade, annars 400 "All players must be marked before the attendance list can be frozen". Lag utan spelare kan frysas. Redan fryst: 200 och inget ändras.
+- Närvarofönster (issue #124): markera och "Klar" går först från 30 minuter före `kickoffAt` (Europe/Stockholm), för alla roller. Tidigare: 400 "Närvaron öppnar 30 minuter före start.". Stämmer (`MatchAttendanceFreezeTest`: 31 min före 400; 30 min före, under matchen och vid 8-timmarsgränsen 200).
 - Automatisk frysning när nu (Europe/Stockholm) är mer än 8 timmar efter `kickoffAt` (matcher saknar sluttid: cirka 2 timmars match + 6 timmar). Sker vid anrop på en enskild match, lagets matchlista och `GET /api/my/matches`. Bara sparade rader följer med.
 - Fryst lista: visar exakt de sparade raderna. Markera ger 400 "The attendance list for this match is frozen and can no longer be changed".
 - `attendanceLockedAt` (`null` = öppen) finns i `MatchResponse` och `MyMatchResponse`.

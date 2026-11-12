@@ -23,6 +23,11 @@ public class TestClock extends Clock {
         now.updateAndGet(current -> current.plus(duration));
     }
 
+    /** Jumps straight to a point in time, for example the start of a training. */
+    public void set(Instant instant) {
+        now.set(instant);
+    }
+
     public void reset() {
         now.set(START);
     }

@@ -2,6 +2,8 @@ package se.fcvaxjo.api.support;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +43,12 @@ import se.fcvaxjo.api.service.LoginAttemptLimiter;
 @Transactional
 @Import(TestClockConfig.class)
 public abstract class ClubApiTest {
+
+    /** The fixture training on team Alfa starts 2026-11-06 18:00 Swedish time. */
+    protected static final Instant FIXTURE_TRAINING_START = Instant.parse("2026-11-06T17:00:00Z");
+
+    /** The fixture match on team Alfa kicks off 2026-12-12 14:00 Swedish time. */
+    protected static final Instant FIXTURE_MATCH_KICKOFF = Instant.parse("2026-12-12T13:00:00Z");
 
     @Autowired
     protected MockMvc mockMvc;
@@ -97,6 +105,11 @@ public abstract class ClubApiTest {
         loginLimiter.clear();
         world = ClubFixture.load(
                 roles, users, teams, links, trainings, attendance, matches, encoder, jwt, sharedLogin);
+    }
+
+    /** Moves the shared test clock to a fixed point in time. */
+    protected void moveClockTo(Instant target) {
+        testClock.set(target);
     }
 
     protected String token(Actor actor) {

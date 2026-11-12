@@ -147,12 +147,14 @@ class TrainingAccessTest extends ClubApiTest {
 
     @Test
     void coach_canMarkAttendanceOnOwnTeam() throws Exception {
+        moveClockTo(FIXTURE_TRAINING_START);
         put(Actor.COACH_ALFA, markAlfaPlayer(), SampleRequests.present())
                 .andExpect(status().isOk());
     }
 
     @Test
     void admin_canMarkAttendance() throws Exception {
+        moveClockTo(FIXTURE_TRAINING_START);
         put(Actor.ADMIN, markAlfaPlayer(), SampleRequests.present())
                 .andExpect(status().isOk());
     }
@@ -177,6 +179,7 @@ class TrainingAccessTest extends ClubApiTest {
 
     @Test
     void chairman_canMarkAttendance() throws Exception {
+        moveClockTo(FIXTURE_TRAINING_START);
         // S1-11: marking attendance is the change a chairman is allowed to make.
         put(Actor.CHAIRMAN, markAlfaPlayer(), SampleRequests.present())
                 .andExpect(status().isOk());
