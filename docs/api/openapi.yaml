@@ -782,6 +782,48 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/trainings/series:
+    post:
+      tags: [Trainings]
+      operationId: createTrainingSeries
+      summary: Skapa många träningar på en gång (serie)
+      description: |
+        Skapar en vanlig, separat träning för varje datum från `fromDate` till `toDate` (båda med)
+        vars veckodag finns i `weekdays` (#129). Ingen serie sparas; varje träning kan sedan ändras eller ställas in för sig.
+        Varje träning skapas med samma kod som `POST /api/trainings`.
+        Datum vars starttid redan har passerat (svensk tid Europe/Stockholm) hoppas över, även för ADMIN. Det är inget fel.
+        Svaret är listan med de skapade träningarna (kan vara tom om alla datum har passerat).
+        Allt sparas i en transaktion: blir något fel skapas inget.
+        Fel: "teamId is required", "fromDate and toDate are required", "toDate must not be before fromDate",
+        "startTime and endTime are required", "endTime must be after startTime",
+        "weekdays must contain at least one day", "Unknown weekday. Use MONDAY to SUNDAY",
+        "Träningstyp krävs (FOOTBALL eller FITNESS)", "Okänd träningstyp. Välj FOOTBALL eller FITNESS",
+        "A series may create at most 60 trainings" (400, räknat efter att passerade datum hoppats över);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service om COACH inte tränar laget, kontrolleras först);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize`;
+        "Team not found" (404).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.createSeries → TrainingService.createTrainingSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTrainingSeriesRequest' }
+      responses:
+        '201':
+          description: Träningarna skapade (passerade datum är inte med).
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 60
+                items: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/trainings/{id}:
     parameters:
       - $ref: '#/components/parameters/TrainingId'
@@ -1807,6 +1849,24 @@ components:
         endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
         type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'], description: Plats. Tom eller null sparas som null. }
+    CreateTrainingSeriesRequest:
+      type: object
+      required: [teamId, type, weekdays, startTime, endTime, fromDate, toDate]
+      properties:
+        teamId: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/TrainingType' }
+        weekdays:
+          type: array
+          minItems: 1
+          description: Veckodagar för träningarna. Dubbletter gör inget.
+          items:
+            type: string
+            enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+        startTime: { type: string, pattern: '^\d{2}:\d{2}(:\d{2})?$', example: '18:00', description: Klockslag utan zon (svensk tid). }
+        endTime: { type: string, pattern: '^\d{2}:\d{2}(:\d{2})?$', example: '19:30', description: Måste vara efter startTime samma dag. }
+        venue: { type: [string, 'null'], description: Plats för alla träningarna. Tom eller null sparas som null. }
+        fromDate: { type: string, format: date, example: '2026-03-01' }
+        toDate: { type: string, format: date, example: '2026-05-31', description: Tas med. Får inte vara före fromDate. }
     UpdateTrainingRequest:
       type: object
       required: [startsAt, endsAt, type]
