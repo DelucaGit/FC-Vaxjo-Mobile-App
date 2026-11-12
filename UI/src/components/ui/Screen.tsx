@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, sizes, spacing, type } from '../../theme';
+
+const logo = require('../../../assets/fc-logo.png');
 
 type Props = {
   title: string;
@@ -25,6 +27,7 @@ export function Screen({ title, onBack, right, bottom, scroll = true, children }
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.header}>
+        {/* Left: the back arrow, or else the club's logo and name. */}
         {onBack ? (
           <Pressable
             accessibilityRole="button"
@@ -35,7 +38,28 @@ export function Screen({ title, onBack, right, bottom, scroll = true, children }
           >
             <ChevronLeft size={sizes.icon} color={colors.text} strokeWidth={2} />
           </Pressable>
-        ) : null}
+        ) : (
+          <View style={styles.brand}>
+            <Image
+              source={logo}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel="FC Växjö"
+              accessibilityIgnoresInvertColors
+              style={styles.logo}
+            />
+            {/* Hidden from screen readers: the logo already says "FC Växjö". */}
+            <Text
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              numberOfLines={1}
+              style={styles.brandName}
+            >
+              FC Växjö
+            </Text>
+          </View>
+        )}
+        {/* Right: the title takes the space that is left, and it is the part that shrinks ("…"). */}
         <Text accessibilityRole="header" numberOfLines={1} style={[type.screenTitle, styles.title]}>
           {title}
         </Text>
@@ -66,8 +90,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: sizes.divider,
     borderBottomColor: colors.border,
   },
-  back: { marginLeft: -spacing.xs, marginRight: spacing.sm },
-  title: { flex: 1 },
+  back: { marginLeft: -spacing.xs },
+  // flexShrink 0: the logo and name never get squeezed; the title gives way instead.
+  brand: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  logo: { width: 32, height: 32 },
+  brandName: { ...type.heading, marginLeft: spacing.sm },
+  // flex 1 + minWidth 0: the title fills the free space and can shrink below its text width.
+  title: { flex: 1, minWidth: 0, marginLeft: spacing.md, textAlign: 'right' },
   right: { marginLeft: spacing.sm },
   content: { flex: 1, backgroundColor: colors.background },
   bottom: {
