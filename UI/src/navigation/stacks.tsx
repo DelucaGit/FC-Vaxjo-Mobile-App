@@ -5,6 +5,7 @@ import AddCoachScreen from '../screens/AddCoachScreen';
 import AttendanceScreen from '../screens/AttendanceScreen';
 import CancelTrainingScreen from '../screens/CancelTrainingScreen';
 import CoachesScreen from '../screens/CoachesScreen';
+import EditMatchScreen from '../screens/EditMatchScreen';
 import EditTrainingScreen from '../screens/EditTrainingScreen';
 import MoreChangePasswordScreen from '../screens/MoreChangePasswordScreen';
 import MoreScreen from '../screens/MoreScreen';
@@ -65,6 +66,7 @@ export function ActivitiesStack() {
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
       <Stack.Screen name="NewTraining" component={NewTrainingScreen} />
       <Stack.Screen name="EditTraining" component={EditTrainingScreen} />
+      <Stack.Screen name="EditMatch" component={EditMatchScreen} />
       <Stack.Screen name="NewMatch" component={NewMatchScreen} />
       <Stack.Screen name="CancelTraining" component={CancelTrainingScreen} />
       <Stack.Screen name="SetResult" component={SetResultScreen} />
@@ -128,6 +130,7 @@ export function MoreStack() {
       {/* The detail view and the screens it opens, so a past activity works like on "Aktiviteter". */}
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
       <Stack.Screen name="EditTraining" component={EditTrainingScreen} />
+      <Stack.Screen name="EditMatch" component={EditMatchScreen} />
       <Stack.Screen name="CancelTraining" component={CancelTrainingScreen} />
       <Stack.Screen name="SetResult" component={SetResultScreen} />
       <Stack.Screen name="Attendance" component={AttendanceScreen} />

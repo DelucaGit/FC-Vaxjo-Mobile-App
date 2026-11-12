@@ -10,6 +10,8 @@ import {
   type Training,
 } from '../api/trainings';
 import { trainingTypeName } from '../api/trainingTypes';
+import { useAuth } from '../auth/AuthContext';
+import { canManageActivities } from '../auth/permissions';
 import {
   Button,
   DateText,
@@ -46,6 +48,7 @@ type Loaded =
 /** "Aktivitetsdetalj" (spec section 7) for one training or one match. */
 export default function ActivityDetailScreen({ navigation, route }: Props) {
   const { kind, id } = route.params;
+  const { session } = useAuth();
   const [data, setData] = useState<Loaded | null>(null);
   const [count, setCount] = useState<AttendanceCount | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +178,11 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
           </List>
           <SectionLabel title="Åtgärder" />
           <List>
+            {canManageActivities(session?.roleName) ? (
+              <Row onPress={() => navigation.navigate('EditMatch', { matchId: id })}>
+                <RowTitle>Ändra</RowTitle>
+              </Row>
+            ) : null}
             <Row onPress={() => navigation.navigate('SetResult', { matchId: id })}>
               <RowTitle>Ange resultat</RowTitle>
             </Row>

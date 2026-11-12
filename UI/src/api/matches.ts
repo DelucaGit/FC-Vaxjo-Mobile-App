@@ -74,3 +74,16 @@ export function markMatchAttendance(
 export function lockMatchAttendance(matchId: number): Promise<Match> {
   return requestJson(`/matches/${matchId}/attendance/lock`, withJson('PUT'));
 }
+
+/** The fields "Ändra match" can change. The team, result and attendance stay as they are. */
+export type UpdateMatchInput = {
+  opponent: string;
+  kickoffAt: string;
+  venue: string;
+  homeAway: HomeAway;
+};
+
+/** ADMIN, CHAIRMAN, or a COACH of the team. A new kick-off may not have passed (except ADMIN). */
+export function updateMatch(id: number, input: UpdateMatchInput): Promise<Match> {
+  return requestJson(`/matches/${id}`, withJson('PUT', input));
+}

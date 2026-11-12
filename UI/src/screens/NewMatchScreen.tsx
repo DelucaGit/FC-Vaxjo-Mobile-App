@@ -1,59 +1,47 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createMatch, type HomeAway } from '../api/matches';
+import { createMatch } from '../api/matches';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Field, Screen, Segmented, type Option } from '../components/ui';
+import { Button, Screen } from '../components/ui';
+import {
+  MatchForm,
+  MatchFormError,
+  NEW_MATCH_DEFAULTS,
+  toMatchPayload,
+  type MatchFormValues,
+} from '../components/activities/MatchForm';
 import { PAST_START_MESSAGE, isPastStart } from '../lib/activities/startTime';
 import { toKickoffAt } from '../lib/matches/kickoff';
 import type { AppStackParamList } from '../navigation/types';
-import { colors, spacing, type } from '../theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'NewMatch'>;
-
-const HOME_AWAY: readonly Option<HomeAway>[] = [
-  { label: 'Hemma', value: 'HOME' },
-  { label: 'Borta', value: 'AWAY' },
-];
 
 /** Ny match (spec section 7). Every field is required; the result is set later. */
 export default function NewMatchScreen({ navigation, route }: Props) {
   const { teamId } = route.params;
   const { session } = useAuth();
-  const [opponent, setOpponent] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('10:00');
-  const [venue, setVenue] = useState('');
-  const [homeAway, setHomeAway] = useState<HomeAway | null>(null);
+  const [values, setValues] = useState<MatchFormValues>(NEW_MATCH_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const kickoffAt = toKickoffAt(date, time);
+  const payload = toMatchPayload(values);
   // Issue #115: only ADMIN may set a kick-off that has already passed.
+  // Checked on its own, so the warning shows before the other fields are filled in.
+  const kickoffAt = toKickoffAt(values.date, values.time);
   const kickoffPassed =
     kickoffAt !== null && !canSetPastActivityTime(session?.roleName) && isPastStart(kickoffAt);
-  const canSave =
-    opponent.trim() !== '' &&
-    venue.trim() !== '' &&
-    kickoffAt !== null &&
-    !kickoffPassed &&
-    homeAway !== null;
+  const canSave = payload !== null && !kickoffPassed;
 
   async function save() {
-    if (!canSave || kickoffAt === null || homeAway === null) {
+    if (!canSave || payload === null) {
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await createMatch({
-        teamId,
-        opponent: opponent.trim(),
-        kickoffAt,
-        venue: venue.trim(),
-        homeAway,
-      });
+      await createMatch({ teamId, ...payload });
       navigation.goBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte spara matchen.');
@@ -69,44 +57,12 @@ export default function NewMatchScreen({ navigation, route }: Props) {
         <Button title="Spara" block style={styles.grow} disabled={!canSave || saving} onPress={save} />
       }
     >
-      <View style={styles.form}>
-        <Field label="Motståndare" value={opponent} onChangeText={setOpponent} />
-        <Field
-          label="Datum"
-          value={date}
-          onChangeText={setDate}
-          placeholder="ÅÅÅÅ-MM-DD"
-          keyboardType="numbers-and-punctuation"
-        />
-        <Field
-          label="Avspark"
-          value={time}
-          onChangeText={setTime}
-          placeholder="TT:MM"
-          keyboardType="numbers-and-punctuation"
-        />
-        <Field label="Plats" value={venue} onChangeText={setVenue} />
-        <View style={styles.field}>
-          <Text style={styles.label}>Hemma/Borta</Text>
-          <Segmented
-            accessibilityLabel="Hemma/Borta"
-            options={HOME_AWAY}
-            value={homeAway}
-            onChange={setHomeAway}
-          />
-        </View>
-        {kickoffPassed ? <Text style={styles.error}>{PAST_START_MESSAGE}</Text> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-      </View>
+      <MatchForm values={values} onChange={setValues}>
+        <MatchFormError message={kickoffPassed ? PAST_START_MESSAGE : null} />
+        <MatchFormError message={error} />
+      </MatchForm>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  form: { padding: spacing.page, gap: spacing.md },
-  grow: { flex: 1 },
-  // Same look as the label inside Field.
-  field: { gap: spacing.xs },
-  label: { ...type.meta, color: colors.text },
-  error: { ...type.body, color: colors.warning },
-});
+const styles = StyleSheet.create({ grow: { flex: 1 } });

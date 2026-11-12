@@ -9,6 +9,10 @@ jest.mock('../api/trainings', () => ({
   setTrainingCancelled: jest.fn(),
 }));
 jest.mock('../api/matches', () => ({ getMatch: jest.fn(), listMatchAttendance: jest.fn() }));
+let mockRole = 'COACH';
+jest.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ session: { roleName: mockRole } }),
+}));
 jest.mock('@react-navigation/native', () => {
   const { useEffect } = jest.requireActual('react');
   return { useFocusEffect: (effect: () => void) => useEffect(effect, [effect]) };
@@ -74,19 +78,22 @@ test('cancelled training is struck through and can be reactivated', async () => 
   expect(screen.queryByText('Inställd · Snö')).toBeNull();
 });
 
-test('match: result, Hemma/Borta, lock stamp and only "Ange resultat"', async () => {
-  jest.mocked(getMatch).mockResolvedValue({
-    id: 3,
-    teamId: 10,
-    teamName: 'P2014',
-    opponent: 'Östers IF',
-    kickoffAt: '2020-11-21T10:00:00',
-    venue: 'Värendsvallen',
-    homeAway: 'HOME',
-    result: null,
-    createdByUserId: 1,
-    attendanceLockedAt: '2020-11-21T19:05:00',
-  });
+const match = {
+  id: 3,
+  teamId: 10,
+  teamName: 'P2014',
+  opponent: 'Östers IF',
+  kickoffAt: '2020-11-21T10:00:00',
+  venue: 'Värendsvallen',
+  homeAway: 'HOME' as const,
+  result: null,
+  createdByUserId: 1,
+  attendanceLockedAt: '2020-11-21T19:05:00',
+};
+
+test('match: result, Hemma/Borta, lock stamp, "Ändra" and "Ange resultat"', async () => {
+  mockRole = 'COACH';
+  jest.mocked(getMatch).mockResolvedValue(match);
 
   await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
 
@@ -100,4 +107,16 @@ test('match: result, Hemma/Borta, lock stamp and only "Ange resultat"', async ()
 
   await fireEvent.press(screen.getByText('Ange resultat'));
   expect(navigation.navigate).toHaveBeenCalledWith('SetResult', { matchId: 3 });
+  await fireEvent.press(screen.getByText('Ändra'));
+  expect(navigation.navigate).toHaveBeenCalledWith('EditMatch', { matchId: 3 });
+});
+
+test('match: "Ändra" is hidden for a role that may not change matches', async () => {
+  mockRole = 'PLAYER';
+  jest.mocked(getMatch).mockResolvedValue(match);
+
+  await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
+
+  expect(await screen.findByText('Match mot Östers IF')).toBeTruthy();
+  expect(screen.queryByText('Ändra')).toBeNull();
 });
