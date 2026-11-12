@@ -192,3 +192,17 @@ export type ChangeRoleResult = {
 export function changeUserRole(id: number, roleName: ClubRoleName): Promise<ChangeRoleResult> {
   return requestJson(`/users/${id}/role`, withJson('PUT', { roleName }));
 }
+
+export type PasswordResetResult = {
+  id: number;
+  /** Shown once. The user must change it at the next login. */
+  temporaryPassword: string;
+};
+
+/**
+ * "Återställ lösenord" (#128). ADMIN on anyone but themselves; CHAIRMAN not on
+ * ADMIN or CHAIRMAN. An inactive account is 404 "User not found".
+ */
+export function resetPassword(id: number): Promise<PasswordResetResult> {
+  return requestJson(`/users/${id}/password-reset`, withJson('POST'));
+}

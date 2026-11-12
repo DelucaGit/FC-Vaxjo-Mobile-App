@@ -34,11 +34,13 @@ type Props = {
   accounts: readonly CreatedAccount[];
   /** "Klar": usually navigation.goBack(). */
   onDone: () => void;
+  /** Screen title. "Återställ lösenord" (#131) uses "Nytt lösenord". */
+  title?: string;
 };
 
-export function CreatedAccounts({ accounts, onDone }: Props) {
+export function CreatedAccounts({ accounts, onDone, title = 'Konto skapat' }: Props) {
   return (
-    <Screen title="Konto skapat" bottom={<Button title="Klar" block onPress={onDone} />}>
+    <Screen title={title} bottom={<Button title="Klar" block onPress={onDone} />}>
       <View style={styles.list}>
         {accounts.map((account, index) => (
           <View key={index} style={styles.account}>
