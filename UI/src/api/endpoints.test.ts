@@ -27,6 +27,7 @@ import {
 } from './teams';
 import {
   createTraining,
+  createTrainingSeries,
   getTraining,
   listTrainingAttendance,
   listTrainings,
@@ -108,6 +109,31 @@ const cases: Case[] = [
     'POST',
     '/trainings',
     { teamId: 3, startsAt: time, endsAt: time, type: 'FITNESS' as const, venue: 'Konstgräs' },
+  ],
+  [
+    'createTrainingSeries',
+    () => createTrainingSeries({
+      teamId: 3,
+      type: 'FOOTBALL' as const,
+      weekdays: ['MONDAY' as const, 'THURSDAY' as const],
+      startTime: '17:30',
+      endTime: '19:00',
+      venue: null,
+      fromDate: '2099-11-02',
+      toDate: '2099-11-15',
+    }),
+    'POST',
+    '/trainings/series',
+    {
+      teamId: 3,
+      type: 'FOOTBALL' as const,
+      weekdays: ['MONDAY' as const, 'THURSDAY' as const],
+      startTime: '17:30',
+      endTime: '19:00',
+      venue: null,
+      fromDate: '2099-11-02',
+      toDate: '2099-11-15',
+    },
   ],
   [
     'updateTraining',

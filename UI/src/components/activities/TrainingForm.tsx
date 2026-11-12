@@ -6,17 +6,19 @@ import type { TrainingFormValues } from './trainingValues';
 type Props = {
   values: TrainingFormValues;
   onChange: (values: TrainingFormValues) => void;
+  /** "Startdatum" when the training repeats every week. */
+  dateLabel?: string;
 };
 
 /** The fields shared by "Ny träning" and "Redigera träning". "Spara" lives in the screen. */
-export function TrainingForm({ values, onChange }: Props) {
+export function TrainingForm({ values, onChange, dateLabel = 'Datum' }: Props) {
   const set = (key: keyof TrainingFormValues) => (text: string) =>
     onChange({ ...values, [key]: text });
 
   return (
     <View style={styles.form}>
       <Field
-        label="Datum"
+        label={dateLabel}
         value={values.date}
         onChangeText={set('date')}
         placeholder="ÅÅÅÅ-MM-DD"

@@ -38,6 +38,32 @@ export type CreateTrainingInput = {
   venue?: string | null;
 };
 
+export type Weekday =
+  | 'MONDAY'
+  | 'TUESDAY'
+  | 'WEDNESDAY'
+  | 'THURSDAY'
+  | 'FRIDAY'
+  | 'SATURDAY'
+  | 'SUNDAY';
+
+/** POST /trainings/series: one training per chosen weekday between fromDate and toDate. */
+export type CreateTrainingSeriesInput = {
+  teamId: number;
+  type: TrainingType;
+  /** At least one. */
+  weekdays: Weekday[];
+  /** "17:30" */
+  startTime: string;
+  /** "19:00", after startTime. */
+  endTime: string;
+  venue: string | null;
+  /** "2026-11-12" */
+  fromDate: string;
+  /** Inclusive. Not before fromDate. */
+  toDate: string;
+};
+
 /** PUT /trainings/{id} replaces these four fields. */
 export type UpdateTrainingInput = {
   startsAt: string;
@@ -60,6 +86,15 @@ export async function createTraining(input: CreateTrainingInput): Promise<Traini
     throw new Error(await readErrorMessage(response));
   }
   return response.json();
+}
+
+/**
+ * Creates every training in the series in one call (issue #132, API #129).
+ * Dates that have passed are skipped, so the answer may be an empty list.
+ * More than 60 trainings gives a 400 with the server's message.
+ */
+export function createTrainingSeries(input: CreateTrainingSeriesInput): Promise<Training[]> {
+  return requestJson('/trainings/series', withJson('POST', input));
 }
 
 export async function getTraining(id: number): Promise<Training> {
