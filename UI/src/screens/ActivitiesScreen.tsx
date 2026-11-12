@@ -22,6 +22,7 @@ import {
   RowTitle,
   Screen,
   Segmented,
+  SkeletonList,
   useRefresh,
   WeekLabel,
 } from '../components/ui';
@@ -203,6 +204,9 @@ export function TeamActivityList({ title, when, navigation, canCreate = false, o
         <Text style={[type.sectionLabel, styles.teamName]}>{teams[0].name}</Text>
       ) : null}
       {teams && teams.length === 0 ? <Empty text="Inga lag" /> : null}
+
+      {/* First load (or a new team): grey rows until the activities arrive. Not on an error. */}
+      {!error && (teams === null || (teamId != null && items === null)) ? <SkeletonList /> : null}
 
       {items && items.length === 0 ? <Empty text="Inga aktiviteter" /> : null}
       {items

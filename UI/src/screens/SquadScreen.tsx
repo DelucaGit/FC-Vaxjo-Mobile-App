@@ -6,7 +6,15 @@ import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
 import { TeamRoster } from '../components/teams/TeamRoster';
 import { useTeamRoster } from '../components/teams/useTeamRoster';
-import { Button, Empty, Screen, SectionLabel, Segmented, useRefresh } from '../components/ui';
+import {
+  Button,
+  Empty,
+  Screen,
+  SectionLabel,
+  Segmented,
+  SkeletonList,
+  useRefresh,
+} from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 import { spacing } from '../theme';
 
@@ -77,7 +85,11 @@ export default function SquadScreen({ navigation }: Props) {
         </View>
       ) : null}
       {teams && teams.length === 1 ? <SectionLabel title={teams[0].name} /> : null}
-      {teamId != null && !roster.error ? (
+      {/* First load (or a new team): grey rows until the coaches and players arrive. */}
+      {!teamsError && !roster.error && (teams === null || (teamId != null && !roster.loaded)) ? (
+        <SkeletonList />
+      ) : null}
+      {teamId != null && roster.loaded && !roster.error ? (
         <TeamRoster
           coaches={roster.coaches}
           players={roster.players}

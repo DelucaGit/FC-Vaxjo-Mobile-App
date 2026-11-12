@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { Confirm } from './Confirm';
 import { Screen } from './Screen';
 import { Segmented } from './Segmented';
+import { SkeletonList } from './SkeletonList';
 
 describe('Button', () => {
   test('calls onPress', async () => {
@@ -156,5 +157,23 @@ describe('Screen header', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Tillbaka' }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SkeletonList', () => {
+  test('tells a screen reader "Laddar" and has no text of its own', async () => {
+    await render(<SkeletonList />);
+
+    expect(screen.getByLabelText('Laddar')).toBeOnTheScreen();
+    expect(screen.queryByText(/./)).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  test('draws the asked number of placeholder rows', async () => {
+    await render(<SkeletonList rows={3} />);
+
+    // The rows are hidden from screen readers, so the query must include hidden elements.
+    expect(screen.getAllByTestId('skeleton-row', { includeHiddenElements: true })).toHaveLength(3);
+    expect(screen.queryAllByTestId('skeleton-row')).toHaveLength(0);
   });
 });

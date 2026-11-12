@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getMatch, updateMatch } from '../api/matches';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Screen } from '../components/ui';
+import { Button, Screen, SkeletonList } from '../components/ui';
 import {
   MatchForm,
   MatchFormError,
@@ -83,9 +83,11 @@ export default function EditMatchScreen({ navigation, route }: Props) {
           <MatchFormError message={kickoffPassed ? PAST_START_MESSAGE : null} />
           <MatchFormError message={error} />
         </MatchForm>
-      ) : (
+      ) : error ? (
         // Loading failed before the form exists.
         <ErrorText message={error} />
+      ) : (
+        <SkeletonList rows={5} />
       )}
     </Screen>
   );

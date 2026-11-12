@@ -7,6 +7,7 @@ import {
   makeNavigation,
   makeUser,
 } from '../components/teams/testData';
+import { deferred } from '../test/deferred';
 import { pullToRefresh } from '../test/pullToRefresh';
 import SquadScreen from './SquadScreen';
 
@@ -117,5 +118,23 @@ describe('SquadScreen', () => {
     await renderSquad();
 
     expect(await screen.findByText(FORBIDDEN_TEXT)).toBeTruthy();
+    expect(screen.queryByLabelText('Laddar')).toBeNull();
+  });
+
+  test('shows grey placeholder rows until the players arrive', async () => {
+    jest.mocked(listMyTeams).mockResolvedValue([{ id: 5, name: 'P14' }]);
+    const players = deferred<Awaited<ReturnType<typeof listTeamPlayers>>>();
+    jest.mocked(listTeamPlayers).mockReturnValue(players.promise);
+    await renderSquad();
+
+    // The team name is there, but the coaches and players are not yet.
+    expect(await screen.findByText('P14')).toBeTruthy();
+    expect(screen.getByLabelText('Laddar')).toBeOnTheScreen();
+    expect(screen.queryByText('Elsa Ek')).toBeNull();
+
+    await players.resolve([player]);
+
+    expect(await screen.findByText('Elsa Ek')).toBeTruthy();
+    expect(screen.queryByLabelText('Laddar')).toBeNull();
   });
 });

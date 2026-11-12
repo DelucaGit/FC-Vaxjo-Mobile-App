@@ -21,6 +21,7 @@ import {
   RowTitle,
   Screen,
   SectionLabel,
+  SkeletonList,
 } from '../components/ui';
 import {
   cancelledLabel,
@@ -138,6 +139,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
       }
     >
       <ErrorText message={error} />
+      {!data && !error ? <SkeletonList /> : null}
 
       {training ? (
         <>

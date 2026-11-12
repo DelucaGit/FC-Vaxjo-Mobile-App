@@ -11,6 +11,7 @@ import {
   RowMeta,
   RowTitle,
   Screen,
+  SkeletonList,
   useRefresh,
 } from '../components/ui';
 import { errorText, roleAndTeam } from '../components/users/userHelpers';
@@ -74,6 +75,7 @@ export default function UsersScreen({ navigation }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
 
+      {users === null && !error ? <SkeletonList /> : null}
       {users && shown.length === 0 ? <Empty text="Inga träffar" /> : null}
       {shown.length > 0 ? (
         <List>

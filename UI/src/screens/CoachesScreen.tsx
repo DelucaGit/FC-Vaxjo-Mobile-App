@@ -12,6 +12,7 @@ import {
   RowTitle,
   Screen,
   SectionLabel,
+  SkeletonList,
   TelLink,
   useRefresh,
 } from '../components/ui';
@@ -85,6 +86,7 @@ export default function CoachesScreen() {
     <Screen title="Tränare" refresh={refresh}>
       <ChildPicker state={picker} />
       {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
+      {!shownError && coaches === undefined ? <SkeletonList rows={2} /> : null}
       {!shownError && coaches && coaches.length === 0 ? <Empty text="Inga tränare" /> : null}
       {!shownError && data && coaches && coaches.length > 0 ? (
         <>

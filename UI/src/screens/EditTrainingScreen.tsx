@@ -5,7 +5,7 @@ import { getTraining, updateTraining } from '../api/trainings';
 import { trainingTypeName, type TrainingType } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Screen } from '../components/ui';
+import { Button, Screen, SkeletonList } from '../components/ui';
 import { ErrorText, TrainingForm } from '../components/activities/TrainingForm';
 import {
   formValuesFrom,
@@ -82,6 +82,7 @@ export default function EditTrainingScreen({ navigation, route }: Props) {
     >
       <ErrorText message={error ?? (startPassed ? PAST_START_MESSAGE : null)} />
       {values ? <TrainingForm values={values} onChange={setValues} /> : null}
+      {!values && !error ? <SkeletonList rows={5} /> : null}
     </Screen>
   );
 }

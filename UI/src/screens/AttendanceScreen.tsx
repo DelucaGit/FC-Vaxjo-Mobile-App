@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Lock } from 'lucide-react-native';
 import type { AttendanceRow, AttendanceStatus } from '../api/trainings';
@@ -9,7 +9,16 @@ import {
   type ActivityHeader,
 } from '../components/attendance/attendance';
 import { PlayerAttendanceRow } from '../components/attendance/PlayerAttendanceRow';
-import { Button, Confirm, DateText, Empty, List, Screen, useRefresh } from '../components/ui';
+import {
+  Button,
+  Confirm,
+  DateText,
+  Empty,
+  List,
+  Screen,
+  SkeletonList,
+  useRefresh,
+} from '../components/ui';
 import {
   ATTENDANCE_NOT_OPEN_MESSAGE,
   isAttendanceOpen,
@@ -137,7 +146,7 @@ export default function AttendanceScreen({ navigation, route }: Props) {
   if (!header) {
     return (
       <Screen title="Närvaro" onBack={back} refresh={refresh}>
-        <ActivityIndicator style={styles.loading} color={colors.primary} />
+        <SkeletonList rows={6} />
       </Screen>
     );
   }
@@ -215,6 +224,5 @@ const styles = StyleSheet.create({
   locked: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   warning: { color: colors.warning },
   error: { color: colors.warning, padding: spacing.page },
-  loading: { padding: spacing.lg },
   grow: { flex: 1 },
 });
