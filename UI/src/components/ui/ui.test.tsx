@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Button } from './Button';
 import { Confirm } from './Confirm';
+import { Screen } from './Screen';
 import { Segmented } from './Segmented';
 
 describe('Button', () => {
@@ -125,5 +126,35 @@ describe('Confirm', () => {
     );
 
     expect(screen.queryByText('Låsa närvaron?')).toBeNull();
+  });
+});
+
+describe('Screen header', () => {
+  test('without a back arrow: logo and "FC Växjö" on the left, title on the right', async () => {
+    await render(<Screen title="Aktiviteter" />);
+
+    expect(screen.getByRole('image', { name: 'FC Växjö' })).toBeTruthy();
+    // The name next to the logo is hidden from screen readers, so the query must include hidden elements.
+    expect(screen.getByText('FC Växjö', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Aktiviteter' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Tillbaka' })).toBeNull();
+  });
+
+  test('the name next to the logo is not read out a second time', async () => {
+    await render(<Screen title="Aktiviteter" />);
+
+    expect(screen.queryByText('FC Växjö')).toBeNull();
+  });
+
+  test('with a back arrow: the arrow replaces the logo, the title stays', async () => {
+    const onBack = jest.fn();
+    await render(<Screen title="Spelare" onBack={onBack} />);
+
+    expect(screen.queryByRole('image', { name: 'FC Växjö' })).toBeNull();
+    expect(screen.queryByText('FC Växjö', { includeHiddenElements: true })).toBeNull();
+    expect(screen.getByRole('header', { name: 'Spelare' })).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tillbaka' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 });

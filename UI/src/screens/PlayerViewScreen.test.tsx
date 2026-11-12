@@ -68,7 +68,12 @@ describe('PlayerViewScreen', () => {
   test('"Redigera" opens the edit form', async () => {
     const navigation = await renderView();
 
-    await fireEvent.press(await screen.findByRole('button', { name: 'Redigera' }));
+    const edit = await screen.findByRole('button', { name: 'Redigera' });
+    // The header has the back arrow, the title and "Redigera"; no logo on a screen with a back arrow.
+    expect(screen.getByRole('header', { name: 'Elsa Berg' })).toBeTruthy();
+    expect(screen.queryByRole('image', { name: 'FC Växjö' })).toBeNull();
+
+    await fireEvent.press(edit);
 
     expect(navigation.navigate).toHaveBeenCalledWith('PlayerProfile', { userId: 7 });
   });
