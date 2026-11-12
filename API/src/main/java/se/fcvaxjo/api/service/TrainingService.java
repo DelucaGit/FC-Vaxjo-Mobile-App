@@ -1,9 +1,14 @@
 package se.fcvaxjo.api.service;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -28,6 +33,9 @@ import se.fcvaxjo.api.repository.UserRepository;
 
 @Service
 public class TrainingService {
+
+    /** Most trainings one series call may create (issue #129). More gives 400. */
+    static final int MAX_SERIES_TRAININGS = 60;
 
     private final TrainingRepository trainingRepository;
     private final TrainingAttendanceRepository attendanceRepository;
@@ -94,6 +102,83 @@ public class TrainingService {
         training.setStatus(TrainingStatus.SCHEDULED);
         training.setCreatedByUserId(currentUserId());
         return trainingRepository.save(training);
+    }
+
+    /**
+     * Creates one ordinary training for each date from fromDate to toDate (inclusive)
+     * whose weekday is in weekdays (issue #129). No series row is stored.
+     * Dates whose start time has already passed are skipped, for every role.
+     * One transaction: if any training fails, none are saved.
+     */
+    @Transactional
+    public List<Training> createTrainingSeries(
+            Long teamId,
+            String type,
+            List<String> weekdays,
+            LocalTime startTime,
+            LocalTime endTime,
+            String venue,
+            LocalDate fromDate,
+            LocalDate toDate) {
+        assertCanManageTeam(teamId);
+
+        if (teamId == null) {
+            throw new BadRequestException("teamId is required");
+        }
+        if (fromDate == null || toDate == null) {
+            throw new BadRequestException("fromDate and toDate are required");
+        }
+        if (toDate.isBefore(fromDate)) {
+            throw new BadRequestException("toDate must not be before fromDate");
+        }
+        if (startTime == null || endTime == null) {
+            throw new BadRequestException("startTime and endTime are required");
+        }
+        if (!endTime.isAfter(startTime)) {
+            throw new BadRequestException("endTime must be after startTime");
+        }
+        Set<DayOfWeek> days = parseWeekdays(weekdays);
+        TrainingType.fromRequest(type);
+        teamService.getTeamById(teamId);
+
+        List<LocalDateTime> starts = new ArrayList<>();
+        for (LocalDate date = fromDate; !date.isAfter(toDate); date = date.plusDays(1)) {
+            if (!days.contains(date.getDayOfWeek())) {
+                continue;
+            }
+            LocalDateTime startsAt = date.atTime(startTime);
+            if (startRule.isInPast(startsAt)) {
+                continue;
+            }
+            starts.add(startsAt);
+            if (starts.size() > MAX_SERIES_TRAININGS) {
+                throw new BadRequestException(
+                        "A series may create at most " + MAX_SERIES_TRAININGS + " trainings");
+            }
+        }
+
+        // Same code path as a single training, so the rules stay in one place.
+        List<Training> created = new ArrayList<>();
+        for (LocalDateTime startsAt : starts) {
+            LocalDateTime endsAt = startsAt.toLocalDate().atTime(endTime);
+            created.add(createTraining(teamId, startsAt, endsAt, type, venue));
+        }
+        return created;
+    }
+
+    private Set<DayOfWeek> parseWeekdays(List<String> weekdays) {
+        if (weekdays == null || weekdays.isEmpty()) {
+            throw new BadRequestException("weekdays must contain at least one day");
+        }
+        Set<DayOfWeek> days = EnumSet.noneOf(DayOfWeek.class);
+        for (String name : weekdays) {
+            try {
+                days.add(DayOfWeek.valueOf(name == null ? "" : name.trim()));
+            } catch (IllegalArgumentException ex) {
+                throw new BadRequestException("Unknown weekday. Use MONDAY to SUNDAY");
+            }
+        }
+        return days;
     }
 
     public List<Training> listByTeam(Long teamId) {

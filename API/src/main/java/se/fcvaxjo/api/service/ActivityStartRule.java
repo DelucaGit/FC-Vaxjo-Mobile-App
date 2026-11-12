@@ -36,9 +36,14 @@ public class ActivityStartRule {
         if (callerRole != null && callerRole.canSetPastActivityTime()) {
             return;
         }
-        LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), CLUB_ZONE);
-        if (startsAt.isBefore(now)) {
+        if (isInPast(startsAt)) {
             throw new BadRequestException(START_IN_PAST);
         }
+    }
+
+    /** True when startsAt is before now in Swedish time. The training series uses it to skip old dates. */
+    public boolean isInPast(LocalDateTime startsAt) {
+        LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), CLUB_ZONE);
+        return startsAt.isBefore(now);
     }
 }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import se.fcvaxjo.api.DTO.AttendanceResponse;
 import se.fcvaxjo.api.DTO.CancelTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
+import se.fcvaxjo.api.DTO.CreateTrainingSeriesRequest;
 import se.fcvaxjo.api.DTO.TrainingResponse;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
 import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
@@ -54,6 +55,29 @@ public class TrainingController {
                 request.getType(),
                 request.getVenue());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
+    }
+
+    /**
+     * Creates many ordinary trainings in one call (issue #129). Same writers as create.
+     * Returns only the trainings that were created; past dates are skipped.
+     */
+    @PostMapping("/series")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public ResponseEntity<List<TrainingResponse>> createSeries(
+            @RequestBody CreateTrainingSeriesRequest request) {
+        List<TrainingResponse> responses = new ArrayList<>();
+        for (Training training : trainingService.createTrainingSeries(
+                request.getTeamId(),
+                request.getType(),
+                request.getWeekdays(),
+                request.getStartTime(),
+                request.getEndTime(),
+                request.getVenue(),
+                request.getFromDate(),
+                request.getToDate())) {
+            responses.add(toResponse(training));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(responses);
     }
 
     @GetMapping
