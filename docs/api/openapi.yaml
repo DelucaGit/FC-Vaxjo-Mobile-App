@@ -1167,6 +1167,45 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/matches/{id}/cancellation:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    put:
+      tags: [Matches]
+      operationId: cancelMatch
+      summary: Ställ in en match, eller aktivera den igen
+      description: |
+        Issue #133. Samma form som `PUT /api/trainings/{id}/cancellation`.
+        Sätter status CANCELLED. Matchen raderas inte. Närvaro och resultat ligger kvar.
+        `reason` är valfri. Tom text sparas som null.
+        Medan matchen är inställd ger närvaro, "Klar" och resultat 400 "This match is cancelled".
+        En inställd match fryses inte automatiskt. Den går fortfarande att ändra (`PUT /api/matches/{id}`).
+        Med `cancelled: false` aktiveras matchen igen: status blir SCHEDULED, `cancelReason` blir null.
+        `reason` ignoreras då. Saknas `cancelled` betyder det `true`.
+        Att aktivera en match som inte är inställd ändrar inget (200).
+        Samma roller och lag som när en match ändras.
+        Spelare och föräldrar ser `status` i `GET /api/my/matches`. Personal ser den i lagets lista.
+        Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.cancel → MatchService.cancelMatch / reactivateMatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelMatchRequest' }
+      responses:
+        '200':
+          description: Matchen är inställd, eller aktiverad igen med `cancelled` false.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/matches/{id}/result:
     parameters:
       - $ref: '#/components/parameters/MatchId'
@@ -1178,6 +1217,7 @@ paths:
         Två måltal sätter resultatet. De får inte vara negativa.
         Båda måltalen `null` tömmer resultatet (`result` blir null), t.ex. när fel resultat skrivits in.
         Bara ett av måltalen satt ger 400. Matchen raderas inte.
+        En inställd match ger 400 "This match is cancelled" (issue #133).
         Samma roller och lag får tömma som får sätta.
         Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
         ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
@@ -1891,6 +1931,18 @@ components:
           default: true
           description: true eller saknas ställer in träningen. false aktiverar den igen (SCHEDULED, orsaken töms).
         reason: { type: [string, 'null'], description: Valfri orsak när träningen ställs in. Tom text sparas som null. }
+    CancelMatchRequest:
+      type: object
+      properties:
+        cancelled:
+          type: [boolean, 'null']
+          default: true
+          description: true eller saknas ställer in matchen. false aktiverar den igen (SCHEDULED, orsaken töms).
+        reason: { type: [string, 'null'], description: Valfri orsak när matchen ställs in. Tom text sparas som null. }
+    MatchStatus:
+      type: string
+      description: SCHEDULED är en vanlig match. CANCELLED är inställd. Raden raderas inte.
+      enum: [SCHEDULED, CANCELLED]
     TrainingStatus:
       type: string
       description: SCHEDULED är en vanlig träning. CANCELLED är inställd. Raden raderas inte.
@@ -1992,6 +2044,8 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MatchResult'
             - type: 'null'
+        status: { $ref: '#/components/schemas/MatchStatus' }
+        cancelReason: { type: [string, 'null'], description: Valfri orsak. Null när matchen inte är inställd. }
         createdByUserId: { type: integer, format: int64 }
         attendanceLockedAt:
           description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
@@ -2017,6 +2071,8 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MatchResult'
             - type: 'null'
+        status: { $ref: '#/components/schemas/MatchStatus' }
+        cancelReason: { type: [string, 'null'], description: Valfri orsak. Null när matchen inte är inställd. }
         attendanceLockedAt:
           description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
           oneOf:

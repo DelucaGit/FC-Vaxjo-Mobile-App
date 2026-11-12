@@ -161,6 +161,9 @@ En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte 
 
 `GET /api/my/matches`: PLAYER bara sitt lag. PARENT måste skicka sitt eget barn. Ingen e-post, ingen telefon, inget `createdByUserId`.
 
+`PUT /api/matches/{id}/cancellation` (issue #133) sätter CANCELLED och en valfri orsak. Raden raderas inte. Samma URL med `cancelled=false` aktiverar matchen igen: SCHEDULED och tom orsak. Samma roller och lag som när en match ändras: ADMIN, CHAIRMAN och COACH för eget lag 200. COACH för annat lag, PLAYER och PARENT 403. Anonym 401. Okänt id: ADMIN 404, COACH 403.
+Medan matchen är inställd ger närvaro, "Klar" och resultat 400 "This match is cancelled". Den går fortfarande att ändra och fryses inte automatiskt. `status` och `cancelReason` finns i `MatchResponse` och `MyMatchResponse`. Stämmer (`MatchCancelAccessTest`).
+
 Kod idag: stämmer. Anonymt anrop är 401.
 
 #### Närvaro och frysta listor för matcher (issue #67, ADR 0010)
@@ -168,8 +171,8 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
 |---|---|---|---|---|---|---|---|---|
 | `GET /api/matches/{id}/attendance` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
-| `PUT /api/matches/{id}/attendance/{playerId}` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
-| `PUT /api/matches/{id}/attendance/lock` ("Klar") | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
+| `PUT /api/matches/{id}/attendance/{playerId}` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer. Inställd match 400 |
+| `PUT /api/matches/{id}/attendance/lock` ("Klar") | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer. Inställd match 400 |
 
 - Okänt match-id: ADMIN och CHAIRMAN 404, COACH 403 (samma som matchens andra anrop).
 - Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. Markera en spelare som inte står på listan ger 400. Raden skapas första gången spelaren markeras.

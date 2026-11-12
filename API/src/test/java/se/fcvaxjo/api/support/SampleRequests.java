@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import se.fcvaxjo.api.DTO.AddCoachRequest;
 import se.fcvaxjo.api.DTO.ChangePasswordRequest;
 import se.fcvaxjo.api.DTO.ChangeRoleRequest;
+import se.fcvaxjo.api.DTO.CancelMatchRequest;
 import se.fcvaxjo.api.DTO.CancelTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.CreateTeamRequest;
@@ -118,6 +119,20 @@ public final class SampleRequests {
     public static CancelTrainingRequest cancellation(String reason) {
         CancelTrainingRequest request = new CancelTrainingRequest();
         request.setReason(reason);
+        return request;
+    }
+
+    /** Body that calls a match off (issue #133). A null reason means none. */
+    public static CancelMatchRequest matchCancellation(String reason) {
+        CancelMatchRequest request = new CancelMatchRequest();
+        request.setReason(reason);
+        return request;
+    }
+
+    /** Body that reactivates a cancelled match: {"cancelled": false}. */
+    public static CancelMatchRequest matchReactivation() {
+        CancelMatchRequest request = new CancelMatchRequest();
+        request.setCancelled(false);
         return request;
     }
 

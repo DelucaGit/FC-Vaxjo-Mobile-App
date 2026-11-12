@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import se.fcvaxjo.api.DTO.AttendanceResponse;
+import se.fcvaxjo.api.DTO.CancelMatchRequest;
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.MatchResponse;
 import se.fcvaxjo.api.DTO.MatchResultResponse;
@@ -90,6 +91,21 @@ public class MatchController {
         return toResponse(updated);
     }
 
+    /**
+     * Calls the match off, or reactivates it with cancelled=false (issue #133).
+     * Same shape as PUT /api/trainings/{id}/cancellation. The row is not deleted.
+     * A missing cancelled means true. reason is optional.
+     */
+    @PutMapping("/{id}/cancellation")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public MatchResponse cancel(@PathVariable Long id, @RequestBody CancelMatchRequest request) {
+        if (request != null && Boolean.FALSE.equals(request.getCancelled())) {
+            return toResponse(matchService.reactivateMatch(id));
+        }
+        String reason = request == null ? null : request.getReason();
+        return toResponse(matchService.cancelMatch(id, reason));
+    }
+
     @PutMapping("/{id}/result")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public MatchResponse setResult(@PathVariable Long id, @RequestBody SetMatchResultRequest request) {
@@ -144,6 +160,8 @@ public class MatchController {
                 match.getVenue(),
                 match.getHomeAway().name(),
                 resultOf(match),
+                match.statusOrScheduled().name(),
+                match.getCancelReason(),
                 match.getCreatedByUserId(),
                 match.getAttendanceLockedAt());
     }

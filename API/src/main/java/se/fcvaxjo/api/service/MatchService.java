@@ -20,6 +20,7 @@ import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.HomeAway;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.MatchAttendance;
+import se.fcvaxjo.api.model.MatchStatus;
 import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
@@ -191,12 +192,38 @@ public class MatchService {
     }
 
     /**
+     * Calls the match off (issue #133). The row, the attendance and the result stay.
+     * reason may be empty. A cancelled match can still be edited.
+     */
+    @Transactional
+    public Match cancelMatch(Long id, String reason) {
+        Match match = getById(id);
+        match.setStatus(MatchStatus.CANCELLED);
+        match.setCancelReason(blankToNull(reason));
+        return matchRepository.save(match);
+    }
+
+    /**
+     * Undoes a cancel: SCHEDULED again and the reason is cleared.
+     * Calling it on a match that is not cancelled changes nothing (idempotent, 200).
+     */
+    @Transactional
+    public Match reactivateMatch(Long id) {
+        Match match = getById(id);
+        match.setStatus(MatchStatus.SCHEDULED);
+        match.setCancelReason(null);
+        return matchRepository.save(match);
+    }
+
+    /**
      * Sets the score, or clears it when both numbers are null
      * (for a result that was typed in wrong). One number alone is 400.
+     * Blocked (400) while the match is cancelled (issue #133).
      */
     @Transactional
     public Match setResult(Long id, Integer goalsFor, Integer goalsAgainst) {
         Match match = getById(id);
+        assertNotCancelled(match);
         assertScorePair(goalsFor, goalsAgainst);
         match.setGoalsFor(goalsFor);
         match.setGoalsAgainst(goalsAgainst);
@@ -221,6 +248,7 @@ public class MatchService {
     @Transactional
     public Match lockAttendance(Long matchId) {
         Match match = getById(matchId);
+        assertNotCancelled(match);
         if (match.getAttendanceLockedAt() != null) {
             return match;
         }
@@ -242,6 +270,7 @@ public class MatchService {
     @Transactional
     public MatchAttendance updateAttendance(Long matchId, Long playerUserId, String statusName) {
         Match match = getById(matchId);
+        assertNotCancelled(match);
         if (match.getAttendanceLockedAt() != null) {
             throw new BadRequestException(
                     "The attendance list for this match is frozen and can no longer be changed");
@@ -297,6 +326,20 @@ public class MatchService {
         if (goalsFor < 0 || goalsAgainst < 0) {
             throw new BadRequestException("goalsFor and goalsAgainst cannot be negative");
         }
+    }
+
+    /** Attendance, "Klar" and result are blocked while the match is called off (issue #133). */
+    private void assertNotCancelled(Match match) {
+        if (match.statusOrScheduled() == MatchStatus.CANCELLED) {
+            throw new BadRequestException("This match is cancelled");
+        }
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private HomeAway parseHomeAway(String raw) {
