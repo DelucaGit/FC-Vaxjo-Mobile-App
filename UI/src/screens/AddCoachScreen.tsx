@@ -5,7 +5,17 @@ import { addTeamCoach, listTeamCoaches } from '../api/teams';
 import { listUsers, type ClubUser } from '../api/users';
 import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
-import { Empty, Field, List, Row, RowMeta, RowTitle, Screen, useToast } from '../components/ui';
+import {
+  Empty,
+  Field,
+  List,
+  Row,
+  RowMeta,
+  RowTitle,
+  Screen,
+  SkeletonList,
+  useToast,
+} from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 import { spacing } from '../theme';
 
@@ -59,6 +69,7 @@ export default function AddCoachScreen({ navigation, route }: Props) {
         <Field label="Sök" value={query} onChangeText={setQuery} autoCorrect={false} />
       </View>
       <ErrorText message={error} />
+      {coaches === null && !error ? <SkeletonList /> : null}
       {coaches && shown.length === 0 ? <Empty text="Inga tränare att lägga till" /> : null}
       {shown.length > 0 ? (
         <List>

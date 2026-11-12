@@ -22,6 +22,8 @@ import {
   RowTitle,
   Screen,
   Segmented,
+  SkeletonList,
+  useRefresh,
   WeekLabel,
 } from '../components/ui';
 import {
@@ -76,58 +78,86 @@ export function TeamActivityList({ title, when, navigation, canCreate = false, o
   const [error, setError] = useState<string | null>(null);
 
   // Teams: a coach only sees their own. /my/teams answers 403 for CHAIRMAN, so club-wide roles use /teams.
+  // `isActive` lets an effect ignore an answer that comes too late (another role or team by then).
+  // Written with .then (not async/await) so the lint rule can see that setState runs later.
+  const loadTeams = useCallback(
+    (isActive: () => boolean = () => true) =>
+      (isClubWide(role) ? listTeams() : listMyTeams())
+        .then((list) => {
+          if (!isActive()) return;
+          setTeams(list);
+          setTeamId((current) => current ?? list[0]?.id ?? null);
+        })
+        .catch((e: Error) => {
+          if (isActive()) setError(e.message);
+        }),
+    [role],
+  );
+
   useEffect(() => {
     let active = true;
-    (isClubWide(role) ? listTeams() : listMyTeams())
-      .then((list) => {
-        if (!active) return;
-        setTeams(list);
-        setTeamId((current) => current ?? list[0]?.id ?? null);
-      })
-      .catch((e: Error) => active && setError(e.message));
+    void loadTeams(() => active);
     return () => {
       active = false;
     };
-  }, [role]);
+  }, [loadTeams]);
+
+  const loadActivities = useCallback(
+    async (isActive: () => boolean = () => true) => {
+      if (teamId == null) return;
+      try {
+        const [trainings, matches] = await Promise.all([
+          listTrainings(teamId, when),
+          listMatches(teamId, when),
+        ]);
+        const merged = [...trainings.map(fromTraining), ...matches.map(fromMatch)];
+        if (!isActive()) return;
+        setItems(merged);
+        setError(null);
+
+        // One attendance call per activity that can still have unmarked players.
+        const now = new Date();
+        const entries = await Promise.all(
+          merged
+            .filter((item) => needsAttendanceCount(item, now))
+            .map(async (item) => {
+              try {
+                const rows = await (item.kind === 'training'
+                  ? listTrainingAttendance(item.id)
+                  : listMatchAttendance(item.id));
+                return [countKey(item), countAttendance(rows)] as const;
+              } catch {
+                // The status line is extra information; the list still works without it.
+                return null;
+              }
+            }),
+        );
+        if (!isActive()) return;
+        setCounts(Object.fromEntries(entries.filter((e) => e != null)));
+      } catch (e) {
+        if (isActive()) setError((e as Error).message);
+      }
+    },
+    [teamId, when],
+  );
 
   // Runs every time the screen gets focus, so a new or changed activity shows up on the way back.
   useFocusEffect(
     useCallback(() => {
-      if (teamId == null) return;
       let active = true;
-      Promise.all([listTrainings(teamId, when), listMatches(teamId, when)])
-        .then(async ([trainings, matches]) => {
-          const merged = [...trainings.map(fromTraining), ...matches.map(fromMatch)];
-          if (!active) return;
-          setItems(merged);
-          setError(null);
-
-          // One attendance call per activity that can still have unmarked players.
-          const now = new Date();
-          const entries = await Promise.all(
-            merged
-              .filter((item) => needsAttendanceCount(item, now))
-              .map(async (item) => {
-                try {
-                  const rows = await (item.kind === 'training'
-                    ? listTrainingAttendance(item.id)
-                    : listMatchAttendance(item.id));
-                  return [countKey(item), countAttendance(rows)] as const;
-                } catch {
-                  // The status line is extra information; the list still works without it.
-                  return null;
-                }
-              }),
-          );
-          if (!active) return;
-          setCounts(Object.fromEntries(entries.filter((e) => e != null)));
-        })
-        .catch((e: Error) => active && setError(e.message));
+      void loadActivities(() => active);
       return () => {
         active = false;
       };
-    }, [teamId, when]),
+    }, [loadActivities]),
   );
+
+  // Pulling the list down loads the teams and the chosen team's activities again.
+  const loadAll = useCallback(
+    () => Promise.all([loadTeams(), loadActivities()]),
+    [loadTeams, loadActivities],
+  );
+  const refresh = useRefresh(loadAll);
 
   const chooseTeam = (id: number) => {
     setTeamId(id);
@@ -139,6 +169,7 @@ export function TeamActivityList({ title, when, navigation, canCreate = false, o
     <Screen
       title={title}
       onBack={onBack}
+      refresh={refresh}
       overlay={
         canCreate && teamId != null ? (
           <FabMenu
@@ -173,6 +204,9 @@ export function TeamActivityList({ title, when, navigation, canCreate = false, o
         <Text style={[type.sectionLabel, styles.teamName]}>{teams[0].name}</Text>
       ) : null}
       {teams && teams.length === 0 ? <Empty text="Inga lag" /> : null}
+
+      {/* First load (or a new team): grey rows until the activities arrive. Not on an error. */}
+      {!error && (teams === null || (teamId != null && items === null)) ? <SkeletonList /> : null}
 
       {items && items.length === 0 ? <Empty text="Inga aktiviteter" /> : null}
       {items

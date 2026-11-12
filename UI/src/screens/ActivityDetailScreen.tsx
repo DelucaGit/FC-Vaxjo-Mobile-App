@@ -21,6 +21,7 @@ import {
   RowTitle,
   Screen,
   SectionLabel,
+  SkeletonList,
   useToast,
 } from '../components/ui';
 import {
@@ -141,6 +142,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
       }
     >
       <ErrorText message={error} />
+      {!data && !error ? <SkeletonList /> : null}
 
       {training ? (
         <>

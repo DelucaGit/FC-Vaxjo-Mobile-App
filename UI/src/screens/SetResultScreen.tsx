@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getMatch, setMatchResult, type Match } from '../api/matches';
-import { Button, Field, Screen, useToast } from '../components/ui';
+import { Button, Field, Screen, SkeletonList, useToast } from '../components/ui';
 import { toGoals } from '../lib/matches/kickoff';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, type } from '../theme';
@@ -82,6 +82,7 @@ export default function SetResultScreen({ navigation, route }: Props) {
         </>
       }
     >
+      {!match && !error ? <SkeletonList rows={2} /> : null}
       <View style={styles.form}>
         {match ? (
           <View style={styles.scoreRow}>

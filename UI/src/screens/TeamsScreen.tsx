@@ -4,7 +4,17 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { listTeamCoaches, listTeamPlayers, listTeams, type Team } from '../api/teams';
 import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
-import { Button, Empty, List, Row, RowMeta, RowTitle, Screen } from '../components/ui';
+import {
+  Button,
+  Empty,
+  List,
+  Row,
+  RowMeta,
+  RowTitle,
+  Screen,
+  SkeletonList,
+  useRefresh,
+} from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Teams'>;
@@ -43,23 +53,31 @@ export default function TeamsScreen({ navigation }: Props) {
   const [teams, setTeams] = useState<TeamSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(async () => {
+    try {
+      setTeams(await loadSummaries());
+      setError(null);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }, []);
+
+  // Runs every time the screen gets focus, and again when the list is pulled down.
   useFocusEffect(
     useCallback(() => {
-      loadSummaries()
-        .then((next) => {
-          setTeams(next);
-          setError(null);
-        })
-        .catch((e) => setError(errorMessage(e)));
-    }, []),
+      void load();
+    }, [load]),
   );
+  const refresh = useRefresh(load);
 
   return (
     <Screen
       title="Lag"
+      refresh={refresh}
       bottom={<Button title="Nytt lag" block onPress={() => navigation.navigate('NewTeam')} />}
     >
       <ErrorText message={error} />
+      {teams === null && !error ? <SkeletonList /> : null}
       {teams && teams.length === 0 ? <Empty text="Inga lag" /> : null}
       {teams && teams.length > 0 ? (
         <List>

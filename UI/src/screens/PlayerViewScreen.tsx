@@ -6,7 +6,16 @@ import { listMyTeams } from '../api/teams';
 import { getUser, type ClubUser } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
 import { canEditOrDeleteUser } from '../auth/permissions';
-import { Button, InfoRow, List, MailLink, Screen, SectionLabel, TelLink } from '../components/ui';
+import {
+  Button,
+  InfoRow,
+  List,
+  MailLink,
+  Screen,
+  SectionLabel,
+  SkeletonList,
+  TelLink,
+} from '../components/ui';
 import { errorText, viewerFromSession } from '../components/users/userHelpers';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing } from '../theme';
@@ -61,7 +70,13 @@ export default function PlayerViewScreen({ navigation, route }: Props) {
   if (!player) {
     return (
       <Screen title="Spelare" onBack={goBack}>
-        {error ? <Text style={[styles.error, styles.pad]}>{error}</Text> : null}
+        {error ? (
+          <Text style={[styles.error, styles.pad]}>{error}</Text>
+        ) : (
+          <View style={styles.info}>
+            <SkeletonList rows={5} />
+          </View>
+        )}
       </Screen>
     );
   }

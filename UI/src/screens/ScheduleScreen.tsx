@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { listMyMatches, listMyTrainings, type MyMatch, type MyTraining } from '../api/my';
 import type { ActivityWhen } from '../api/request';
@@ -7,7 +7,18 @@ import { useAuth } from '../auth/AuthContext';
 import { cancelledLabel } from '../components/activities/activityItems';
 import { ChildPicker, useChildPicker } from '../components/schedule/ChildPicker';
 import { groupByWeek, statusLabel } from '../components/schedule/activities';
-import { DateText, Empty, List, Row, RowMeta, RowTitle, Screen, WeekLabel } from '../components/ui';
+import {
+  DateText,
+  Empty,
+  List,
+  Row,
+  RowMeta,
+  RowTitle,
+  Screen,
+  SkeletonList,
+  useRefresh,
+  WeekLabel,
+} from '../components/ui';
 import { toDate } from '../lib/dates';
 import { colors, spacing, type } from '../theme';
 
@@ -45,24 +56,37 @@ export function MyActivityList({ title, when, onBack }: ListProps) {
   // A parent without children has nothing to ask for (the API would answer an empty list).
   const noChild = isParent && !picker.loading && childId == null;
 
+  /**
+   * `isActive` lets the effect ignore an answer for a child that is no longer chosen.
+   * Written with .then (not async/await) so the lint rule can see that setState runs later.
+   */
+  const load = useCallback(
+    (isActive: () => boolean = () => true) => {
+      if (picker.loading || noChild) {
+        return Promise.resolve();
+      }
+      return Promise.all([listMyTrainings(childId, when), listMyMatches(childId, when)])
+        .then(([trainings, matches]) => {
+          if (!isActive()) return;
+          setData({ trainings, matches, now: Date.now() });
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Något gick fel');
+        });
+    },
+    [picker.loading, noChild, childId, when],
+  );
+
   useEffect(() => {
-    if (picker.loading || noChild) {
-      return;
-    }
     let active = true;
-    Promise.all([listMyTrainings(childId, when), listMyMatches(childId, when)])
-      .then(([trainings, matches]) => {
-        if (!active) return;
-        setData({ trainings, matches, now: Date.now() });
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Något gick fel');
-      });
+    void load(() => active);
     return () => {
       active = false;
     };
-  }, [picker.loading, noChild, childId, when]);
+  }, [load]);
+  // Pulling the list down runs the same load again.
+  const refresh = useRefresh(load);
 
   const shownError = picker.error ?? error;
   const groups = data && !noChild ? groupByWeek(data.trainings, data.matches, when === 'past') : [];
@@ -70,9 +94,10 @@ export function MyActivityList({ title, when, onBack }: ListProps) {
   const now = data?.now ?? 0;
 
   return (
-    <Screen title={title} onBack={onBack}>
+    <Screen title={title} onBack={onBack} refresh={refresh}>
       <ChildPicker state={picker} />
       {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
+      {!shownError && !loaded ? <SkeletonList /> : null}
       {!shownError && loaded && groups.length === 0 ? <Empty text="Inga aktiviteter" /> : null}
       {groups.map((group) => (
         <Fragment key={group.key}>

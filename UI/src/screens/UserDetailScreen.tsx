@@ -12,6 +12,7 @@ import {
   RowTitle,
   Screen,
   SelectField,
+  SkeletonList,
   TelLink,
 } from '../components/ui';
 import { errorText, viewerFromSession } from '../components/users/userHelpers';
@@ -122,6 +123,7 @@ export default function UserDetailScreen({ navigation, route }: Props) {
     return (
       <Screen title="Användare" onBack={goBack}>
         {error ? <Text style={[styles.error, styles.pad]}>{error}</Text> : null}
+        {!user && !error ? <SkeletonList rows={5} /> : null}
       </Screen>
     );
   }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Lock } from 'lucide-react-native';
 import type { AttendanceRow, AttendanceStatus } from '../api/trainings';
@@ -9,7 +9,17 @@ import {
   type ActivityHeader,
 } from '../components/attendance/attendance';
 import { PlayerAttendanceRow } from '../components/attendance/PlayerAttendanceRow';
-import { Button, Confirm, DateText, Empty, List, Screen, useToast } from '../components/ui';
+import {
+  Button,
+  Confirm,
+  DateText,
+  Empty,
+  List,
+  Screen,
+  SkeletonList,
+  useRefresh,
+  useToast,
+} from '../components/ui';
 import {
   ATTENDANCE_NOT_OPEN_MESSAGE,
   isAttendanceOpen,
@@ -44,23 +54,34 @@ export default function AttendanceScreen({ navigation, route }: Props) {
    */
   const [windowOpen, setWindowOpen] = useState(true);
 
+  /** `isActive` lets the effect ignore an answer that comes after the screen is gone. */
+  // Written with .then (not async/await) so the lint rule can see that setState runs later, not inside the effect.
+  const load = useCallback(
+    (isActive: () => boolean = () => true) =>
+      Promise.all([api.loadHeader(), api.list()])
+        .then(([loadedHeader, loadedRows]) => {
+          if (isActive()) {
+            setHeader(loadedHeader);
+            setRows(loadedRows);
+            setWindowOpen(isAttendanceOpen(loadedHeader.start));
+            setLoadError(null);
+          }
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setLoadError(messageOf(e));
+        }),
+    [api],
+  );
+
   useEffect(() => {
     let active = true;
-    Promise.all([api.loadHeader(), api.list()])
-      .then(([loadedHeader, loadedRows]) => {
-        if (active) {
-          setHeader(loadedHeader);
-          setRows(loadedRows);
-          setWindowOpen(isAttendanceOpen(loadedHeader.start));
-        }
-      })
-      .catch((e: unknown) => {
-        if (active) setLoadError(messageOf(e));
-      });
+    void load(() => active);
     return () => {
       active = false;
     };
-  }, [api]);
+  }, [load]);
+  // Pulling down loads the list again, e.g. to see marks another coach just made.
+  const refresh = useRefresh(load);
 
   const locked = header?.lockedAt != null;
   // A locked list only holds saved rows. After an automatic lock, unmarked players are left out.
@@ -120,15 +141,15 @@ export default function AttendanceScreen({ navigation, route }: Props) {
 
   if (loadError) {
     return (
-      <Screen title="Närvaro" onBack={back}>
+      <Screen title="Närvaro" onBack={back} refresh={refresh}>
         <Text style={[type.body, styles.error]}>{loadError}</Text>
       </Screen>
     );
   }
   if (!header) {
     return (
-      <Screen title="Närvaro" onBack={back}>
-        <ActivityIndicator style={styles.loading} color={colors.primary} />
+      <Screen title="Närvaro" onBack={back} refresh={refresh}>
+        <SkeletonList rows={6} />
       </Screen>
     );
   }
@@ -148,7 +169,7 @@ export default function AttendanceScreen({ navigation, route }: Props) {
   );
 
   return (
-    <Screen title="Närvaro" onBack={back} bottom={bottom}>
+    <Screen title="Närvaro" onBack={back} bottom={bottom} refresh={refresh}>
       <View style={styles.head}>
         <DateText start={header.start} end={header.end} />
         <Text style={type.heading}>{header.title}</Text>
@@ -206,6 +227,5 @@ const styles = StyleSheet.create({
   locked: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   warning: { color: colors.warning },
   error: { color: colors.warning, padding: spacing.page },
-  loading: { padding: spacing.lg },
   grow: { flex: 1 },
 });

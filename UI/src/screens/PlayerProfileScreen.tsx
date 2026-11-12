@@ -4,7 +4,16 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { Team } from '../api/teams';
 import { deletePlayer, getUser, updatePlayer, type ClubUser } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
-import { Button, Confirm, Field, Screen, SectionLabel, SelectField, useToast } from '../components/ui';
+import {
+  Button,
+  Confirm,
+  Field,
+  Screen,
+  SectionLabel,
+  SelectField,
+  SkeletonList,
+  useToast,
+} from '../components/ui';
 import { parseShirtNumber, playerSaveErrorMessage } from '../lib/players/errors';
 import { loadVisibleTeams } from '../lib/players/teams';
 import type { AppStackParamList } from '../navigation/types';
@@ -117,29 +126,33 @@ export default function PlayerProfileScreen({ navigation, route }: Props) {
       onBack={() => navigation.goBack()}
       bottom={<Button title="Spara" block disabled={!valid || busy} onPress={save} />}
     >
-      <View style={styles.fields}>
-        <Field label="Namn" value={name} onChangeText={setName} />
-        <Field
-          label="E-post"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Field label="Telefon" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <Field
-          label="Tröjnummer (valfritt)"
-          value={shirt}
-          onChangeText={setShirt}
-          keyboardType="number-pad"
-        />
-        <SelectField
-          label="Lag"
-          value={teamId}
-          options={teams.map((t) => ({ label: t.name, value: t.id }))}
-          onChange={setTeamId}
-        />
-      </View>
+      {/* Grey rows until the player arrives, so nobody types into an empty form. */}
+      {!player && !error ? <SkeletonList rows={5} /> : null}
+      {player ? (
+        <View style={styles.fields}>
+          <Field label="Namn" value={name} onChangeText={setName} />
+          <Field
+            label="E-post"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Field label="Telefon" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <Field
+            label="Tröjnummer (valfritt)"
+            value={shirt}
+            onChangeText={setShirt}
+            keyboardType="number-pad"
+          />
+          <SelectField
+            label="Lag"
+            value={teamId}
+            options={teams.map((t) => ({ label: t.name, value: t.id }))}
+            onChange={setTeamId}
+          />
+        </View>
+      ) : null}
 
       {hasParent ? (
         <>

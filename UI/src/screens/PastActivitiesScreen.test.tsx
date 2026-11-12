@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { listMatchAttendance, listMatches } from '../api/matches';
 import { listMyChildren, listMyMatches, listMyTrainings } from '../api/my';
 import { listMyTeams, listTeams } from '../api/teams';
 import { listTrainingAttendance, listTrainings } from '../api/trainings';
+import { pullToRefresh } from '../test/pullToRefresh';
 import PastActivitiesScreen from './PastActivitiesScreen';
 
 jest.mock('../api/my', () => ({
@@ -96,6 +97,32 @@ test.each(['COACH', 'CHAIRMAN', 'ADMIN'])(
     expect(navigation.goBack).toHaveBeenCalled();
   },
 );
+
+test('a coach pulls the list down and the past activities load again', async () => {
+  await render(<PastActivitiesScreen {...props} />);
+  await screen.findByText('Match mot Östers IF');
+
+  jest.mocked(listMatches).mockResolvedValue([]);
+  await pullToRefresh();
+
+  await waitFor(() => expect(screen.queryByText('Match mot Östers IF')).toBeNull());
+  expect(listMatches).toHaveBeenCalledTimes(2);
+  expect(listMatches).toHaveBeenLastCalledWith(10, 'past');
+});
+
+test('a player pulls the list down and the past activities load again', async () => {
+  mockRole = 'PLAYER';
+  jest.mocked(listMyTrainings).mockResolvedValue([]);
+  jest.mocked(listMyMatches).mockResolvedValue([]);
+  await render(<PastActivitiesScreen {...props} />);
+  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+
+  jest.mocked(listMyMatches).mockResolvedValue([{ ...match, status: 'PLAYED' } as never]);
+  await pullToRefresh();
+
+  expect(await screen.findByText('Match mot Östers IF')).toBeTruthy();
+  expect(listMyMatches).toHaveBeenLastCalledWith(undefined, 'past');
+});
 
 test('a player sees their own past activities with their attendance and the result', async () => {
   mockRole = 'PLAYER';

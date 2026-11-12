@@ -2,7 +2,18 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Empty, Field, List, Row, RowMeta, RowTitle, Screen } from '../components/ui';
+import {
+  Button,
+  Empty,
+  Field,
+  List,
+  Row,
+  RowMeta,
+  RowTitle,
+  Screen,
+  SkeletonList,
+  useRefresh,
+} from '../components/ui';
 import { errorText, roleAndTeam } from '../components/users/userHelpers';
 import { listUsers, type ClubUser } from '../api/users';
 import type { AppStackParamList } from '../navigation/types';
@@ -16,27 +27,33 @@ export default function UsersScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
+  /** `isActive` lets the focus effect ignore an answer that comes after the screen lost focus. */
+  const load = useCallback(async (isActive: () => boolean = () => true) => {
+    try {
+      const list = await listUsers();
+      if (isActive()) {
+        setUsers(list);
+        setError(null);
+      }
+    } catch (e) {
+      if (isActive()) {
+        setError(errorText(e));
+      }
+    }
+  }, []);
+
   // Reload each time the tab comes back into view, so a changed role shows up.
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      listUsers()
-        .then((list) => {
-          if (active) {
-            setUsers(list);
-            setError(null);
-          }
-        })
-        .catch((e) => {
-          if (active) {
-            setError(errorText(e));
-          }
-        });
+      void load(() => active);
       return () => {
         active = false;
       };
-    }, []),
+    }, [load]),
   );
+  // Pulling the list down runs the same load again.
+  const refresh = useRefresh(load);
 
   const needle = query.trim().toLowerCase();
   const shown = (users ?? []).filter((u) => u.name.toLowerCase().includes(needle));
@@ -44,6 +61,7 @@ export default function UsersScreen({ navigation }: Props) {
   return (
     <Screen
       title="Användare"
+      refresh={refresh}
       bottom={<Button title="Ny användare" onPress={() => navigation.navigate('NewUser')} block />}
     >
       <View style={styles.form}>
@@ -57,6 +75,7 @@ export default function UsersScreen({ navigation }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
 
+      {users === null && !error ? <SkeletonList /> : null}
       {users && shown.length === 0 ? <Empty text="Inga träffar" /> : null}
       {shown.length > 0 ? (
         <List>
