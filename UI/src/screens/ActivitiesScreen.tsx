@@ -12,9 +12,10 @@ import { listTrainingAttendance, listTrainings } from '../api/trainings';
 import { useAuth } from '../auth/AuthContext';
 import { isClubWide } from '../auth/permissions';
 import {
-  Button,
   DateText,
   Empty,
+  FAB_SPACE,
+  FabMenu,
   List,
   Row,
   RowMeta,
@@ -56,7 +57,7 @@ type ListProps = {
   /** upcoming: soonest first. past: "Tidigare aktiviteter", newest first. */
   when: ActivityWhen;
   navigation: Pick<NativeStackNavigationProp<AppStackParamList>, 'navigate'>;
-  /** Shows the two "Lägg till ...träning" buttons and "Ny match" at the bottom. */
+  /** Shows the plus button with "Lägg till ...träning" (two kinds) and "Ny match". */
   canCreate?: boolean;
   onBack?: () => void;
 };
@@ -138,27 +139,21 @@ export function TeamActivityList({ title, when, navigation, canCreate = false, o
     <Screen
       title={title}
       onBack={onBack}
-      bottom={
+      overlay={
         canCreate && teamId != null ? (
-          // One button per training type, stacked: the labels are too long for one row.
-          <View style={styles.actions}>
-            <Button
-              title="Lägg till fotbollsträning"
-              block
-              onPress={() => navigation.navigate('NewTraining', { teamId, type: 'FOOTBALL' })}
-            />
-            <Button
-              title="Lägg till fysträning"
-              block
-              onPress={() => navigation.navigate('NewTraining', { teamId, type: 'FITNESS' })}
-            />
-            <Button
-              title="Ny match"
-              variant="secondary"
-              block
-              onPress={() => navigation.navigate('NewMatch', { teamId })}
-            />
-          </View>
+          <FabMenu
+            actions={[
+              {
+                label: 'Lägg till fotbollsträning',
+                onPress: () => navigation.navigate('NewTraining', { teamId, type: 'FOOTBALL' }),
+              },
+              {
+                label: 'Lägg till fysträning',
+                onPress: () => navigation.navigate('NewTraining', { teamId, type: 'FITNESS' }),
+              },
+              { label: 'Ny match', onPress: () => navigation.navigate('NewMatch', { teamId }) },
+            ]}
+          />
         ) : undefined
       }
     >
@@ -199,6 +194,8 @@ export function TeamActivityList({ title, when, navigation, canCreate = false, o
             </View>
           ))
         : null}
+      {/* Empty room at the end, so the plus button never covers the last activity. */}
+      {canCreate && teamId != null ? <View style={styles.fabSpace} /> : null}
     </Screen>
   );
 }
@@ -231,7 +228,7 @@ function ActivityRow({ item, count, onPress }: RowProps) {
 }
 
 const styles = StyleSheet.create({
-  actions: { flex: 1, gap: spacing.sm },
+  fabSpace: { height: FAB_SPACE },
   picker: { paddingHorizontal: spacing.page, paddingTop: spacing.page },
   teamName: { paddingHorizontal: spacing.page, paddingTop: spacing.page },
   struck: { textDecorationLine: 'line-through', color: colors.textMuted },
