@@ -99,3 +99,18 @@ export function canEditOrDeleteUser(viewer: Viewer, target: TargetUser): boolean
   }
   return viewer.role === 'COACH' && viewer.teamIds.includes(target.teamId);
 }
+
+/**
+ * "Återställ lösenord" (#131). Same rule as the API (#128):
+ * ADMIN on everyone except themselves. CHAIRMAN on everyone except themselves,
+ * ADMIN and CHAIRMAN. Everyone else never.
+ */
+export function canResetPassword(viewer: Viewer, target: TargetUser): boolean {
+  if (viewer.userId === target.id) {
+    return false;
+  }
+  if (viewer.role === 'ADMIN') {
+    return true;
+  }
+  return viewer.role === 'CHAIRMAN' && !isClubWide(target.roleName);
+}

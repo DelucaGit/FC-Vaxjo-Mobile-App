@@ -1,9 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { changeUserRole, getUser } from '../api/users';
+import { changeUserRole, getUser, resetPassword } from '../api/users';
 import { makeNavigation, makeSession, makeUser } from '../components/users/testUtils';
 import UserDetailScreen from './UserDetailScreen';
 
-jest.mock('../api/users', () => ({ getUser: jest.fn(), changeUserRole: jest.fn() }));
+jest.mock('../api/users', () => ({
+  getUser: jest.fn(),
+  changeUserRole: jest.fn(),
+  resetPassword: jest.fn(),
+}));
 
 let mockSession = makeSession('CHAIRMAN', 100);
 jest.mock('../auth/AuthContext', () => ({
@@ -18,6 +22,7 @@ jest.mock('@react-navigation/native', () => ({
 
 const mockedGet = getUser as jest.MockedFunction<typeof getUser>;
 const mockedChange = changeUserRole as jest.MockedFunction<typeof changeUserRole>;
+const mockedReset = resetPassword as jest.MockedFunction<typeof resetPassword>;
 
 const player = makeUser({
   id: 7,
@@ -46,6 +51,7 @@ describe('UserDetailScreen', () => {
   beforeEach(() => {
     mockedGet.mockReset();
     mockedChange.mockReset();
+    mockedReset.mockReset();
     mockSession = makeSession('CHAIRMAN', 100);
   });
 
@@ -120,5 +126,67 @@ describe('UserDetailScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Bekräfta' }));
 
     expect(await screen.findByText('Du saknar behörighet för det här.')).toBeTruthy();
+  });
+
+  describe('Återställ lösenord', () => {
+    const chairman = makeUser({ id: 9, name: 'Ann Ord', roleName: 'CHAIRMAN' });
+    const RESET = 'Återställ lösenord';
+
+    test.each([
+      ['ADMIN on a chairman', 'ADMIN', 100, chairman, true],
+      ['CHAIRMAN on a coach', 'CHAIRMAN', 100, coach, true],
+      ['CHAIRMAN on a chairman', 'CHAIRMAN', 100, chairman, false],
+      ['COACH on a player', 'COACH', 100, player, false],
+      ['ADMIN on themselves', 'ADMIN', 8, coach, false],
+      ['ADMIN on an inactive user', 'ADMIN', 100, { ...coach, active: false }, false],
+    ])('%s: button shown = %s', async (_name, role, myId, target, shown) => {
+      mockSession = makeSession(role, myId);
+      mockedGet.mockResolvedValue(target);
+      await renderDetail(target.id);
+
+      await screen.findAllByText(target.name);
+      expect(screen.queryByRole('button', { name: RESET }) != null).toBe(shown);
+    });
+
+    test('asks first, then shows the temporary password once', async () => {
+      mockedGet.mockResolvedValue(coach);
+      const fakeTemp = 'Tmp-1234';
+      mockedReset.mockResolvedValue({ id: 8, temporaryPassword: fakeTemp });
+      await renderDetail(8);
+
+      await fireEvent.press(await screen.findByRole('button', { name: RESET }));
+      expect(screen.getByText('Det gamla lösenordet slutar fungera direkt.')).toBeTruthy();
+      expect(mockedReset).not.toHaveBeenCalled();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Återställ' }));
+      expect(mockedReset).toHaveBeenCalledWith(8);
+      expect(await screen.findByText('Tillfälligt lösenord: Tmp-1234')).toBeTruthy();
+
+      // "Klar" goes back to the user, and the password is gone.
+      await fireEvent.press(screen.getByRole('button', { name: 'Klar' }));
+      expect(screen.queryByText('Tillfälligt lösenord: Tmp-1234')).toBeNull();
+      expect(screen.getByRole('button', { name: RESET })).toBeTruthy();
+    });
+
+    test('"Avbryt" does not reset', async () => {
+      mockedGet.mockResolvedValue(coach);
+      await renderDetail(8);
+
+      await fireEvent.press(await screen.findByRole('button', { name: RESET }));
+      await fireEvent.press(screen.getByRole('button', { name: 'Avbryt' }));
+
+      expect(mockedReset).not.toHaveBeenCalled();
+    });
+
+    test('a refused reset shows the message from the API module', async () => {
+      mockedGet.mockResolvedValue(coach);
+      mockedReset.mockRejectedValue(new Error('Användaren hittades inte.'));
+      await renderDetail(8);
+
+      await fireEvent.press(await screen.findByRole('button', { name: RESET }));
+      await fireEvent.press(screen.getByRole('button', { name: 'Återställ' }));
+
+      expect(await screen.findByText('Användaren hittades inte.')).toBeTruthy();
+    });
   });
 });

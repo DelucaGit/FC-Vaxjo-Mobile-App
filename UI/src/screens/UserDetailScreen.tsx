@@ -15,9 +15,15 @@ import {
   TelLink,
 } from '../components/ui';
 import { errorText, viewerFromSession } from '../components/users/userHelpers';
-import { changeUserRole, getUser, type ClubUser } from '../api/users';
+import { CreatedAccounts } from '../components/players/CreatedAccounts';
+import { changeUserRole, getUser, resetPassword, type ClubUser } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
-import { assignableRoles, canChangeRole, canMakeCoach } from '../auth/permissions';
+import {
+  assignableRoles,
+  canChangeRole,
+  canMakeCoach,
+  canResetPassword,
+} from '../auth/permissions';
 import { roleLabel, type ClubRoleName } from '../auth/roles';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing } from '../theme';
@@ -25,6 +31,7 @@ import { colors, spacing } from '../theme';
 type Props = NativeStackScreenProps<AppStackParamList, 'UserDetail'>;
 
 const ROLE_CHANGE_WARNING = 'Tröjnummer, lag och förälder tas bort.';
+const RESET_WARNING = 'Det gamla lösenordet slutar fungera direkt.';
 
 /**
  * "Användardetalj" (spec section 7): Ordförande, Admin.
@@ -40,6 +47,9 @@ export default function UserDetailScreen({ navigation, route }: Props) {
   // The role waiting for "Bekräfta" in the dialog. null: no dialog.
   const [pendingRole, setPendingRole] = useState<ClubRoleName | null>(null);
   const [saving, setSaving] = useState(false);
+  // "Återställ lösenord": the dialog, then the new password, shown once.
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [newPassword, setNewPassword] = useState<string | null>(null);
 
   const load = useCallback(() => {
     let active = true;
@@ -81,7 +91,32 @@ export default function UserDetailScreen({ navigation, route }: Props) {
     }
   }
 
+  async function confirmPasswordReset() {
+    setConfirmReset(false);
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await resetPassword(userId);
+      setNewPassword(result.temporaryPassword);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const goBack = () => navigation.goBack();
+
+  if (user && newPassword) {
+    // "Klar" forgets the password, so it is never shown again.
+    return (
+      <CreatedAccounts
+        title="Nytt lösenord"
+        accounts={[{ name: user.name, temporaryPassword: newPassword }]}
+        onDone={() => setNewPassword(null)}
+      />
+    );
+  }
 
   if (!user || !viewer) {
     return (
@@ -94,6 +129,8 @@ export default function UserDetailScreen({ navigation, route }: Props) {
   const isPlayer = user.roleName === 'PLAYER';
   const showMakeCoach = canMakeCoach(viewer, user);
   const showChangeRole = canChangeRole(viewer, user);
+  // An inactive account answers 404, so the button is hidden for it.
+  const showResetPassword = user.active && canResetPassword(viewer, user);
   const roleOptions = assignableRoles(viewer.role).map((role) => ({
     label: roleLabel(role),
     value: role,
@@ -122,7 +159,7 @@ export default function UserDetailScreen({ navigation, route }: Props) {
         </List>
       ) : null}
 
-      {showMakeCoach || showChangeRole || error ? (
+      {showMakeCoach || showChangeRole || showResetPassword || error ? (
         <View style={[styles.actions, styles.pad]}>
           {showChangeRole ? (
             <SelectField
@@ -146,6 +183,15 @@ export default function UserDetailScreen({ navigation, route }: Props) {
               block
             />
           ) : null}
+          {showResetPassword ? (
+            <Button
+              title="Återställ lösenord"
+              variant="secondary"
+              disabled={saving}
+              onPress={() => setConfirmReset(true)}
+              block
+            />
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       ) : null}
@@ -161,6 +207,15 @@ export default function UserDetailScreen({ navigation, route }: Props) {
         confirmLabel="Bekräfta"
         onConfirm={confirmRole}
         onCancel={() => setPendingRole(null)}
+      />
+
+      <Confirm
+        visible={confirmReset}
+        title={`Återställ lösenord för ${user.name}?`}
+        message={RESET_WARNING}
+        confirmLabel="Återställ"
+        onConfirm={confirmPasswordReset}
+        onCancel={() => setConfirmReset(false)}
       />
     </Screen>
   );

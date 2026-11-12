@@ -3,6 +3,7 @@ import {
   canChangeRole,
   canEditOrDeleteUser,
   canMakeCoach,
+  canResetPassword,
   isClubWide,
   TargetUser,
   Viewer,
@@ -130,4 +131,36 @@ describe.each(table)('$role', (row) => {
 test('unknown or missing role is not club-wide and may assign nothing', () => {
   expect(isClubWide(undefined)).toBe(false);
   expect(assignableRoles('JANITOR')).toEqual([]);
+});
+
+describe('canResetPassword', () => {
+  const admin: TargetUser = { id: 5, roleName: 'ADMIN', teamId: null };
+  const chairman: TargetUser = { id: 6, roleName: 'CHAIRMAN', teamId: null };
+
+  test('ADMIN may reset everyone else, also ADMIN and CHAIRMAN', () => {
+    for (const target of [playerInAlfa, coach, parent, admin, chairman]) {
+      expect(canResetPassword(viewer('ADMIN'), target)).toBe(true);
+    }
+  });
+
+  test('CHAIRMAN may reset PLAYER, PARENT and COACH, not ADMIN or CHAIRMAN', () => {
+    expect(canResetPassword(viewer('CHAIRMAN'), playerInAlfa)).toBe(true);
+    expect(canResetPassword(viewer('CHAIRMAN'), parent)).toBe(true);
+    expect(canResetPassword(viewer('CHAIRMAN'), coach)).toBe(true);
+    expect(canResetPassword(viewer('CHAIRMAN'), admin)).toBe(false);
+    expect(canResetPassword(viewer('CHAIRMAN'), chairman)).toBe(false);
+  });
+
+  test('nobody may reset their own password here', () => {
+    const self: TargetUser = { id: 100, roleName: 'PLAYER', teamId: null };
+    for (const role of ['ADMIN', 'CHAIRMAN'] as const) {
+      expect(canResetPassword(viewer(role), self)).toBe(false);
+    }
+  });
+
+  test('COACH, PLAYER and PARENT may never reset', () => {
+    for (const role of ['COACH', 'PLAYER', 'PARENT'] as const) {
+      expect(canResetPassword(viewer(role), playerInAlfa)).toBe(false);
+    }
+  });
 });
