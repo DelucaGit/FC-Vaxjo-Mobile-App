@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.MatchAttendance;
+import se.fcvaxjo.api.model.MatchStatus;
 import se.fcvaxjo.api.model.Role;
 import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
@@ -77,6 +78,10 @@ public class MatchAttendanceRoster {
     @Transactional
     public Match freezeIfDue(Match match) {
         if (match.getAttendanceLockedAt() != null) {
+            return match;
+        }
+        // Same as trainings: a cancelled match is never auto-frozen.
+        if (match.statusOrScheduled() == MatchStatus.CANCELLED) {
             return match;
         }
         LocalDateTime now = now();

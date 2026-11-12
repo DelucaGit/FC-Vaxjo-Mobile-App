@@ -23,6 +23,9 @@ public class MyMatchResponse {
     private String venue;
     private String homeAway;
     private MatchResultResponse result;
+    /** SCHEDULED or CANCELLED. A missing value in the database is shown as SCHEDULED. */
+    private String status;
+    private String cancelReason;
     /** Null while the attendance list is open. Set when it is frozen. */
     private LocalDateTime attendanceLockedAt;
 }

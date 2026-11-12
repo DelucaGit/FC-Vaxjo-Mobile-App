@@ -122,6 +122,8 @@ public class MyScheduleController {
                     match.getVenue(),
                     match.getHomeAway().name(),
                     resultOf(match),
+                    match.statusOrScheduled().name(),
+                    match.getCancelReason(),
                     match.getAttendanceLockedAt()));
         }
         return responses;

@@ -51,6 +51,18 @@ public class Match {
     @Column(name = "goals_against")
     private Integer goalsAgainst;
 
+    /**
+     * Null means SCHEDULED. The column is nullable so existing rows stay valid
+     * when Hibernate adds it. A cancelled match is not deleted (issue #133).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column
+    private MatchStatus status;
+
+    /** Optional note, for example "Opponent withdrew". Null when the match is not cancelled. */
+    @Column(name = "cancel_reason")
+    private String cancelReason;
+
     @Column(name = "created_by_user_id", nullable = false)
     private Long createdByUserId;
 
@@ -61,4 +73,9 @@ public class Match {
      */
     @Column(name = "attendance_locked_at")
     private LocalDateTime attendanceLockedAt;
+
+    /** A row saved before the status column existed is still a normal match. */
+    public MatchStatus statusOrScheduled() {
+        return status == null ? MatchStatus.SCHEDULED : status;
+    }
 }
