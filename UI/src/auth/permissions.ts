@@ -37,6 +37,15 @@ export function isClubWide(role: string | null | undefined): boolean {
 }
 
 /**
+ * Change a training or match (e.g. "Ändra match"): ADMIN, CHAIRMAN or COACH.
+ * A COACH only reaches activities of their own teams: the API answers 403 when
+ * they open another team's activity, so the role is enough here.
+ */
+export function canManageActivities(role: string | null | undefined): boolean {
+  return isClubWide(role) || role === 'COACH';
+}
+
+/**
  * A training or match start that has already passed (issue #115).
  * Only ADMIN, so old history can be fixed. Same rule as the API.
  */

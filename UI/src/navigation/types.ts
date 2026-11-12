@@ -22,6 +22,7 @@ export type AppStackParamList = {
   NewTraining: { teamId: number; type: TrainingType };
   EditTraining: { trainingId: number };
   NewMatch: { teamId: number };
+  EditMatch: { matchId: number };
   CancelTraining: { trainingId: number };
   SetResult: { matchId: number };
   Attendance: { kind: ActivityKind; id: number };
