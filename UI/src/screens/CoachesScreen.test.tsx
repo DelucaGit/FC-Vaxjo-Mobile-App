@@ -4,6 +4,7 @@ import type { MyChild, MyCoach } from '../api/my';
 import { listMyChildren, listMyCoaches } from '../api/my';
 import type { ClubUser } from '../api/users';
 import { getUserById } from '../api/users';
+import { pullToRefresh } from '../test/pullToRefresh';
 import CoachesScreen from './CoachesScreen';
 
 const mockSession = { roleName: 'PLAYER', userId: 7 };
@@ -63,6 +64,18 @@ test('shows "Inga tränare" when the team has no coach', async () => {
   await render(<CoachesScreen />);
 
   expect(await screen.findByText('Inga tränare')).toBeTruthy();
+});
+
+test('pulling the list down loads the coaches again', async () => {
+  mockCoaches.mockResolvedValue([]);
+  await render(<CoachesScreen />);
+  expect(await screen.findByText('Inga tränare')).toBeTruthy();
+
+  mockCoaches.mockResolvedValue([johan]);
+  await pullToRefresh();
+
+  expect(await screen.findByText('Johan Berg')).toBeTruthy();
+  expect(mockCoaches).toHaveBeenCalledTimes(2);
 });
 
 test('a parent switches child and sees that team and its coaches', async () => {

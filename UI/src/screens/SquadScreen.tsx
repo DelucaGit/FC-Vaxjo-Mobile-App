@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { listMyTeams, type Team } from '../api/teams';
@@ -6,7 +6,7 @@ import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
 import { TeamRoster } from '../components/teams/TeamRoster';
 import { useTeamRoster } from '../components/teams/useTeamRoster';
-import { Button, Empty, Screen, SectionLabel, Segmented } from '../components/ui';
+import { Button, Empty, Screen, SectionLabel, Segmented, useRefresh } from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 import { spacing } from '../theme';
 
@@ -22,18 +22,38 @@ export default function SquadScreen({ navigation }: Props) {
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const roster = useTeamRoster(teamId);
 
+  // Written with .then (not async/await) so the lint rule can see that setState runs later, not inside the effect.
+  const loadTeams = useCallback(
+    () =>
+      listMyTeams()
+        .then((mine) => {
+          setTeams(mine);
+          setTeamsError(null);
+          // Keep the chosen team on a refresh, unless it is gone from the list.
+          setTeamId((current) =>
+            mine.some((team) => team.id === current) ? current : (mine[0]?.id ?? null),
+          );
+        })
+        .catch((e) => setTeamsError(errorMessage(e))),
+    [],
+  );
+
   useEffect(() => {
-    listMyTeams()
-      .then((mine) => {
-        setTeams(mine);
-        setTeamId(mine[0]?.id ?? null);
-      })
-      .catch((e) => setTeamsError(errorMessage(e)));
-  }, []);
+    void loadTeams();
+  }, [loadTeams]);
+
+  // Pulling down loads both the teams and the chosen team's coaches and players.
+  const { reload: reloadRoster } = roster;
+  const loadAll = useCallback(
+    () => Promise.all([loadTeams(), reloadRoster()]),
+    [loadTeams, reloadRoster],
+  );
+  const refresh = useRefresh(loadAll);
 
   return (
     <Screen
       title="Laget"
+      refresh={refresh}
       bottom={
         teamId != null ? (
           <Button

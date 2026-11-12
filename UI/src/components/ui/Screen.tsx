@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, sizes, spacing, type } from '../../theme';
+import type { RefreshState } from './useRefresh';
 
 const logo = require('../../../assets/fc-logo.png');
 
@@ -18,6 +19,8 @@ type Props = {
   overlay?: ReactNode;
   /** Set to false when the content scrolls by itself (a FlatList). */
   scroll?: boolean;
+  /** Pull-to-refresh on the scrolling content. Pass the result of `useRefresh`. */
+  refresh?: RefreshState;
   children?: ReactNode;
 };
 
@@ -32,6 +35,7 @@ export function Screen({
   bottom,
   overlay,
   scroll = true,
+  refresh,
   children,
 }: Props) {
   return (
@@ -79,7 +83,12 @@ export function Screen({
       {/* A wrapper, so the overlay covers the content area but not the header or bottom bar. */}
       <View style={styles.body}>
         {scroll ? (
-          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.content}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={refresh ? pullToRefresh(refresh) : undefined}
+            testID="screen-scroll"
+          >
             {children}
           </ScrollView>
         ) : (
@@ -90,6 +99,25 @@ export function Screen({
 
       {bottom ? <View style={styles.bottom}>{bottom}</View> : null}
     </SafeAreaView>
+  );
+}
+
+/**
+ * The spinner at the top when the list is pulled down, in the club colour.
+ * Exported for a screen that scrolls by itself: `<FlatList refreshControl={pullToRefresh(refresh)} />`.
+ * `colors` is for Android and `tintColor` for iOS.
+ *
+ * A plain function, not a component: on Android the ScrollView copies this element and
+ * puts itself inside it, which only works when the element is a RefreshControl itself.
+ */
+export function pullToRefresh({ refreshing, onRefresh }: RefreshState) {
+  return (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      colors={[colors.primary]}
+      tintColor={colors.primary}
+    />
   );
 }
 
