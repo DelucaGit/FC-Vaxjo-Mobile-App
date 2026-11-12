@@ -54,7 +54,17 @@ function player(id: number) {
   return within(screen.getByTestId(`player-${id}`));
 }
 
+/** Local time, the same way the app reads the API's date-time strings. */
+function localTime(year: number, month: number, day: number, hour: number, minute: number): number {
+  return new Date(year, month - 1, day, hour, minute).getTime();
+}
+
+/** The screen reads "now" from Date.now(). A fixed value keeps the tests stable. */
+let now: jest.SpyInstance<number, []>;
+
 beforeEach(() => {
+  // After the training (9 nov) and the match (14 nov 10:00), so attendance is open.
+  now = jest.spyOn(Date, 'now').mockReturnValue(localTime(2026, 11, 14, 12, 0));
   t.getTraining.mockResolvedValue(training);
   t.listTrainingAttendance.mockResolvedValue(rows());
   t.markTrainingAttendance.mockImplementation(async (_tid, playerUserId, status) => ({
@@ -174,6 +184,54 @@ test('match: uses the match calls and "Match mot" as title', async () => {
   await fireEvent.press(player(12).getByRole('radio', { name: 'Närvarande' }));
   expect(m.markMatchAttendance).toHaveBeenCalledWith(8, 12, 'PRESENT');
   expect(t.markTrainingAttendance).not.toHaveBeenCalled();
+});
+
+afterEach(() => {
+  now.mockRestore();
+});
+
+describe('attendance window (issue #124)', () => {
+  test('31 minutes before start: shows the text and no buttons', async () => {
+    now.mockReturnValue(localTime(2026, 11, 9, 16, 59));
+    await renderScreen();
+
+    expect(await screen.findByText('Närvaro öppnar 30 min före start')).toBeTruthy();
+    expect(player(11).getByText('Närvarande')).toBeTruthy();
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Klar|kvar att markera|Markera alla/ })).toBeNull();
+  });
+
+  test('30 minutes before start: the buttons show', async () => {
+    now.mockReturnValue(localTime(2026, 11, 9, 17, 0));
+    await renderScreen();
+
+    expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
+    expect(screen.queryByText('Närvaro öppnar 30 min före start')).toBeNull();
+    expect(player(12).getByRole('radio', { name: 'Närvarande' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Markera alla närvarande' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '2 spelare kvar att markera' })).toBeTruthy();
+  });
+
+  test('match: uses kickoff for the window', async () => {
+    now.mockReturnValue(localTime(2026, 11, 12, 10, 0));
+    m.getMatch.mockResolvedValue({
+      id: 8,
+      teamId: 1,
+      teamName: 'P12 Alfa',
+      opponent: 'Öster',
+      kickoffAt: '2026-11-14T10:00:00',
+      venue: 'Värendsvallen',
+      homeAway: 'HOME',
+      result: null,
+      createdByUserId: 2,
+      attendanceLockedAt: null,
+    });
+    m.listMatchAttendance.mockResolvedValue(rows());
+    await renderScreen('match', 8);
+
+    expect(await screen.findByText('Närvaro öppnar 30 min före start')).toBeTruthy();
+    expect(screen.queryByRole('radio')).toBeNull();
+  });
 });
 
 test('a 403 shows the Swedish message', async () => {

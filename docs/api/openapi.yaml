@@ -970,7 +970,9 @@ paths:
         Att frysa en redan fryst träning ändrar inget (200, samma `attendanceLockedAt`), även om
         listan har omarkerade spelare (t.ex. efter automatisk frysning).
         Samma roller och lagavgränsning som att markera närvaro.
-        Fel: "This training is cancelled" (400);
+        Närvarofönster (issue #124): går först från 30 minuter före `startsAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
+        Fel: "This training is cancelled" (400); "Närvaron öppnar 30 minuter före start." (400);
         "All players must be marked before the attendance list can be frozen" (400); "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
@@ -1003,9 +1005,11 @@ paths:
       description: |
         Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
         i träningens lag just nu; raden skapas om den saknas. Fryst träning (även automatiskt fryst, se listan) nekas.
+        Närvarofönster (issue #124): går först från 30 minuter före `startsAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
         Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
         "This player is not on the attendance list for this training",
-        "This training is cancelled",
+        "This training is cancelled", "Närvaron öppnar 30 minuter före start.",
         "The attendance list for this training is frozen and can no longer be changed" (400); "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
@@ -1243,7 +1247,9 @@ paths:
         inte längre är med på listan och sätter `attendanceLockedAt`. Ingen body.
         Att frysa en redan fryst match ändrar inget (200, samma `attendanceLockedAt`).
         Samma roller och lagavgränsning som att markera närvaro.
-        Fel: "All players must be marked before the attendance list can be frozen" (400);
+        Närvarofönster (issue #124): går först från 30 minuter före `kickoffAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
+        Fel: "Närvaron öppnar 30 minuter före start." (400); "All players must be marked before the attendance list can be frozen" (400);
         "Match not found" (404 för ADMIN och CHAIRMAN);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
@@ -1276,8 +1282,10 @@ paths:
       description: |
         Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
         i matchens lag just nu; raden skapas om den saknas. Fryst match (även automatiskt fryst) nekas.
+        Närvarofönster (issue #124): går först från 30 minuter före `kickoffAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
         Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
-        "This player is not on the attendance list for this match",
+        "This player is not on the attendance list for this match", "Närvaron öppnar 30 minuter före start.",
         "The attendance list for this match is frozen and can no longer be changed" (400);
         "Match not found" (404 för ADMIN och CHAIRMAN);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403);

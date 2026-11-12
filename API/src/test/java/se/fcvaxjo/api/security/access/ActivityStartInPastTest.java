@@ -4,12 +4,10 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
@@ -17,7 +15,6 @@ import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 import se.fcvaxjo.api.support.Actor;
 import se.fcvaxjo.api.support.ClubApiTest;
 import se.fcvaxjo.api.support.SampleRequests;
-import se.fcvaxjo.api.support.TestClock;
 
 /**
  * Issue #115: a training or match may not start in the past, except for ADMIN.
@@ -34,9 +31,6 @@ class ActivityStartInPastTest extends ClubApiTest {
 
     /** A few days after the fixture training (2026-11-06 18:00), so it is old. */
     private static final Instant AFTER_FIXTURE_TRAINING = Instant.parse("2026-11-10T12:00:00Z");
-
-    @Autowired
-    private TestClock clock;
 
     // ---- create training ----
 
@@ -157,9 +151,5 @@ class ActivityStartInPastTest extends ClubApiTest {
 
     private String oneTraining() {
         return "/api/trainings/" + world.trainingAlfaId();
-    }
-
-    private void moveClockTo(Instant target) {
-        clock.advance(Duration.between(TestClock.START, target));
     }
 }

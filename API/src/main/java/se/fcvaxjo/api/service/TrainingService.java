@@ -284,6 +284,7 @@ public class TrainingService {
         if (training.getAttendanceLockedAt() != null) {
             return training;
         }
+        startRule.assertAttendanceOpen(training.getStartsAt());
         boolean someoneUnmarked = roster.currentList(training).stream()
                 .anyMatch(row -> row.getStatus() == null);
         if (someoneUnmarked) {
@@ -303,6 +304,7 @@ public class TrainingService {
             throw new BadRequestException(
                     "The attendance list for this training is frozen and can no longer be changed");
         }
+        startRule.assertAttendanceOpen(training.getStartsAt());
 
         if (statusName == null || statusName.isBlank()) {
             throw new BadRequestException("status is required (PRESENT, ABSENT, or EXCUSED)");

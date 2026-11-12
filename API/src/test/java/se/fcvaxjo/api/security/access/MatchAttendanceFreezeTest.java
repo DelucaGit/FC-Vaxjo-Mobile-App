@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -29,12 +30,15 @@ import se.fcvaxjo.api.support.TestClock;
  * or 8 hours after kickoffAt.
  *
  * The fixture match on team Alfa kicks off 2026-12-12 14:00 Swedish time (13:00 UTC),
- * so the 8-hour limit is 2026-12-12 21:00 UTC. The test clock starts on 2026-01-01.
+ * so the 8-hour limit is 2026-12-12 21:00 UTC. Attendance opens 30 minutes before
+ * kickoff (issue #124), so each test starts with the clock at kickoff.
  * Team Alfa has playerAlfa and extra (both active, neither marked) and one inactive player.
  */
 class MatchAttendanceFreezeTest extends ClubApiTest {
 
     private static final Instant AUTO_FREEZE_LIMIT = Instant.parse("2026-12-12T21:00:00Z");
+
+    private static final String NOT_OPEN = "Närvaron öppnar 30 minuter före start.";
 
     @Autowired
     private TestClock clock;
@@ -44,6 +48,52 @@ class MatchAttendanceFreezeTest extends ClubApiTest {
 
     @Autowired
     private RoleRepository roles;
+
+    /** Attendance only opens 30 minutes before start (issue #124), so most tests start at start time. */
+    @BeforeEach
+    void startAtStartTime() {
+        moveClockTo(FIXTURE_MATCH_KICKOFF);
+    }
+
+    // ---- attendance window (issue #124) ----
+
+    @Test
+    void window_31MinutesBeforeKickoff_rejectsMarkingAndLock() throws Exception {
+        moveClockTo(FIXTURE_MATCH_KICKOFF.minus(Duration.ofMinutes(31)));
+
+        put(Actor.COACH_ALFA, markPlayer(), Map.of("status", "PRESENT"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(NOT_OPEN));
+        put(Actor.COACH_ALFA, lock(), null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(NOT_OPEN));
+    }
+
+    @Test
+    void window_30MinutesBeforeKickoff_allowsMarkingAndLock() throws Exception {
+        moveClockTo(FIXTURE_MATCH_KICKOFF.minus(Duration.ofMinutes(30)));
+
+        markBoth();
+        put(Actor.COACH_ALFA, lock(), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attendanceLockedAt").value(notNullValue()));
+    }
+
+    @Test
+    void window_duringMatch_allowsMarkingAndLock() throws Exception {
+        moveClockTo(FIXTURE_MATCH_KICKOFF.plus(Duration.ofMinutes(60)));
+
+        markBoth();
+        put(Actor.COACH_ALFA, lock(), null).andExpect(status().isOk());
+    }
+
+    @Test
+    void window_atAutoFreezeLimit_stillAllowsMarkingAndLock() throws Exception {
+        moveClockTo(AUTO_FREEZE_LIMIT);
+
+        markBoth();
+        put(Actor.COACH_ALFA, lock(), null).andExpect(status().isOk());
+    }
 
     // ---- roles and team scope ----
 
@@ -287,9 +337,6 @@ class MatchAttendanceFreezeTest extends ClubApiTest {
                 .andExpect(status().isOk());
     }
 
-    private void moveClockTo(Instant target) {
-        clock.advance(Duration.between(TestClock.START, target));
-    }
 
     private void moveToTeam(long userId, long teamId) {
         AppUser user = users.findById(userId).orElseThrow();
