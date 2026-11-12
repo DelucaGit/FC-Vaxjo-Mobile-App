@@ -996,7 +996,7 @@ paths:
         Ett ensamt måltal är 400. `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa matchen på vilket lag som helst.
         `kickoffAt` får inte ligga före nu (datum och klockslag, svensk tid Europe/Stockholm), annars 400 (#115).
-        ADMIN är undantagen och får sätta vilken tid som helst. Det finns ingen PUT för att flytta en match än.
+        ADMIN är undantagen och får sätta vilken tid som helst. En match flyttas med `PUT /api/matches/{id}` (#127).
         Fel: "teamId is required", "opponent is required", "kickoffAt is required",
         "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
         "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY",
@@ -1046,6 +1046,42 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MatchResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    put:
+      tags: [Matches]
+      operationId: updateMatch
+      summary: Ändra motståndare, avspark, plats och hemma/borta
+      description: |
+        Byter `opponent`, `kickoffAt`, `venue` och `homeAway` (#127). Laget kan inte bytas,
+        så närvaroraderna och resultatet ligger kvar. Resultatet ändras med `PUT /api/matches/{id}/result`.
+        Samma roller och lag som när matchen skapas. Alla fyra fälten krävs, precis som vid skapande.
+        En ny `kickoffAt` får inte ligga före nu (svensk tid), annars 400 (#115). ADMIN är undantagen.
+        Kontrollen görs bara när `kickoffAt` ändras: att rätta platsen på en gammal match med samma tid går igenom.
+        Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        Fel: "opponent is required", "kickoffAt is required",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
+        "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY" (400);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403, kontrolleras först);
+        PLAYER och PARENT får 403 från `@PreAuthorize`;
+        "Match not found" (404 för ADMIN och CHAIRMAN).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.update → MatchService.updateMatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMatchRequest' }
+      responses:
+        '200':
+          description: Den ändrade matchen.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1814,6 +1850,15 @@ components:
           type: [integer, 'null']
           minimum: 0
           description: Valfritt vid skapande. Måste skickas tillsammans med goalsFor.
+    UpdateMatchRequest:
+      type: object
+      description: Laget kan inte bytas. Resultatet ändras inte här.
+      required: [opponent, kickoffAt, venue, homeAway]
+      properties:
+        opponent: { type: string, minLength: 1, description: Motståndarlag. Trimmas. }
+        kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        venue: { type: string, minLength: 1, description: Plats. Trimmas. }
+        homeAway: { $ref: '#/components/schemas/HomeAway' }
     SetMatchResultRequest:
       type: object
       description: Båda satta sätter resultatet. Båda null tömmer det. Bara ett satt ger 400.
