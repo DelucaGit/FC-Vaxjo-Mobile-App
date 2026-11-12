@@ -15,6 +15,7 @@ import {
   RowMeta,
   RowTitle,
   Screen,
+  SkeletonList,
   useRefresh,
   WeekLabel,
 } from '../components/ui';
@@ -96,6 +97,7 @@ export function MyActivityList({ title, when, onBack }: ListProps) {
     <Screen title={title} onBack={onBack} refresh={refresh}>
       <ChildPicker state={picker} />
       {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
+      {!shownError && !loaded ? <SkeletonList /> : null}
       {!shownError && loaded && groups.length === 0 ? <Empty text="Inga aktiviteter" /> : null}
       {groups.map((group) => (
         <Fragment key={group.key}>

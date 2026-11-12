@@ -6,7 +6,7 @@ import { ErrorText } from '../components/teams/ErrorText';
 import { errorMessage } from '../components/teams/errors';
 import { TeamRoster } from '../components/teams/TeamRoster';
 import { useTeamRoster } from '../components/teams/useTeamRoster';
-import { Button, Confirm, Screen, useRefresh } from '../components/ui';
+import { Button, Confirm, Screen, SkeletonList, useRefresh } from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'TeamDetail'>;
@@ -71,7 +71,8 @@ export default function TeamDetailScreen({ navigation, route }: Props) {
       }
     >
       <ErrorText message={actionError ?? roster.error} />
-      {!roster.error ? (
+      {!roster.error && !roster.loaded ? <SkeletonList /> : null}
+      {!roster.error && roster.loaded ? (
         <TeamRoster
           coaches={roster.coaches}
           players={roster.players}

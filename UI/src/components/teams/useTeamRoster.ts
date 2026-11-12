@@ -7,7 +7,11 @@ import { errorMessage } from './errors';
 export type TeamRosterState = {
   coaches: ClubUser[];
   players: ClubUser[];
-  loading: boolean;
+  /**
+   * True once this team's coaches and players have arrived. Stays true during a
+   * pull-to-refresh, so the list stays on screen; false again for a new team.
+   */
+  loaded: boolean;
   error: string | null;
   reload: () => Promise<void>;
 };
@@ -20,14 +24,14 @@ export type TeamRosterState = {
 export function useTeamRoster(teamId: number | null): TeamRosterState {
   const [coaches, setCoaches] = useState<ClubUser[]>([]);
   const [players, setPlayers] = useState<ClubUser[]>([]);
-  const [loading, setLoading] = useState(teamId != null);
+  // Which team the lists above belong to. Another team means "not loaded yet".
+  const [loadedTeamId, setLoadedTeamId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (teamId == null) {
       return;
     }
-    setLoading(true);
     try {
       const [nextCoaches, nextPlayers] = await Promise.all([
         listTeamCoaches(teamId),
@@ -35,11 +39,10 @@ export function useTeamRoster(teamId: number | null): TeamRosterState {
       ]);
       setCoaches(nextCoaches);
       setPlayers(nextPlayers);
+      setLoadedTeamId(teamId);
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
-    } finally {
-      setLoading(false);
     }
   }, [teamId]);
 
@@ -49,5 +52,6 @@ export function useTeamRoster(teamId: number | null): TeamRosterState {
     }, [reload]),
   );
 
-  return { coaches, players, loading, error, reload };
+  const loaded = teamId != null && loadedTeamId === teamId;
+  return { coaches, players, loaded, error, reload };
 }

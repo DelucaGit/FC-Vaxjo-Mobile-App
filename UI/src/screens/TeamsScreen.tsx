@@ -12,6 +12,7 @@ import {
   RowMeta,
   RowTitle,
   Screen,
+  SkeletonList,
   useRefresh,
 } from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
@@ -76,6 +77,7 @@ export default function TeamsScreen({ navigation }: Props) {
       bottom={<Button title="Nytt lag" block onPress={() => navigation.navigate('NewTeam')} />}
     >
       <ErrorText message={error} />
+      {teams === null && !error ? <SkeletonList /> : null}
       {teams && teams.length === 0 ? <Empty text="Inga lag" /> : null}
       {teams && teams.length > 0 ? (
         <List>

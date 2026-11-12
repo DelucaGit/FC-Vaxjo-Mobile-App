@@ -3,6 +3,7 @@ import { readErrorMessage } from '../api/http';
 import * as matches from '../api/matches';
 import * as trainings from '../api/trainings';
 import type { AttendanceRow } from '../api/trainings';
+import { deferred } from '../test/deferred';
 import { pullToRefresh } from '../test/pullToRefresh';
 import AttendanceScreen from './AttendanceScreen';
 
@@ -85,6 +86,31 @@ test('shows header, counter and the Klar button locked while players are unmarke
   expect(screen.getByText('2 ej markerade')).toBeTruthy();
   expect(player(11).getByText('#7')).toBeTruthy();
   expect(screen.getByRole('button', { name: '2 spelare kvar att markera' })).toBeDisabled();
+});
+
+test('shows grey placeholder rows until the list arrives', async () => {
+  const list = deferred<AttendanceRow[]>();
+  t.listTrainingAttendance.mockReturnValue(list.promise);
+  await renderScreen();
+
+  expect(screen.getByLabelText('Laddar')).toBeOnTheScreen();
+  expect(screen.queryByText('Fotbollsträning')).toBeNull();
+
+  await list.resolve(rows());
+
+  expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
+  expect(screen.queryByLabelText('Laddar')).toBeNull();
+});
+
+test('shows the error instead of the placeholder when loading fails', async () => {
+  const list = deferred<AttendanceRow[]>();
+  t.listTrainingAttendance.mockReturnValue(list.promise);
+  await renderScreen();
+
+  await list.reject(new Error('Training not found'));
+
+  expect(await screen.findByText('Training not found')).toBeTruthy();
+  expect(screen.queryByLabelText('Laddar')).toBeNull();
 });
 
 test('marking a player updates the row at once and calls the API', async () => {
