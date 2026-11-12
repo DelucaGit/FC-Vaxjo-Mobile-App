@@ -12,6 +12,7 @@ import {
   SectionLabel,
   SelectField,
   SkeletonList,
+  useToast,
 } from '../components/ui';
 import { parseShirtNumber, playerSaveErrorMessage } from '../lib/players/errors';
 import { loadVisibleTeams } from '../lib/players/teams';
@@ -25,6 +26,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'PlayerProfile'>;
  * The parent's contact details are edited here too and saved on the parent.
  */
 export default function PlayerProfileScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { userId } = route.params;
   const role = useAuth().session?.roleName;
 
@@ -96,6 +98,7 @@ export default function PlayerProfileScreen({ navigation, route }: Props) {
             }
           : {}),
       });
+      toast.show('Spelaren är sparad');
       navigation.goBack();
     } catch (e) {
       setError(playerSaveErrorMessage(e));
@@ -109,6 +112,7 @@ export default function PlayerProfileScreen({ navigation, route }: Props) {
     setError(null);
     try {
       await deletePlayer(userId);
+      toast.show('Spelaren är borttagen');
       navigation.goBack();
     } catch (e) {
       setError(playerSaveErrorMessage(e));

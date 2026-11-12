@@ -11,6 +11,7 @@ export default function CancelMatchScreen({ navigation, route }: Props) {
     <CancelActivityForm
       title="Ställ in match"
       cancel={(reason) => setMatchCancelled(route.params.matchId, true, reason)}
+      doneMessage="Matchen är inställd"
       onBack={() => navigation.goBack()}
     />
   );

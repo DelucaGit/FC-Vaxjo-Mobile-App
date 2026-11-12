@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getMatch, updateMatch } from '../api/matches';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Screen, SkeletonList } from '../components/ui';
+import { Button, Screen, SkeletonList, useToast } from '../components/ui';
 import {
   MatchForm,
   MatchFormError,
@@ -20,6 +20,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'EditMatch'>;
 
 /** "Ändra match" (issue #130): the same fields as "Ny match", filled in. */
 export default function EditMatchScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { matchId } = route.params;
   const { session } = useAuth();
   const [values, setValues] = useState<MatchFormValues | null>(null);
@@ -57,6 +58,7 @@ export default function EditMatchScreen({ navigation, route }: Props) {
     setError(null);
     try {
       await updateMatch(matchId, payload);
+      toast.show('Matchen är sparad');
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kunde inte spara matchen.');

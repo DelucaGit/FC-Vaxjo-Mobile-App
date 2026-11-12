@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createMatch } from '../api/matches';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Button, Screen } from '../components/ui';
+import { Button, Screen, useToast } from '../components/ui';
 import {
   MatchForm,
   MatchFormError,
@@ -20,6 +20,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'NewMatch'>;
 
 /** Ny match (spec section 7). Every field is required; the result is set later. */
 export default function NewMatchScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { teamId } = route.params;
   const { session } = useAuth();
   const [values, setValues] = useState<MatchFormValues>(NEW_MATCH_DEFAULTS);
@@ -42,6 +43,7 @@ export default function NewMatchScreen({ navigation, route }: Props) {
     setError(null);
     try {
       await createMatch({ teamId, ...payload });
+      toast.show('Matchen är sparad');
       navigation.goBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte spara matchen.');

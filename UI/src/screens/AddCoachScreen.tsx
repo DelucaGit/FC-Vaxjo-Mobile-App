@@ -14,6 +14,7 @@ import {
   RowTitle,
   Screen,
   SkeletonList,
+  useToast,
 } from '../components/ui';
 import type { AppStackParamList } from '../navigation/types';
 import { spacing } from '../theme';
@@ -31,6 +32,7 @@ function availableCoaches(users: readonly ClubUser[], inTeam: readonly ClubUser[
  * A tap adds the coach and goes back to Lagsida.
  */
 export default function AddCoachScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { teamId } = route.params;
   const [coaches, setCoaches] = useState<ClubUser[] | null>(null);
   const [query, setQuery] = useState('');
@@ -50,6 +52,7 @@ export default function AddCoachScreen({ navigation, route }: Props) {
     setAdding(true);
     try {
       await addTeamCoach(teamId, coach.id);
+      toast.show('Tränaren är tillagd');
       navigation.goBack();
     } catch (e) {
       setError(errorMessage(e));

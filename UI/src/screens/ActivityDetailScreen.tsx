@@ -22,6 +22,7 @@ import {
   Screen,
   SectionLabel,
   SkeletonList,
+  useToast,
 } from '../components/ui';
 import {
   cancelledLabel,
@@ -48,6 +49,7 @@ type Loaded =
 
 /** "Aktivitetsdetalj" (spec section 7) for one training or one match. */
 export default function ActivityDetailScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { kind, id } = route.params;
   const { session } = useAuth();
   const [data, setData] = useState<Loaded | null>(null);
@@ -87,6 +89,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
     setBusy(true);
     try {
       await (kind === 'training' ? setTrainingCancelled(id, false) : setMatchCancelled(id, false));
+      toast.show(kind === 'training' ? 'Träningen är återaktiverad' : 'Matchen är återaktiverad');
       await load();
     } catch (e) {
       setError((e as Error).message);

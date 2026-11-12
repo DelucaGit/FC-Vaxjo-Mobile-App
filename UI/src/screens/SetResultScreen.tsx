@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getMatch, setMatchResult, type Match } from '../api/matches';
-import { Button, Field, Screen, SkeletonList } from '../components/ui';
+import { Button, Field, Screen, SkeletonList, useToast } from '../components/ui';
 import { toGoals } from '../lib/matches/kickoff';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, type } from '../theme';
@@ -14,6 +14,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'SetResult'>;
  * The backend clears a result when both numbers are null, so a saved result can be removed.
  */
 export default function SetResultScreen({ navigation, route }: Props) {
+  const toast = useToast();
   const { matchId } = route.params;
   const [match, setMatch] = useState<Match | null>(null);
   const [goalsFor, setGoalsFor] = useState('');
@@ -49,6 +50,7 @@ export default function SetResultScreen({ navigation, route }: Props) {
     setError(null);
     try {
       await setMatchResult(matchId, forValue, againstValue);
+      toast.show(forValue === null ? 'Resultatet är borttaget' : 'Resultatet är sparat');
       navigation.goBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte spara resultatet.');
