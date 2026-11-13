@@ -20,6 +20,10 @@ function toSession(data: {
   };
 }
 
+/** Shown when the API locks login after too many failed attempts (HTTP 429). */
+export const TOO_MANY_LOGIN_ATTEMPTS_MESSAGE =
+  'För många inloggningsförsök. Försök igen om 15 minuter.';
+
 export async function login(email: string, password: string): Promise<LoginResult> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -27,6 +31,10 @@ export async function login(email: string, password: string): Promise<LoginResul
     body: JSON.stringify({ email, password }),
   });
 
+  if (response.status === 429) {
+    // Fixed text, so the user gets Swedish even if a proxy sends its own 429 body.
+    throw new Error(TOO_MANY_LOGIN_ATTEMPTS_MESSAGE);
+  }
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
   }

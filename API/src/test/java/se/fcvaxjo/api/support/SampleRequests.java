@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import se.fcvaxjo.api.DTO.AddCoachRequest;
 import se.fcvaxjo.api.DTO.ChangePasswordRequest;
 import se.fcvaxjo.api.DTO.ChangeRoleRequest;
+import se.fcvaxjo.api.DTO.CancelMatchRequest;
 import se.fcvaxjo.api.DTO.CancelTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateMatchRequest;
 import se.fcvaxjo.api.DTO.CreateTeamRequest;
@@ -14,6 +15,7 @@ import se.fcvaxjo.api.DTO.SetMatchResultRequest;
 import se.fcvaxjo.api.DTO.LoginRequest;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
+import se.fcvaxjo.api.DTO.UpdateMatchRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 
@@ -93,7 +95,7 @@ public final class SampleRequests {
         request.setTeamId(teamId);
         request.setStartsAt(LocalDateTime.of(2026, 12, 1, 18, 0));
         request.setEndsAt(LocalDateTime.of(2026, 12, 1, 19, 0));
-        request.setTitle("Extra testtraning");
+        request.setType("FOOTBALL");
         request.setVenue("Extra hall");
         return request;
     }
@@ -102,7 +104,7 @@ public final class SampleRequests {
         UpdateTrainingRequest request = new UpdateTrainingRequest();
         request.setStartsAt(LocalDateTime.of(2026, 12, 2, 18, 0));
         request.setEndsAt(LocalDateTime.of(2026, 12, 2, 19, 30));
-        request.setTitle("Flyttad testtraning");
+        request.setType("FITNESS");
         request.setVenue("Nya hallen");
         return request;
     }
@@ -120,6 +122,20 @@ public final class SampleRequests {
         return request;
     }
 
+    /** Body that calls a match off (issue #133). A null reason means none. */
+    public static CancelMatchRequest matchCancellation(String reason) {
+        CancelMatchRequest request = new CancelMatchRequest();
+        request.setReason(reason);
+        return request;
+    }
+
+    /** Body that reactivates a cancelled match: {"cancelled": false}. */
+    public static CancelMatchRequest matchReactivation() {
+        CancelMatchRequest request = new CancelMatchRequest();
+        request.setCancelled(false);
+        return request;
+    }
+
     public static CreateMatchRequest match(long teamId) {
         CreateMatchRequest request = new CreateMatchRequest();
         request.setTeamId(teamId);
@@ -127,6 +143,16 @@ public final class SampleRequests {
         request.setKickoffAt(LocalDateTime.of(2026, 12, 20, 13, 0));
         request.setVenue("Extra plan");
         request.setHomeAway("HOME");
+        return request;
+    }
+
+    /** Body for PUT /api/matches/{id}: a moved match with new details. */
+    public static UpdateMatchRequest matchChange() {
+        UpdateMatchRequest request = new UpdateMatchRequest();
+        request.setOpponent("Flyttad motstandare");
+        request.setKickoffAt(LocalDateTime.of(2026, 12, 21, 15, 0));
+        request.setVenue("Ny plan");
+        request.setHomeAway("AWAY");
         return request;
     }
 

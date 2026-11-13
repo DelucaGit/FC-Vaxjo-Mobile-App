@@ -63,6 +63,8 @@ Exempel: `coachFromOtherTeam_cannotSeePlayerPhoneNumber`.
 | PARENT, eget barn | Barnets namn och schema via `/api/my`. Inte klubbkatalogen |
 | PARENT, annat barn | Inga |
 
+Medlemsdatum (#85): `memberSince` (sätts när användaren skapas) och `memberUntil` (sätts vid mjukradering, annars null). Båda är `x-pii`. ADMIN, CHAIRMAN och COACH ser dem på de rader de redan når. PLAYER och PARENT får null, även på sin egen rad. Gamla rader har null i `memberSince`, vilket betyder "medlem sedan tidigare". Testerna finns i `MemberDatesAccessTest`.
+
 `TeamResponse` har bara id och namn. Inget `x-pii`. Alla inloggade får lista lag.
 
 `AttendanceResponse`: `playerName` och `status` är `x-pii`. Bara ADMIN och lagets tränare. Ingen e-post och ingen föräldertelefon i det svaret.
@@ -78,6 +80,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | Anrop | Mål | Kod idag |
 |---|---|---|
 | `POST /api/auth/login` | Publik. 200 för aktiv användare. Fel lösenord, okänd e-post och inaktiv ger samma 401 | Stämmer (S1-9). Saknad e-post eller lösenord är fortfarande 400 |
+| `POST /api/auth/login`, spärr (#64, ADR 0008) | 429 i 15 minuter, även med rätt lösenord, efter 5 misslyckade försök per e-post+IP, 30 per IP eller 20 per e-post. Samma e-post från annan IP släpps fram tills 20. Lyckad inloggning nollställer e-post+IP och e-post. Intern IP (proxy) ger e-post ensam vid 5. Falska `X-Real-IP`/`X-Forwarded-For` ignoreras utan betrodd proxy. 429-svaret innehåller ingen IP | Stämmer (`LoginRateLimitTest`, `LoginAttemptLimiterTest`, styrbar klocka; `LoginClientIpServerTest` med riktig Tomcat och `X-Real-IP`). Okänd e-post räknas likadant |
 | `POST /api/auth/change-password` | Inloggad, bara sitt eget lösenord. Inaktiv token ska få 401 | Stämmer. Inaktiv token får 401 i filtret |
 | `POST /api/auth/refresh` | Inloggad och aktiv. Inaktiv får 401 | Inaktiv token får 401. Texten är "Login required", samma som övriga nekade token (F11) |
 
@@ -92,6 +95,7 @@ Status nedan är målet. "Kod idag" är kort. Där målet redan stämmer är tes
 | `PUT /api/users/{id}/player` | 200 | 200 alla lag | 200 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `DELETE /api/users/{id}` | 204 | 204 | 204 eget lag | 403 | 403 | 403 | 403 | Stämmer efter S1-3 |
 | `PUT /api/users/{id}/role` | 200 vilken roll som helst | 200 bara PLAYER till COACH, inte egen roll, inte ADMIN/CHAIRMAN | 403 | 403 | 403 | 403 | 403 | Stämmer efter S1-8 |
+| `POST /api/users/{id}/password-reset` | 200 alla utom sig själv (403) | 200 utom ADMIN, CHAIRMAN och sig själv (403) | 403 | 403 | 403 | 403 | 403 | Nytt tillfälligt lösenord visas en gång, `mustChangePassword` blir true, gammal token ger 401. Saknat eller inaktivt id är 404. #128 |
 
 Beslut (b), stängt: en tränare får skapa en förälder bara tillsammans med en aktiv spelare i ett lag hen tränar (`newParent` på den spelaren). Allt annat om den föräldern är 400, inklusive en fristående `PARENT`. ADMIN och CHAIRMAN får skapa en förälder utan barn. En inaktiv förälder syns inte i `parentName`, `parentEmail` eller `parentMobilePhoneNumber`. Att koppla en spelare till en inaktiv förälder, eller till någon som inte är PARENT, är 400.
 
@@ -121,10 +125,35 @@ PLAYER och PARENT ser `trainingStatus` CANCELLED i `GET /api/my/trainings`. Pers
 
 Kod idag: stämmer. Anonymt anrop är 401.
 
+#### Träningsserie (issue #129)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `POST /api/trainings/series` | 201 | 201 | 201 | 403 | 403 | 403 | 401 | Stämmer (`TrainingSeriesAccessTest`) |
+
+- Skapar vanliga, separata träningar, en per datum i `fromDate`–`toDate` vars veckodag finns i `weekdays`. Ingen serie sparas.
+- Passerade datum (svensk tid) hoppas över för alla roller, även ADMIN. Svaret är bara de skapade träningarna.
+- Fler än 60 träningar, `toDate` före `fromDate`, tom `weekdays` eller `endTime` som inte är efter `startTime` ger 400. Allt i en transaktion: vid fel skapas inget.
+
+#### Frysta närvarolistor (issue #86, ADR 0010)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `PUT /api/trainings/{id}/attendance/lock` ("Klar") | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer. Okänt id 404. Inställd träning 400 |
+
+- Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. `POST /api/trainings` kopierar inte spelare.
+- "Klar" kräver att alla på listan är markerade, annars 400 "All players must be marked before the attendance list can be frozen". Lag utan spelare kan frysas. Redan fryst: 200 och inget ändras.
+- Närvarofönster (issue #124): markera och "Klar" går först från 30 minuter före `startsAt` (Europe/Stockholm), för alla roller. Tidigare: 400 "Närvaron öppnar 30 minuter före start.". Stämmer (`TrainingAttendanceFreezeTest`, styrbar klocka: 31 min före 400; 30 min före, under passet och vid 6-timmarsgränsen 200).
+- Automatisk frysning vid första läsning eller skrivning när nu (Europe/Stockholm) är mer än 6 timmar efter `endsAt`. Bara sparade rader följer med, omarkerade läggs inte till. Inställda träningar fryses inte automatiskt.
+- Fryst lista: markera närvaro ger 400. Spelare som slutat ligger kvar, nya spelare syns inte. Ändrad tid låser inte upp.
+- `attendanceLockedAt` (`null` = öppen) finns i `TrainingResponse` och `MyTrainingResponse`.
+
 ### Matcher
 
 `x-roles` för personalens URL:er: ADMIN, CHAIRMAN och COACH. `x-scope`: ADMIN och CHAIRMAN alla lag. COACH bara lag i `team_coaches`. PLAYER och PARENT: 403 på de URL:erna.
-Det gäller lista, hämta, skapa, sätta resultat och tömma resultat.
+Det gäller lista, hämta, skapa, ändra, sätta resultat och tömma resultat.
+
+`PUT /api/matches/{id}` (issue #127) ändrar motståndare, avspark, plats och hemma/borta. Laget kan inte bytas. ADMIN, CHAIRMAN och COACH för eget lag 200. COACH för annat lag, PLAYER och PARENT 403. Anonym 401. Testerna ligger i `MatchAccessTest`.
 
 `PUT /api/matches/{id}/result` med båda målen `null` tömmer resultatet. Bara ett mål satt ger 400. Samma roller och lag som får sätta resultatet får tömma det. En COACH från ett annat lag får 403 och resultatet ligger kvar.
 
@@ -132,7 +161,40 @@ En COACH som byter match-id till ett annat lag får 403. Samma 403 när id inte 
 
 `GET /api/my/matches`: PLAYER bara sitt lag. PARENT måste skicka sitt eget barn. Ingen e-post, ingen telefon, inget `createdByUserId`.
 
+`PUT /api/matches/{id}/cancellation` (issue #133) sätter CANCELLED och en valfri orsak. Raden raderas inte. Samma URL med `cancelled=false` aktiverar matchen igen: SCHEDULED och tom orsak. Samma roller och lag som när en match ändras: ADMIN, CHAIRMAN och COACH för eget lag 200. COACH för annat lag, PLAYER och PARENT 403. Anonym 401. Okänt id: ADMIN 404, COACH 403.
+Medan matchen är inställd ger närvaro, "Klar" och resultat 400 "This match is cancelled". Den går fortfarande att ändra och fryses inte automatiskt. `status` och `cancelReason` finns i `MatchResponse` och `MyMatchResponse`. Stämmer (`MatchCancelAccessTest`).
+
 Kod idag: stämmer. Anonymt anrop är 401.
+
+#### Närvaro och frysta listor för matcher (issue #67, ADR 0010)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `GET /api/matches/{id}/attendance` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer |
+| `PUT /api/matches/{id}/attendance/{playerId}` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer. Inställd match 400 |
+| `PUT /api/matches/{id}/attendance/lock` ("Klar") | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer. Inställd match 400 |
+
+- Okänt match-id: ADMIN och CHAIRMAN 404, COACH 403 (samma som matchens andra anrop).
+- Öppen lista är levande: alla aktiva PLAYER i laget just nu, med sparad status eller `null`. Markera en spelare som inte står på listan ger 400. Raden skapas första gången spelaren markeras.
+- "Klar" kräver att alla på listan är markerade, annars 400 "All players must be marked before the attendance list can be frozen". Lag utan spelare kan frysas. Redan fryst: 200 och inget ändras.
+- Närvarofönster (issue #124): markera och "Klar" går först från 30 minuter före `kickoffAt` (Europe/Stockholm), för alla roller. Tidigare: 400 "Närvaron öppnar 30 minuter före start.". Stämmer (`MatchAttendanceFreezeTest`: 31 min före 400; 30 min före, under matchen och vid 8-timmarsgränsen 200).
+- Automatisk frysning när nu (Europe/Stockholm) är mer än 8 timmar efter `kickoffAt` (matcher saknar sluttid: cirka 2 timmars match + 6 timmar). Sker vid anrop på en enskild match, lagets matchlista och `GET /api/my/matches`. Bara sparade rader följer med.
+- Fryst lista: visar exakt de sparade raderna. Markera ger 400 "The attendance list for this match is frozen and can no longer be changed".
+- `attendanceLockedAt` (`null` = öppen) finns i `MatchResponse` och `MyMatchResponse`.
+
+### Starttid som redan passerat (issue #115)
+
+| Anrop med passerad starttid | ADMIN | CHAIRMAN | COACH eget lag | Kod idag |
+|---|---|---|---|---|
+| `POST /api/trainings` | 201 | 400 | 400 | Stämmer |
+| `PUT /api/trainings/{id}` med ny `startsAt` | 200 | 400 | 400 | Stämmer |
+| `PUT /api/trainings/{id}` med samma `startsAt` (bara ny plats) | 200 | 200 | 200 | Stämmer |
+| `POST /api/matches` | 201 | 400 | 400 | Stämmer |
+| `PUT /api/matches/{id}` med ny `kickoffAt` | 200 | 400 | 400 | Stämmer (`MatchAccessTest`) |
+
+- "Passerad" betyder före nu i svensk tid (Europe/Stockholm), både datum och klockslag.
+- 400-texten är "Starttiden har redan passerat. Välj en tid som inte har varit."
+- Testerna ligger i `ActivityStartInPastTest`.
 
 ### Mitt schema
 
@@ -142,6 +204,8 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `GET /api/my/children` | PARENT, bara egna aktiva barn, namn och lag. Ingen e-post, ingen telefon. Övriga 403 | Stämmer |
 | `GET /api/my/trainings` | PLAYER bara sig själv (childId är 403). PARENT måste skicka sitt eget barn (annat barn 403, saknad childId 400). Ingen e-post. `trainingStatus` visar CANCELLED när träningen är inställd | Stämmer |
 | `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
+| `?when=upcoming\|past` på `GET /api/my/trainings`, `/api/my/matches`, `/api/trainings`, `/api/matches` | Filtret smalnar bara av listan. Samma lag- och personregler som utan filter (tränare för annat lag 403, annat barn 403). `upcoming` från midnatt idag (Europe/Stockholm), `past` före. Annat värde 400 | Stämmer (`ActivityWhenFilterTest`) |
+| `GET /api/my/coaches` | PLAYER och PARENT, samma personregler som träningarna (okänt barn 404). Bara de aktiva tränarna i det egna (barnets) laget, med id, namn, e-post och telefon (ADR 0009). Inte andra lags tränare. ADMIN, CHAIRMAN och COACH 403 | Stämmer (`MyCoachesAccessTest`) |
 
 ### Planerade publika anrop
 
@@ -206,9 +270,9 @@ Beslut (F8): en tränare får 403 både när id saknas och när spelaren ligger 
 
 **COACH, annat lag.** `GET /api/users/{id}`, lagets spelare och lagets tränare svarar 403 (S1-10). Skapa, ändra och mjukradera i det andra laget är 403 (S1-3). Ett id som saknas är samma 403 på ändra och mjukradera (F8). Träningar med ett annat lag-id är 403, även om laget inte finns. `/api/my/teams` är redan spärrat.
 
-**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden döljer `parentName`, `parentEmail` och `parentMobilePhoneNumber` (F6, beslut c). En inaktiv rad ger samma 403 som ett saknat id (F3).
+**PLAYER.** Katalog, sök och andras id är 403. Eget schema läcker inte förälderns telefon. Den egna användarraden döljer `parentName`, `parentEmail` och `parentMobilePhoneNumber` (F6, beslut c). En inaktiv rad ger samma 403 som ett saknat id (F3). `/api/my/coaches` visar namn, e-post och telefon till de aktiva tränarna i det egna laget, inga andra (ADR 0009). `/api/teams/{id}/coaches` är fortfarande 403.
 
-**PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Katalogen är 403.
+**PARENT, eget barn.** `/api/my` visar bara det egna barnet, utan e-post och telefon. Undantaget är `/api/my/coaches`, som visar namn, e-post och telefon till de aktiva tränarna i barnets lag (ADR 0009). Katalogen och `/api/teams/{id}/coaches` är 403.
 
 **PARENT, annat barn.** `childId` för det andra barnet är 403. Ett id som inte finns är 404, som kontraktet säger. Laglistan är 403.
 

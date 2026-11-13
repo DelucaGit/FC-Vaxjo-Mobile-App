@@ -1,106 +1,78 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getUserById } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
-import { isStaff } from '../auth/roles';
-import type { TabParamList } from '../navigation/types';
-import { colors, radius, spacing } from '../theme/colors';
+import { roleLabel } from '../auth/roles';
+import { List, Row, RowTitle, Screen } from '../components/ui';
+import type { AppStackParamList } from '../navigation/types';
+import { colors, sizes, spacing, type } from '../theme';
 
-export default function MoreScreen() {
+type Props = NativeStackScreenProps<AppStackParamList, 'More'>;
+
+/**
+ * "Mer" (spec section 7): name and role at the top, then
+ * "Tidigare aktiviteter", "Byt lösenord" and "Logga ut". Every role sees all three.
+ */
+export default function MoreScreen({ navigation }: Props) {
   const { session, logout } = useAuth();
-  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
-  const staff = isStaff(session?.roleName);
+  const name = useOwnName(session?.userId);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Mer</Text>
-      <Text style={styles.hint}>Sök, skapa användare och kontoinställningar.</Text>
-
-      <Pressable style={styles.row} onPress={() => navigation.navigate('Search')}>
-        <Text style={styles.rowIcon}>🔍</Text>
-        <View style={styles.rowBody}>
-          <Text style={styles.rowTitle}>Sök spelare</Text>
-          <Text style={styles.rowSub}>Namn, tröjnummer eller telefon</Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
-
-      {staff ? (
-        <Pressable
-          style={styles.row}
-          onPress={() => navigation.navigate('Create')}
-        >
-          <Text style={styles.rowIcon}>＋</Text>
-          <View style={styles.rowBody}>
-            <Text style={styles.rowTitle}>Skapa användare</Text>
-            <Text style={styles.rowSub}>Spelare, förälder, tränare</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </Pressable>
-      ) : null}
-
-      <Pressable style={[styles.row, styles.logoutRow]} onPress={() => logout()}>
-        <Text style={styles.rowIcon}>⎋</Text>
-        <View style={styles.rowBody}>
-          <Text style={[styles.rowTitle, styles.logoutText]}>Logga ut</Text>
-          <Text style={styles.rowSub}>{session?.email}</Text>
-        </View>
-      </Pressable>
-    </View>
+    <Screen title="Mer">
+      <View style={styles.who}>
+        <Text style={type.heading}>{name ?? session?.email}</Text>
+        <Text style={type.meta}>{roleLabel(session?.roleName)}</Text>
+      </View>
+      <List>
+        <Row onPress={() => navigation.navigate('PastActivities')}>
+          <RowTitle>Tidigare aktiviteter</RowTitle>
+        </Row>
+        <Row onPress={() => navigation.navigate('ChangePassword')}>
+          <RowTitle>Byt lösenord</RowTitle>
+        </Row>
+        <Row onPress={() => logout()}>
+          <RowTitle>Logga ut</RowTitle>
+        </Row>
+      </List>
+    </Screen>
   );
 }
 
+/**
+ * The login answer has no name, and the API has no "me" endpoint.
+ * GET /users/{id} on yourself works for ADMIN, CHAIRMAN and PLAYER;
+ * other roles get 403. Then the screen shows the e-mail instead.
+ */
+function useOwnName(userId: number | undefined): string | null {
+  const [name, setName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (userId == null) {
+      return;
+    }
+    let active = true;
+    getUserById(userId)
+      .then((user) => {
+        if (active) setName(user.name);
+      })
+      .catch(() => {
+        // Not allowed for this role: keep showing the e-mail.
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  return name;
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: spacing.gutter,
-    backgroundColor: colors.background,
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.onSurface,
-    marginBottom: 4,
-  },
-  hint: {
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  rowIcon: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
-  },
-  rowBody: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.onSurface,
-  },
-  rowSub: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  chevron: {
-    fontSize: 22,
-    color: colors.onSurfaceVariant,
-  },
-  logoutRow: {
-    marginTop: spacing.md,
-  },
-  logoutText: {
-    color: colors.error,
+  who: {
+    padding: spacing.page,
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderBottomWidth: sizes.divider,
+    borderBottomColor: colors.border,
   },
 });

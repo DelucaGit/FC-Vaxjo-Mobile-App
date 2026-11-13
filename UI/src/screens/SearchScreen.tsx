@@ -1,221 +1,143 @@
 import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import {
-  ClubUser,
-  searchByName,
-  searchByPhone,
-  searchByShirtNumber,
-} from '../api/users';
-import { roleLabel } from '../auth/roles';
-import { colors, radius } from '../theme/colors';
+  Button,
+  Empty,
+  Field,
+  List,
+  Row,
+  RowMeta,
+  RowTitle,
+  Screen,
+  Segmented,
+  type Option,
+} from '../components/ui';
+import { errorText, isNotFound, roleAndTeam } from '../components/users/userHelpers';
+import { searchUsers, type ClubUser, type UserSearch } from '../api/users';
+import { useAuth } from '../auth/AuthContext';
+import type { AppStackParamList } from '../navigation/types';
+import { colors, spacing } from '../theme';
 
-type SearchMode = 'name' | 'number' | 'phone';
+type Props = NativeStackScreenProps<AppStackParamList, 'Search'>;
 
-export default function SearchScreen() {
-  const [mode, setMode] = useState<SearchMode>('name');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ClubUser[]>([]);
-  const [loading, setLoading] = useState(false);
+type Mode = 'name' | 'number' | 'phone';
+
+const MODES: readonly Option<Mode>[] = [
+  { label: 'Namn', value: 'name' },
+  { label: 'Tröjnr', value: 'number' },
+  { label: 'Telefon', value: 'phone' },
+];
+
+/** The server searches on exactly one field. Returns null when the text is not valid for the mode. */
+function toSearch(mode: Mode, text: string): UserSearch | null {
+  const value = text.trim();
+  if (value === '') {
+    return null;
+  }
+  if (mode === 'number') {
+    return /^\d+$/.test(value) ? { playerNumber: Number(value) } : null;
+  }
+  return mode === 'name' ? { name: value } : { phone: value };
+}
+
+/** "Sök" (spec section 7): Tränare, Ordförande, Admin. A coach only finds players in their teams. */
+export default function SearchScreen({ navigation }: Props) {
+  const { session } = useAuth();
+  const isCoach = session?.roleName === 'COACH';
+
+  const [mode, setMode] = useState<Mode>('name');
+  const [text, setText] = useState('');
+  // null: nothing searched yet. An empty list shows "Inga träffar".
+  const [results, setResults] = useState<ClubUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  async function onSearch() {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setError('Type something to search.');
-      setResults([]);
+  const search = toSearch(mode, text);
+
+  async function runSearch() {
+    if (!search) {
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      if (mode === 'name') {
-        const users = await searchByName(trimmed);
-        setResults(users);
-        if (users.length === 0) {
-          setError('No users matched that name.');
-        }
-      } else if (mode === 'number') {
-        const shirtNumber = Number(trimmed);
-        if (Number.isNaN(shirtNumber)) {
-          setError('Shirt number must be a number.');
-          setResults([]);
-          return;
-        }
-        const user = await searchByShirtNumber(shirtNumber);
-        setResults([user]);
+      const found = await searchUsers(search);
+      // The server already limits a coach to their own teams; a coach only works with players.
+      setResults(isCoach ? found.filter((u) => u.roleName === 'PLAYER') : found);
+    } catch (e) {
+      if (isNotFound(e)) {
+        setResults([]);
       } else {
-        const user = await searchByPhone(trimmed);
-        setResults([user]);
+        setResults(null);
+        setError(errorText(e));
       }
-    } catch (err) {
-      setResults([]);
-      setError(err instanceof Error ? err.message : 'Search failed.');
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Find a user</Text>
-      <Text style={styles.hint}>Search by name, shirt number, or phone.</Text>
+  function changeMode(next: Mode) {
+    setMode(next);
+    setResults(null);
+    setError(null);
+  }
 
-      <View style={styles.modeRow}>
-        <ModeButton label="Name" active={mode === 'name'} onPress={() => setMode('name')} />
-        <ModeButton label="Shirt #" active={mode === 'number'} onPress={() => setMode('number')} />
-        <ModeButton label="Phone" active={mode === 'phone'} onPress={() => setMode('phone')} />
+  // The Sök tab has no UserDetail screen, so only rows that can open something are pressable.
+  const hasUserDetail = navigation.getState().routeNames.includes('UserDetail');
+  function openUser(user: ClubUser): (() => void) | undefined {
+    if (user.roleName === 'PLAYER') {
+      return () => navigation.navigate('PlayerView', { userId: user.id });
+    }
+    if (hasUserDetail) {
+      return () => navigation.navigate('UserDetail', { userId: user.id });
+    }
+    return undefined;
+  }
+
+  return (
+    <Screen title="Sök">
+      <View style={styles.form}>
+        <Segmented
+          options={MODES}
+          value={mode}
+          onChange={changeMode}
+          accessibilityLabel="Sök på"
+        />
+        <Field
+          label="Sök"
+          value={text}
+          onChangeText={setText}
+          onSubmitEditing={runSearch}
+          returnKeyType="search"
+          autoCapitalize={mode === 'name' ? 'words' : 'none'}
+          autoCorrect={false}
+          keyboardType={mode === 'number' ? 'number-pad' : mode === 'phone' ? 'phone-pad' : 'default'}
+        />
+        <Button title="Sök" onPress={runSearch} disabled={!search || loading} block />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
 
-      <TextInput
-        style={styles.input}
-        value={query}
-        onChangeText={setQuery}
-        placeholder={
-          mode === 'name'
-            ? 'e.g. TESTMAN'
-            : mode === 'number'
-              ? 'e.g. 42'
-              : 'e.g. +46701112233'
-        }
-        autoCapitalize={mode === 'name' ? 'words' : 'none'}
-        keyboardType={mode === 'number' ? 'number-pad' : mode === 'phone' ? 'phone-pad' : 'default'}
-      />
-
-      <Pressable style={styles.button} onPress={onSearch} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Searching…' : 'Search'}</Text>
-      </Pressable>
-
-      {loading ? <ActivityIndicator style={styles.loader} /> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {results.map((user) => (
-        <View key={user.id} style={styles.card}>
-          <Text style={styles.cardTitle}>{user.name}</Text>
-          <Text>Email: {user.email}</Text>
-          <Text>Role: {roleLabel(user.roleName)}</Text>
-          <Text>Shirt #: {user.playerNumber ?? '—'}</Text>
-          <Text>Phone: {user.mobilePhoneNumber ?? '—'}</Text>
-          <Text>Parent: {user.parentName ?? '—'}</Text>
-          <Text>Team: {user.teamName ?? '—'}</Text>
-        </View>
-      ))}
-    </ScrollView>
-  );
-}
-
-function ModeButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.modeButton, active ? styles.modeButtonActive : null]}
-    >
-      <Text style={[styles.modeButtonText, active ? styles.modeButtonTextActive : null]}>
-        {label}
-      </Text>
-    </Pressable>
+      {results && results.length === 0 ? <Empty text="Inga träffar" /> : null}
+      {results && results.length > 0 ? (
+        <List>
+          {results.map((user) => (
+            <Row
+              key={user.id}
+              onPress={openUser(user)}
+              right={user.playerNumber != null ? <RowMeta>{user.playerNumber}</RowMeta> : null}
+            >
+              <RowTitle>{user.name}</RowTitle>
+              <RowMeta>{roleAndTeam(user)}</RowMeta>
+            </Row>
+          ))}
+        </List>
+      ) : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-    backgroundColor: colors.background,
-    flexGrow: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  hint: {
-    color: colors.onSurfaceVariant,
-    marginBottom: 16,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: 'center',
-  },
-  modeButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  modeButtonText: {
-    fontWeight: '600',
-    color: colors.onSurface,
-  },
-  modeButtonTextActive: {
-    color: colors.onPrimary,
-  },
-  input: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 12,
-    color: colors.onSurface,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-  },
-  loader: {
-    marginTop: 16,
-  },
-  error: {
-    marginTop: 12,
-    color: colors.error,
-  },
-  card: {
-    marginTop: 12,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radius.lg,
-    padding: 14,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.onSurface,
-    marginBottom: 4,
-  },
+  form: { gap: spacing.md, padding: spacing.page },
+  error: { color: colors.warning },
 });

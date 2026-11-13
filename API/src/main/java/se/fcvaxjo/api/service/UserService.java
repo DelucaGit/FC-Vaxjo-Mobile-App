@@ -1,6 +1,8 @@
 package se.fcvaxjo.api.service;
 
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -66,6 +68,10 @@ public class UserService {
             "CHAIRMAN may only change a PLAYER to COACH";
     private static final String CANNOT_CHANGE_OWN_ROLE =
             "You cannot change your own role";
+    private static final String CANNOT_RESET_OWN_PASSWORD =
+            "You cannot reset your own password. Use change password instead";
+    private static final String CHAIRMAN_CANNOT_RESET_CLUB_LEAD =
+            "CHAIRMAN cannot reset the password of an ADMIN or CHAIRMAN";
 
     private static final String READ_OWN_RECORD =
             "You can only read your own user record";
@@ -86,6 +92,7 @@ public class UserService {
     private final TeamRepository teamRepository;
     private final TeamCoachRepository teamCoachRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public UserService(
@@ -93,12 +100,14 @@ public class UserService {
             RoleRepository roleRepository,
             TeamRepository teamRepository,
             TeamCoachRepository teamCoachRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            Clock clock) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.teamRepository = teamRepository;
         this.teamCoachRepository = teamCoachRepository;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     /**
@@ -329,6 +338,8 @@ public class UserService {
         user.setParentId(parentId);
         user.setTeamId(teamId);
         user.setActive(true);
+        // #85: the membership starts today. memberUntil stays null while active.
+        user.setMemberSince(LocalDate.now(clock));
         PasswordChange.storeHash(user, passwordEncoder.encode(temporaryPassword));
         user.setMustChangePassword(true);
         AppUser saved = userRepository.save(user);
@@ -443,6 +454,8 @@ public class UserService {
             throw new BadRequestException("Player is already inactive");
         }
         player.setActive(false);
+        // #85: the membership ends today. Kept so old attendance can be traced.
+        player.setMemberUntil(LocalDate.now(clock));
         return userRepository.save(player);
     }
 
@@ -744,6 +757,24 @@ public class UserService {
         return getParentMobilePhoneNumber(parentId);
     }
 
+    /**
+     * #85: membership dates are for the people who run the club and the team.
+     * ADMIN and CHAIRMAN see every row they can read. A COACH only reaches rows
+     * on their own team, so the same check covers "the team's coach".
+     * PLAYER and PARENT get null, also on their own row (same idea as F6).
+     */
+    public LocalDate memberSinceForCaller(AppUser user) {
+        return mayReadMemberDates() ? user.getMemberSince() : null;
+    }
+
+    public LocalDate memberUntilForCaller(AppUser user) {
+        return mayReadMemberDates() ? user.getMemberUntil() : null;
+    }
+
+    private boolean mayReadMemberDates() {
+        return hasRole("ADMIN") || hasRole("CHAIRMAN") || hasRole("COACH");
+    }
+
     private String fieldOnActiveParent(Long parentId, Function<AppUser, String> field) {
         AppUser parent = activeParentOrNull(parentId);
         if (parent == null) {
@@ -815,6 +846,47 @@ public class UserService {
             return;
         }
         throw new AccessDeniedException(CHAIRMAN_MAY_ONLY_PROMOTE_PLAYER);
+    }
+
+    /**
+     * Gives the user a new temporary password, made the same way as on create.
+     * The hash is stored through {@link PasswordChange}, which moves
+     * {@code passwordChangedAt}, so every older token stops working.
+     * The user must pick a new password at the next login.
+     * Returns the plain password. It is shown once and never stored.
+     *
+     * ADMIN may reset anyone except themselves. CHAIRMAN may not reset an
+     * ADMIN or a CHAIRMAN (the same rule as role change), which also covers
+     * their own account. An inactive account answers 404, as on read.
+     */
+    @Transactional
+    public String resetPassword(Long id) {
+        AppUser user = getUserById(id);
+        if (!user.isActive()) {
+            throw userNotFound();
+        }
+        assertCallerMayResetPassword(user);
+
+        String temporaryPassword = generateTemporaryPassword();
+        PasswordChange.storeHash(user, passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+        return temporaryPassword;
+    }
+
+    private void assertCallerMayResetPassword(AppUser target) {
+        if (target.getId().equals(currentUserId())) {
+            throw new AccessDeniedException(CANNOT_RESET_OWN_PASSWORD);
+        }
+        if (hasRole("ADMIN")) {
+            return;
+        }
+        if (!hasRole("CHAIRMAN")) {
+            throw new AccessDeniedException("Only ADMIN or CHAIRMAN can reset passwords");
+        }
+        if (isClubLeadRole(getRoleName(target.getRoleId()))) {
+            throw new AccessDeniedException(CHAIRMAN_CANNOT_RESET_CLUB_LEAD);
+        }
     }
 
     /**

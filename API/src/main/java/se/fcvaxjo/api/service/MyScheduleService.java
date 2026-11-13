@@ -1,5 +1,6 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,13 +9,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.repository.MatchRepository;
+import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.repository.UserRepository;
@@ -29,22 +33,34 @@ public class MyScheduleService {
     private final TrainingRepository trainingRepository;
     private final TrainingAttendanceRepository attendanceRepository;
     private final MatchRepository matchRepository;
+    private final TeamCoachRepository teamCoachRepository;
     private final UserService userService;
     private final TeamService teamService;
+    private final TrainingAttendanceRoster roster;
+    private final MatchAttendanceRoster matchRoster;
+    private final Clock clock;
 
     public MyScheduleService(
             UserRepository userRepository,
             TrainingRepository trainingRepository,
             TrainingAttendanceRepository attendanceRepository,
             MatchRepository matchRepository,
+            TeamCoachRepository teamCoachRepository,
             UserService userService,
-            TeamService teamService) {
+            TeamService teamService,
+            TrainingAttendanceRoster roster,
+            MatchAttendanceRoster matchRoster,
+            Clock clock) {
         this.userRepository = userRepository;
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
         this.matchRepository = matchRepository;
+        this.teamCoachRepository = teamCoachRepository;
         this.userService = userService;
         this.teamService = teamService;
+        this.roster = roster;
+        this.matchRoster = matchRoster;
+        this.clock = clock;
     }
 
     public List<AppUser> listMyChildren() {
@@ -62,8 +78,18 @@ public class MyScheduleService {
     /**
      * PLAYER: trainings for own team + own status.
      * PARENT: must pass childId of a linked child (empty list if no children).
+     * Status follows the same rules as the coach's list (issue #86): a training that is due
+     * is frozen first, then the player's saved row (if any) gives the status.
+     * when: null lists everything, otherwise only upcoming or past (issue #116).
+     * The person check runs first, so the filter can only narrow the list.
      */
+    @Transactional
     public List<ScheduleRow> listMyTrainings(Long childId) {
+        return listMyTrainings(childId, null);
+    }
+
+    @Transactional
+    public List<ScheduleRow> listMyTrainings(Long childId, ActivityWhen when) {
         AppUser target = resolveTargetPlayer(childId);
         if (target == null) {
             return List.of();
@@ -74,9 +100,10 @@ public class MyScheduleService {
         }
 
         List<Training> trainings =
-                trainingRepository.findByTeamIdOrderByStartsAtDesc(target.getTeamId());
+                trainingRepository.listForTeam(target.getTeamId(), when, clock);
         List<ScheduleRow> rows = new ArrayList<>();
-        for (Training training : trainings) {
+        for (Training listed : trainings) {
+            Training training = roster.freezeIfDue(listed);
             String status = null;
             var attendance = attendanceRepository.findByTrainingIdAndPlayerUserId(
                     training.getId(), target.getId());
@@ -93,11 +120,41 @@ public class MyScheduleService {
      * PLAYER sees matches for their own team. PARENT must pass a linked child.
      */
     public List<Match> listMyMatches(Long childId) {
+        return listMyMatches(childId, null);
+    }
+
+    /** Same as {@link #listMyMatches(Long)}, narrowed by the ?when= filter (issue #116). */
+    public List<Match> listMyMatches(Long childId, ActivityWhen when) {
         AppUser target = resolveTargetPlayer(childId);
         if (target == null || target.getTeamId() == null) {
             return List.of();
         }
-        return matchRepository.findByTeamIdOrderByKickoffAtDesc(target.getTeamId());
+        List<Match> matches = new ArrayList<>();
+        for (Match listed : matchRepository.listForTeam(target.getTeamId(), when, clock)) {
+            matches.add(matchRoster.freezeIfDue(listed));
+        }
+        return matches;
+    }
+
+    /**
+     * Same person check as {@link #listMyTrainings(Long)}.
+     * Returns the active coaches (team_coaches) of the player's own team, so the family
+     * can reach the coach. Never another team's coaches (ADR 0009).
+     */
+    public List<AppUser> listMyCoaches(Long childId) {
+        AppUser target = resolveTargetPlayer(childId);
+        if (target == null || target.getTeamId() == null) {
+            return List.of();
+        }
+        List<AppUser> coaches = new ArrayList<>();
+        for (TeamCoach link : teamCoachRepository.findByTeamId(target.getTeamId())) {
+            userRepository.findById(link.getUserId()).ifPresent(user -> {
+                if (user.isActive()) {
+                    coaches.add(user);
+                }
+            });
+        }
+        return coaches;
     }
 
     public String getTeamName(Long teamId) {

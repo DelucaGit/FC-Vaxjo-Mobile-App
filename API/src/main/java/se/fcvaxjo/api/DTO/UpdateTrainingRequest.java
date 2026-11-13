@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Replace the time, the place, and the title.
+ * Replace the time, the place, and the training type.
  * The team does not change. Attendance rows stay on this training.
  */
 @Getter
@@ -14,6 +14,7 @@ import lombok.Setter;
 public class UpdateTrainingRequest {
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
-    private String title;
+    /** FOOTBALL or FITNESS. A String so an unknown value gets our own 400 message. */
+    private String type;
     private String venue;
 }

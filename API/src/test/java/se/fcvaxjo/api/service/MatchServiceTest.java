@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,8 +30,10 @@ import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.HomeAway;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Team;
+import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
+import se.fcvaxjo.api.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MatchServiceTest {
@@ -44,12 +47,28 @@ class MatchServiceTest {
     @Mock
     private TeamCoachRepository teamCoachRepository;
 
+    @Mock
+    private MatchAttendanceRepository attendanceRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private MatchAttendanceRoster roster;
+
+    /** The past-start rule is tested over HTTP (ActivityStartInPastTest). */
+    @Mock
+    private ActivityStartRule startRule;
+
     @InjectMocks
     private MatchService matchService;
 
     @BeforeEach
     void setCoachAuth() {
         setAuth(5L, "COACH");
+        // Auto-freeze is tested in MatchAttendanceFreezeTest. Here it just hands the match back.
+        lenient().when(roster.freezeIfDue(any(Match.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @AfterEach

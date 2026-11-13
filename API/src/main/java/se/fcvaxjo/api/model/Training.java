@@ -14,7 +14,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * One training session for a team (start + end). Attendance rows are snapshotted on create.
+ * One training session for a team (start + end).
+ * Attendance rows are saved when a player is marked, and for everyone on the list
+ * when the attendance list is frozen (issue #86).
  */
 @Entity
 @Table(name = "trainings")
@@ -35,8 +37,20 @@ public class Training {
     @Column(name = "ends_at", nullable = false)
     private LocalDateTime endsAt;
 
+    /**
+     * Old free-text title. The API no longer reads it (issue #118), but the column is
+     * NOT NULL, so new rows store the type's Swedish name here.
+     */
     @Column(nullable = false)
     private String title;
+
+    /**
+     * FOOTBALL or FITNESS. Null on rows saved before issue #118.
+     * Nullable so Hibernate can add the column to existing rows (no Flyway).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column
+    private TrainingType type;
 
     /**
      * Where the session is held. Null when nobody has set a place yet.
@@ -57,11 +71,24 @@ public class Training {
     @Column(name = "cancel_reason")
     private String cancelReason;
 
+    /**
+     * When the attendance list was frozen ("Klar" or 6 hours after endsAt).
+     * Null means the list is still open and follows the team's current players.
+     * Nullable so Hibernate can add the column to existing rows (no Flyway).
+     */
+    @Column(name = "attendance_locked_at")
+    private LocalDateTime attendanceLockedAt;
+
     @Column(name = "created_by_user_id", nullable = false)
     private Long createdByUserId;
 
     /** A row saved before this column existed is still a normal training. */
     public TrainingStatus statusOrScheduled() {
         return status == null ? TrainingStatus.SCHEDULED : status;
+    }
+
+    /** A row saved before the type column existed counts as football training. */
+    public TrainingType typeOrFootball() {
+        return type == null ? TrainingType.FOOTBALL : type;
     }
 }

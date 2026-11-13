@@ -1,5 +1,10 @@
 import { API_BASE_URL } from './config';
 import { apiFetch, readErrorMessage } from './http';
+import { queryString, requestJson, withJson, type ActivityWhen } from './request';
+import type { TrainingType } from './trainingTypes';
+
+/** SCHEDULED is the normal state. CANCELLED keeps the row and a reason. */
+export type TrainingStatus = 'SCHEDULED' | 'CANCELLED';
 
 export type Training = {
   id: number;
@@ -7,8 +12,13 @@ export type Training = {
   teamName: string;
   startsAt: string;
   endsAt: string;
-  title: string;
+  type: TrainingType;
+  venue: string | null;
+  status: TrainingStatus;
+  cancelReason: string | null;
   createdByUserId: number;
+  /** Set when attendance is frozen. null while it is still open. */
+  attendanceLockedAt: string | null;
 };
 
 export type AttendanceRow = {
@@ -24,17 +34,47 @@ export type CreateTrainingInput = {
   teamId: number;
   startsAt: string;
   endsAt: string;
-  title?: string | null;
+  type: TrainingType;
+  venue?: string | null;
 };
 
-export async function listTrainings(teamId: number): Promise<Training[]> {
-  const response = await apiFetch(
-    `${API_BASE_URL}/trainings?teamId=${encodeURIComponent(String(teamId))}`,
-  );
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-  return response.json();
+export type Weekday =
+  | 'MONDAY'
+  | 'TUESDAY'
+  | 'WEDNESDAY'
+  | 'THURSDAY'
+  | 'FRIDAY'
+  | 'SATURDAY'
+  | 'SUNDAY';
+
+/** POST /trainings/series: one training per chosen weekday between fromDate and toDate. */
+export type CreateTrainingSeriesInput = {
+  teamId: number;
+  type: TrainingType;
+  /** At least one. */
+  weekdays: Weekday[];
+  /** "17:30" */
+  startTime: string;
+  /** "19:00", after startTime. */
+  endTime: string;
+  venue: string | null;
+  /** "2026-11-12" */
+  fromDate: string;
+  /** Inclusive. Not before fromDate. */
+  toDate: string;
+};
+
+/** PUT /trainings/{id} replaces these four fields. */
+export type UpdateTrainingInput = {
+  startsAt: string;
+  endsAt: string;
+  type: TrainingType;
+  venue?: string | null;
+};
+
+/** Without `when` you get every training of the team, newest first. */
+export function listTrainings(teamId: number, when?: ActivityWhen): Promise<Training[]> {
+  return requestJson(`/trainings${queryString({ teamId, when })}`);
 }
 
 export async function createTraining(input: CreateTrainingInput): Promise<Training> {
@@ -46,6 +86,15 @@ export async function createTraining(input: CreateTrainingInput): Promise<Traini
     throw new Error(await readErrorMessage(response));
   }
   return response.json();
+}
+
+/**
+ * Creates every training in the series in one call (issue #132, API #129).
+ * Dates that have passed are skipped, so the answer may be an empty list.
+ * More than 60 trainings gives a 400 with the server's message.
+ */
+export function createTrainingSeries(input: CreateTrainingSeriesInput): Promise<Training[]> {
+  return requestJson('/trainings/series', withJson('POST', input));
 }
 
 export async function getTraining(id: number): Promise<Training> {
@@ -80,4 +129,34 @@ export async function updateAttendance(
     throw new Error(await readErrorMessage(response));
   }
   return response.json();
+}
+
+/** Same call as listAttendance, named to match listMatchAttendance. */
+export const listTrainingAttendance = listAttendance;
+
+/** Same call as updateAttendance, named to match markMatchAttendance. */
+export const markTrainingAttendance = updateAttendance;
+
+export function updateTraining(id: number, input: UpdateTrainingInput): Promise<Training> {
+  return requestJson(`/trainings/${id}`, withJson('PUT', input));
+}
+
+/**
+ * cancelled: true cancels (reason is shown to players and parents).
+ * cancelled: false makes the training active again.
+ */
+export function setTrainingCancelled(
+  id: number,
+  cancelled: boolean,
+  reason?: string | null,
+): Promise<Training> {
+  return requestJson(
+    `/trainings/${id}/cancellation`,
+    withJson('PUT', { cancelled, reason: reason ?? null }),
+  );
+}
+
+/** Freezes the list. After this, marking answers 400. */
+export function lockTrainingAttendance(id: number): Promise<Training> {
+  return requestJson(`/trainings/${id}/attendance/lock`, withJson('PUT'));
 }

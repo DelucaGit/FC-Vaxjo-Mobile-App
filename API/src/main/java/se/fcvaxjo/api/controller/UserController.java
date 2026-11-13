@@ -20,6 +20,7 @@ import se.fcvaxjo.api.DTO.ChangeRoleResponse;
 import se.fcvaxjo.api.DTO.CreateUserRequest;
 import se.fcvaxjo.api.DTO.CreateUserResponse;
 import se.fcvaxjo.api.DTO.FetchUserResponse;
+import se.fcvaxjo.api.DTO.PasswordResetResponse;
 import se.fcvaxjo.api.DTO.SearchUsersRequest;
 import se.fcvaxjo.api.DTO.UpdatePlayerRequest;
 import se.fcvaxjo.api.exception.BadRequestException;
@@ -159,6 +160,18 @@ public class UserController {
 
     }
 
+    /**
+     * Gives the user a new temporary password and logs out every old session.
+     * The plain password is in this answer only. The service decides whose
+     * password the caller may reset (not their own; CHAIRMAN not ADMIN or CHAIRMAN).
+     */
+    @PostMapping("/{id}/password-reset")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN')")
+    public PasswordResetResponse resetPassword(@PathVariable Long id) {
+        String temporaryPassword = userService.resetPassword(id);
+        return new PasswordResetResponse(id, temporaryPassword);
+    }
+
     @PutMapping("/{id}/player")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public FetchUserResponse updatePlayer(
@@ -200,7 +213,9 @@ public class UserController {
                 userService.parentPhoneForCaller(user.getParentId()),
                 user.getTeamId(),
                 userService.getTeamName(user.getTeamId()),
-                user.isActive());
+                user.isActive(),
+                userService.memberSinceForCaller(user),
+                userService.memberUntilForCaller(user));
     }
 
     private CreateUserResponse toCreateResponse(CreatedUserResult created) {
@@ -219,6 +234,8 @@ public class UserController {
                 user.getTeamId(),
                 userService.getTeamName(user.getTeamId()),
                 user.isActive(),
+                userService.memberSinceForCaller(user),
+                userService.memberUntilForCaller(user),
                 created.getTemporaryPassword(),
                 created.getParentTemporaryPassword());
     }

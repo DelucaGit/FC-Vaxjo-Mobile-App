@@ -18,12 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 import se.fcvaxjo.api.DTO.AttendanceResponse;
 import se.fcvaxjo.api.DTO.CancelTrainingRequest;
 import se.fcvaxjo.api.DTO.CreateTrainingRequest;
+import se.fcvaxjo.api.DTO.CreateTrainingSeriesRequest;
 import se.fcvaxjo.api.DTO.TrainingResponse;
 import se.fcvaxjo.api.DTO.UpdateAttendanceRequest;
 import se.fcvaxjo.api.DTO.UpdateTrainingRequest;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
+import se.fcvaxjo.api.service.ActivityWhen;
 import se.fcvaxjo.api.service.TrainingService;
 
 /**
@@ -50,16 +52,41 @@ public class TrainingController {
                 request.getTeamId(),
                 request.getStartsAt(),
                 request.getEndsAt(),
-                request.getTitle(),
+                request.getType(),
                 request.getVenue());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
+    /**
+     * Creates many ordinary trainings in one call (issue #129). Same writers as create.
+     * Returns only the trainings that were created; past dates are skipped.
+     */
+    @PostMapping("/series")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public ResponseEntity<List<TrainingResponse>> createSeries(
+            @RequestBody CreateTrainingSeriesRequest request) {
+        List<TrainingResponse> responses = new ArrayList<>();
+        for (Training training : trainingService.createTrainingSeries(
+                request.getTeamId(),
+                request.getType(),
+                request.getWeekdays(),
+                request.getStartTime(),
+                request.getEndTime(),
+                request.getVenue(),
+                request.getFromDate(),
+                request.getToDate())) {
+            responses.add(toResponse(training));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(responses);
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
-    public List<TrainingResponse> listByTeam(@RequestParam Long teamId) {
+    public List<TrainingResponse> listByTeam(
+            @RequestParam Long teamId,
+            @RequestParam(required = false) String when) {
         List<TrainingResponse> responses = new ArrayList<>();
-        for (Training training : trainingService.listByTeam(teamId)) {
+        for (Training training : trainingService.listByTeam(teamId, ActivityWhen.parse(when))) {
             responses.add(toResponse(training));
         }
         return responses;
@@ -72,7 +99,7 @@ public class TrainingController {
     }
 
     /**
-     * Changes time, place, and title. Same writers as create.
+     * Changes time, place, and training type. Same writers as create.
      * The team is not part of the body, so the attendance list stays.
      */
     @PutMapping("/{id}")
@@ -82,7 +109,7 @@ public class TrainingController {
                 id,
                 request.getStartsAt(),
                 request.getEndsAt(),
-                request.getTitle(),
+                request.getType(),
                 request.getVenue());
         return toResponse(updated);
     }
@@ -117,6 +144,16 @@ public class TrainingController {
         return responses;
     }
 
+    /**
+     * "Klar": freezes the attendance list (issue #86). Same roles and team scope as marking.
+     * Returns the training with attendanceLockedAt set. Calling it again is a no-op.
+     */
+    @PutMapping("/{id}/attendance/lock")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
+    public TrainingResponse lockAttendance(@PathVariable Long id) {
+        return toResponse(trainingService.lockAttendance(id));
+    }
+
     @PutMapping("/{id}/attendance/{playerId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAIRMAN', 'COACH')")
     public AttendanceResponse updateAttendance(
@@ -139,10 +176,11 @@ public class TrainingController {
                 trainingService.getTeamName(training.getTeamId()),
                 training.getStartsAt(),
                 training.getEndsAt(),
-                training.getTitle(),
+                training.typeOrFootball().name(),
                 training.getVenue(),
                 training.statusOrScheduled().name(),
                 training.getCancelReason(),
-                training.getCreatedByUserId());
+                training.getCreatedByUserId(),
+                training.getAttendanceLockedAt());
     }
 }

@@ -1,123 +1,85 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
-import { colors, radius } from '../theme/colors';
+import { Button, Field } from '../components/ui';
+import { accountErrorMessage } from '../lib/account/messages';
+import { colors, spacing, type } from '../theme';
 
+const logo = require('../../assets/icon.png');
+
+/** Login (spec section 7). No "Visa som" buttons: the role comes from the account. */
 export default function LoginScreen() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@fcvaxjo.se');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canLogin = email.trim().length > 0 && password.length > 0 && !loading;
+
   async function onLogin() {
-    if (!email.trim() || !password) {
-      setError('Email and password are required.');
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed.');
+      setError(accountErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>FC Växjö</Text>
-      <Text style={styles.subtitle}>Sign in with your club email</Text>
-
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@fcvaxjo.se"
-      />
-
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-      />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable style={styles.button} onPress={onLogin} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </Pressable>
-    </View>
+    <SafeAreaView style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Image source={logo} style={styles.logo} accessibilityIgnoresInvertColors />
+          <Text accessibilityRole="header" style={styles.title}>
+            FC Växjö
+          </Text>
+          <View style={styles.form}>
+            <Field
+              label="E-post"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <Field
+              label="Lösenord"
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="password"
+              value={password}
+              onChangeText={setPassword}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Button title="Logga in" onPress={onLogin} disabled={!canLogin} block />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: colors.background,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
+  content: { flexGrow: 1, justifyContent: 'center', padding: spacing.page },
+  logo: { width: 112, height: 112, alignSelf: 'center' },
   title: {
+    ...type.screenTitle,
     fontSize: 28,
-    fontWeight: '800',
-    color: colors.primary,
-    marginBottom: 4,
+    lineHeight: 34,
+    letterSpacing: 28 * 0.02,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
   },
-  subtitle: {
-    fontSize: 15,
-    color: colors.onSurfaceVariant,
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.onSurface,
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 14,
-    backgroundColor: colors.surfaceContainerLowest,
-    color: colors.onSurface,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  error: {
-    color: colors.error,
-    marginBottom: 8,
-  },
+  form: { gap: spacing.md },
+  error: { ...type.body, color: colors.warning },
 });

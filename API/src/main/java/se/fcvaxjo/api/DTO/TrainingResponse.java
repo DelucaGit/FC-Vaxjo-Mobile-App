@@ -15,10 +15,13 @@ public class TrainingResponse {
     private String teamName;
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
-    private String title;
+    /** FOOTBALL or FITNESS. A missing value in the database is shown as FOOTBALL. */
+    private String type;
     private String venue;
     /** SCHEDULED or CANCELLED. A missing value in the database is shown as SCHEDULED. */
     private String status;
     private String cancelReason;
     private Long createdByUserId;
+    /** When the attendance list was frozen. Null while it is still open (issue #86). */
+    private LocalDateTime attendanceLockedAt;
 }

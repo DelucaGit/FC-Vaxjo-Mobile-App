@@ -1,6 +1,8 @@
 package se.fcvaxjo.api.service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -12,11 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
+import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.ClubRole;
 import se.fcvaxjo.api.model.HomeAway;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.MatchAttendance;
+import se.fcvaxjo.api.model.MatchStatus;
+import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
+import se.fcvaxjo.api.repository.UserRepository;
 
 /**
  * Staff matches. ADMIN and CHAIRMAN may write every team.
@@ -36,14 +44,29 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final TeamService teamService;
     private final TeamCoachRepository teamCoachRepository;
+    private final MatchAttendanceRepository attendanceRepository;
+    private final UserRepository userRepository;
+    private final MatchAttendanceRoster roster;
+    private final Clock clock;
+    private final ActivityStartRule startRule;
 
     public MatchService(
             MatchRepository matchRepository,
             TeamService teamService,
-            TeamCoachRepository teamCoachRepository) {
+            TeamCoachRepository teamCoachRepository,
+            MatchAttendanceRepository attendanceRepository,
+            UserRepository userRepository,
+            MatchAttendanceRoster roster,
+            Clock clock,
+            ActivityStartRule startRule) {
         this.matchRepository = matchRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
+        this.attendanceRepository = attendanceRepository;
+        this.userRepository = userRepository;
+        this.roster = roster;
+        this.clock = clock;
+        this.startRule = startRule;
     }
 
     @Transactional
@@ -66,6 +89,7 @@ public class MatchService {
         if (kickoffAt == null) {
             throw new BadRequestException("kickoffAt is required");
         }
+        startRule.assertNotInPast(currentClubRole(), kickoffAt);
         if (venue == null || venue.isBlank()) {
             throw new BadRequestException("venue is required");
         }
@@ -88,21 +112,39 @@ public class MatchService {
     }
 
     public List<Match> listByTeam(Long teamId) {
+        return listByTeam(teamId, null);
+    }
+
+    /**
+     * @param when null lists everything, otherwise only upcoming or past (issue #116).
+     *             The team check runs first, so the filter can only narrow the list.
+     */
+    public List<Match> listByTeam(Long teamId, ActivityWhen when) {
         if (teamId == null) {
             throw new BadRequestException("teamId is required");
         }
         // Team check first, same as trainings. An unknown team is 403 for a coach.
         assertCanManageTeam(teamId);
         teamService.getTeamById(teamId);
-        return matchRepository.findByTeamIdOrderByKickoffAtDesc(teamId);
+        List<Match> matches = new ArrayList<>();
+        for (Match match : matchRepository.listForTeam(teamId, when, clock)) {
+            matches.add(roster.freezeIfDue(match));
+        }
+        return matches;
     }
 
     /**
      * ADMIN and CHAIRMAN get 404 when the id is missing. They may see every team,
      * so 404 does not hide a match from them.
      * A coach gets the same 403 for a missing id and for another team's match.
+     * The match is auto-frozen first if its time has come (see MatchAttendanceRoster).
      */
+    @Transactional
     public Match getById(Long id) {
+        return roster.freezeIfDue(findAllowed(id));
+    }
+
+    private Match findAllowed(Long id) {
         ClubRole role = currentClubRole();
         if (role != null && role.canManageAllMatches()) {
             return matchRepository.findById(id)
@@ -119,16 +161,151 @@ public class MatchService {
     }
 
     /**
+     * Changes opponent, kickoff, place, and home/away (issue #127).
+     * The team stays, so the attendance rows and the result stay too.
+     * Same rules as create. A new kickoff may not be in the past, except for ADMIN (#115).
+     * Only a new kickoff is checked, so fixing the place on an old match still works.
+     */
+    @Transactional
+    public Match updateMatch(
+            Long id, String opponent, LocalDateTime kickoffAt, String venue, String homeAwayName) {
+        Match match = getById(id);
+        if (opponent == null || opponent.isBlank()) {
+            throw new BadRequestException("opponent is required");
+        }
+        if (kickoffAt == null) {
+            throw new BadRequestException("kickoffAt is required");
+        }
+        if (!kickoffAt.equals(match.getKickoffAt())) {
+            startRule.assertNotInPast(currentClubRole(), kickoffAt);
+        }
+        if (venue == null || venue.isBlank()) {
+            throw new BadRequestException("venue is required");
+        }
+        HomeAway homeAway = parseHomeAway(homeAwayName);
+
+        match.setOpponent(opponent.trim());
+        match.setKickoffAt(kickoffAt);
+        match.setVenue(venue.trim());
+        match.setHomeAway(homeAway);
+        return matchRepository.save(match);
+    }
+
+    /**
+     * Calls the match off (issue #133). The row, the attendance and the result stay.
+     * reason may be empty. A cancelled match can still be edited.
+     */
+    @Transactional
+    public Match cancelMatch(Long id, String reason) {
+        Match match = getById(id);
+        match.setStatus(MatchStatus.CANCELLED);
+        match.setCancelReason(blankToNull(reason));
+        return matchRepository.save(match);
+    }
+
+    /**
+     * Undoes a cancel: SCHEDULED again and the reason is cleared.
+     * Calling it on a match that is not cancelled changes nothing (idempotent, 200).
+     */
+    @Transactional
+    public Match reactivateMatch(Long id) {
+        Match match = getById(id);
+        match.setStatus(MatchStatus.SCHEDULED);
+        match.setCancelReason(null);
+        return matchRepository.save(match);
+    }
+
+    /**
      * Sets the score, or clears it when both numbers are null
      * (for a result that was typed in wrong). One number alone is 400.
+     * Blocked (400) while the match is cancelled (issue #133).
      */
     @Transactional
     public Match setResult(Long id, Integer goalsFor, Integer goalsAgainst) {
         Match match = getById(id);
+        assertNotCancelled(match);
         assertScorePair(goalsFor, goalsAgainst);
         match.setGoalsFor(goalsFor);
         match.setGoalsAgainst(goalsAgainst);
         return matchRepository.save(match);
+    }
+
+    /**
+     * Open: the team's active players now, with saved status or null.
+     * Frozen: only the saved rows (a player who has left stays, a new player is not shown).
+     */
+    @Transactional
+    public List<MatchAttendance> listAttendance(Long matchId) {
+        Match match = getById(matchId);
+        return roster.currentList(match);
+    }
+
+    /**
+     * "Klar": freezes the attendance list. Calling it again changes nothing (200).
+     * Every player on the live list must be marked first, otherwise 400.
+     * A team with no players can be frozen right away (nobody to mark).
+     */
+    @Transactional
+    public Match lockAttendance(Long matchId) {
+        Match match = getById(matchId);
+        assertNotCancelled(match);
+        if (match.getAttendanceLockedAt() != null) {
+            return match;
+        }
+        startRule.assertAttendanceOpen(match.getKickoffAt());
+        boolean someoneUnmarked = roster.currentList(match).stream()
+                .anyMatch(row -> row.getStatus() == null);
+        if (someoneUnmarked) {
+            throw new BadRequestException(
+                    "All players must be marked before the attendance list can be frozen");
+        }
+        return roster.freezeNow(match);
+    }
+
+    /**
+     * Marks one player on an open match. The first mark creates the row.
+     * The team check (getById) runs first, so a coach of another team gets 403
+     * and never learns anything about the player.
+     */
+    @Transactional
+    public MatchAttendance updateAttendance(Long matchId, Long playerUserId, String statusName) {
+        Match match = getById(matchId);
+        assertNotCancelled(match);
+        if (match.getAttendanceLockedAt() != null) {
+            throw new BadRequestException(
+                    "The attendance list for this match is frozen and can no longer be changed");
+        }
+        startRule.assertAttendanceOpen(match.getKickoffAt());
+
+        if (statusName == null || statusName.isBlank()) {
+            throw new BadRequestException("status is required (PRESENT, ABSENT, or EXCUSED)");
+        }
+        AttendanceStatus status;
+        try {
+            status = AttendanceStatus.valueOf(statusName.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("status must be PRESENT, ABSENT, or EXCUSED");
+        }
+
+        if (!roster.isLivePlayer(match.getTeamId(), playerUserId)) {
+            throw new BadRequestException(
+                    "This player is not on the attendance list for this match");
+        }
+        MatchAttendance row = attendanceRepository
+                .findByMatchIdAndPlayerUserId(match.getId(), playerUserId)
+                .orElseGet(() -> {
+                    MatchAttendance created = new MatchAttendance();
+                    created.setMatchId(match.getId());
+                    created.setPlayerUserId(playerUserId);
+                    return created;
+                });
+        row.setStatus(status);
+        return attendanceRepository.save(row);
+    }
+
+    public AppUser getPlayer(Long playerUserId) {
+        return userRepository.findById(playerUserId)
+                .orElseThrow(() -> new NotFoundException("Player not found"));
     }
 
     public String getTeamName(Long teamId) {
@@ -149,6 +326,20 @@ public class MatchService {
         if (goalsFor < 0 || goalsAgainst < 0) {
             throw new BadRequestException("goalsFor and goalsAgainst cannot be negative");
         }
+    }
+
+    /** Attendance, "Klar" and result are blocked while the match is called off (issue #133). */
+    private void assertNotCancelled(Match match) {
+        if (match.statusOrScheduled() == MatchStatus.CANCELLED) {
+            throw new BadRequestException("This match is cancelled");
+        }
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private HomeAway parseHomeAway(String raw) {

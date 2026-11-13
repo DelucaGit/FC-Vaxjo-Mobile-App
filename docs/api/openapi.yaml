@@ -85,6 +85,7 @@ paths:
         Fel lösenord, okänd e-post, inaktivt konto och konto utan lösenord ger alla
         samma **401** "Invalid email or password". Svaret säger inte om kontot finns.
         När e-posten saknas körs ändå en BCrypt-jämförelse, så svaret inte blir tydligt snabbare än en vanlig kontroll.
+        För många misslyckade försök ger **429** i 15 minuter (se 429 nedan och ADR 0008).
       security: []
       x-roles: [PUBLIC]
       x-source: AuthController.login → AuthService.login
@@ -108,6 +109,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
               example: { message: "Invalid email or password" }
+        '429':
+          description: |
+            För många misslyckade inloggningar (#64, ADR 0008). Spärren gäller i 15 minuter,
+            även med rätt lösenord, och slår till vid:
+            - 5 misslyckade försök för samma e-post från samma IP,
+            - 30 misslyckade försök från samma IP (oavsett e-post),
+            - 20 misslyckade försök för samma e-post (oavsett IP).
+            Ett misslyckat försök glöms 15 minuter efter det senaste. En lyckad inloggning
+            nollställer räknarna för e-post+IP och e-post (inte IP). Okänd e-post räknas likadant,
+            så spärren avslöjar inte om kontot finns. Räknarna ligger i minnet, och IP sparas bara som HMAC.
+            Svaret innehåller aldrig IP-adressen.
+            Klientens IP är `getRemoteAddr()`. I prod sätter Tomcat den från `X-Real-IP`, men bara när
+            anropet kommer från en intern proxy (Railway). Är IP:n ändå intern (privat, 100.64/10, loopback)
+            hoppas IP-reglerna över, och e-posten spärras ensam efter 5 försök.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { message: "För många inloggningsförsök. Försök igen om 15 minuter." }
 
   /api/auth/change-password:
     post:
@@ -419,6 +438,41 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/users/{id}/password-reset:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [Users]
+      operationId: resetUserPassword
+      summary: Återställ en användares lösenord
+      description: |
+        Skapar ett nytt tillfälligt lösenord på samma sätt som när ett konto skapas,
+        sparar bara hashen och sätter `mustChangePassword = true`. Lösenordet i klartext
+        finns bara i det här svaret (#128).
+        Alla äldre JWT:er för kontot slutar fungera: `passwordChangedAt` flyttas, och
+        filtret svarar 401 på en token som utfärdades en tidigare sekund.
+
+        Ingen får återställa sitt eget lösenord. Svaret är 403
+        "You cannot reset your own password. Use change password instead".
+        CHAIRMAN får inte återställa ADMIN eller CHAIRMAN. Svaret är 403
+        "CHAIRMAN cannot reset the password of an ADMIN or CHAIRMAN".
+        COACH, PLAYER och PARENT får 403 "Access Denied" på controllern.
+        Saknat id och inaktivt konto är 404 "User not found".
+      x-roles: [ADMIN, CHAIRMAN]
+      x-scope: |
+        ADMIN får återställa alla utom sig själv.
+        CHAIRMAN får återställa alla utom ADMIN och CHAIRMAN (samma regel som rollbyte), alltså inte sig själv.
+      x-source: UserController.resetPassword → UserService.resetPassword
+      responses:
+        '200':
+          description: Nytt tillfälligt lösenord. Visas en gång.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordResetResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/users/{id}/player:
     parameters:
       - $ref: '#/components/parameters/UserId'
@@ -663,7 +717,7 @@ paths:
     get:
       tags: [Trainings]
       operationId: listTrainingsByTeam
-      summary: Lista ett lags träningar (senaste först)
+      summary: Lista ett lags träningar (senaste först, eller filtrerat med when)
       description: |
         ADMIN och CHAIRMAN får lista träningar för vilket lag som helst.
         COACH bara lag där hen finns i `team_coaches`.
@@ -680,6 +734,7 @@ paths:
           in: query
           required: true
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
           description: Träningar.
@@ -697,10 +752,14 @@ paths:
       operationId: createTraining
       summary: Skapa träning
       description: |
-        Skapar träningen och tar en ögonblicksbild av lagets aktiva spelare som närvarorader (status null).
-        `title` blir "Training" om den saknas/är tom. `createdByUserId` sätts till den inloggade.
+        Skapar träningen. Inga närvarorader kopieras: medan träningen är öppen följer närvarolistan lagets spelare (#86).
+        `type` krävs: `FOOTBALL` (Fotbollsträning) eller `FITNESS` (Fysträning) (#118). `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa träningen på vilket lag som helst, utan rad i `team_coaches`.
-        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        Starttiden får inte ligga före nu (datum och klockslag, svensk tid Europe/Stockholm), annars 400 (#115).
+        ADMIN är undantagen och får sätta vilken tid som helst.
+        Fel: "teamId is required", "startsAt and endsAt are required", "endsAt must be after startsAt",
+        "Träningstyp krävs (FOOTBALL eller FITNESS)", "Okänd träningstyp. Välj FOOTBALL eller FITNESS",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service om COACH inte tränar laget, kontrolleras först);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize`;
         "Team not found" (404).
@@ -718,6 +777,48 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/trainings/series:
+    post:
+      tags: [Trainings]
+      operationId: createTrainingSeries
+      summary: Skapa många träningar på en gång (serie)
+      description: |
+        Skapar en vanlig, separat träning för varje datum från `fromDate` till `toDate` (båda med)
+        vars veckodag finns i `weekdays` (#129). Ingen serie sparas; varje träning kan sedan ändras eller ställas in för sig.
+        Varje träning skapas med samma kod som `POST /api/trainings`.
+        Datum vars starttid redan har passerat (svensk tid Europe/Stockholm) hoppas över, även för ADMIN. Det är inget fel.
+        Svaret är listan med de skapade träningarna (kan vara tom om alla datum har passerat).
+        Allt sparas i en transaktion: blir något fel skapas inget.
+        Fel: "teamId is required", "fromDate and toDate are required", "toDate must not be before fromDate",
+        "startTime and endTime are required", "endTime must be after startTime",
+        "weekdays must contain at least one day", "Unknown weekday. Use MONDAY to SUNDAY",
+        "Träningstyp krävs (FOOTBALL eller FITNESS)", "Okänd träningstyp. Välj FOOTBALL eller FITNESS",
+        "A series may create at most 60 trainings" (400, räknat efter att passerade datum hoppats över);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 från service om COACH inte tränar laget, kontrolleras först);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}` från `@PreAuthorize`;
+        "Team not found" (404).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.createSeries → TrainingService.createTrainingSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTrainingSeriesRequest' }
+      responses:
+        '201':
+          description: Träningarna skapade (passerade datum är inte med).
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 60
+                items: { $ref: '#/components/schemas/TrainingResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -750,12 +851,16 @@ paths:
     put:
       tags: [Trainings]
       operationId: updateTraining
-      summary: Ändra tid, plats och titel
+      summary: Ändra tid, plats och träningstyp
       description: |
-        Byter `startsAt`, `endsAt`, `title` och `venue`. Laget ändras inte, så närvaroraderna ligger kvar.
+        Byter `startsAt`, `endsAt`, `type` och `venue`. Laget ändras inte, så närvaroraderna ligger kvar.
         Samma skrivare som när träningen skapas. En inställd träning kan fortfarande rättas.
-        Tom `title` blir "Training". Tom `venue` rensar platsen.
-        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt" (400);
+        `type` krävs, precis som vid skapande. Tom `venue` rensar platsen.
+        En ny `startsAt` får inte ligga före nu (svensk tid), annars 400 (#115). ADMIN är undantagen.
+        Kontrollen görs bara när `startsAt` ändras: att byta plats på en gammal träning med samma tid går igenom.
+        Fel: "startsAt and endsAt are required", "endsAt must be after startsAt",
+        "Träningstyp krävs (FOOTBALL eller FITNESS)", "Okänd träningstyp. Välj FOOTBALL eller FITNESS",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN);
         "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 från `@PreAuthorize`.
@@ -826,6 +931,11 @@ paths:
       description: |
         ADMIN och CHAIRMAN får lista närvaro för en träning i vilket lag som helst.
         Listan finns kvar när träningen är inställd.
+        Öppen träning (`attendanceLockedAt` null): lagets aktiva spelare (roll PLAYER) just nu, med sparad
+        status eller `status: null`. En spelare som har slutat eller bytt lag syns inte längre.
+        Fryst träning: exakt de sparade raderna. Den som har slutat finns kvar, den som har kommit senare syns inte.
+        Automatisk frysning (#86): om träningen inte är inställd och klockan är mer än 6 timmar efter `endsAt`
+        (svensk tid) fryses den först, med de rader som redan är sparade. Inget läggs till och inget tas bort.
         Fel: "Training not found", "Player not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
@@ -844,6 +954,42 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/trainings/{id}/attendance/lock:
+    parameters:
+      - $ref: '#/components/parameters/TrainingId'
+    put:
+      tags: [Trainings]
+      operationId: lockAttendance
+      summary: Frys närvarolistan ("Klar")
+      description: |
+        Alla spelare på den levande listan måste ha en status först. Finns minst en omarkerad spelare
+        (`status: null`) ges 400 och listan förblir öppen. Ett lag utan spelare kan frysas direkt.
+        Sparar en rad för varje spelare på den levande listan, tar bort sparade
+        rader för spelare som inte längre är med på listan och sätter `attendanceLockedAt`. Ingen body.
+        Efter det visar `GET .../attendance` alltid den frysta listan och markering ger 400.
+        Att frysa en redan fryst träning ändrar inget (200, samma `attendanceLockedAt`), även om
+        listan har omarkerade spelare (t.ex. efter automatisk frysning).
+        Samma roller och lagavgränsning som att markera närvaro.
+        Närvarofönster (issue #124): går först från 30 minuter före `startsAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
+        Fel: "This training is cancelled" (400); "Närvaron öppnar 30 minuter före start." (400);
+        "All players must be marked before the attendance list can be frozen" (400); "Training not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: TrainingController.lockAttendance → TrainingService.lockAttendance
+      responses:
+        '200':
+          description: Träningen med `attendanceLockedAt` satt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/trainings/{id}/attendance/{playerId}:
     parameters:
       - $ref: '#/components/parameters/TrainingId'
@@ -857,10 +1003,14 @@ paths:
       operationId: updateAttendance
       summary: Markera närvaro för en spelare
       description: |
-        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste finnas på träningens
-        ögonblicksbild. Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
+        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
+        i träningens lag just nu; raden skapas om den saknas. Fryst träning (även automatiskt fryst, se listan) nekas.
+        Närvarofönster (issue #124): går först från 30 minuter före `startsAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
+        Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
         "This player is not on the attendance list for this training",
-        "This training is cancelled" (400); "Training not found" (404);
+        "This training is cancelled", "Närvaron öppnar 30 minuter före start.",
+        "The attendance list for this training is frozen and can no longer be changed" (400); "Training not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage trainings" (403 om COACH inte tränar laget);
         PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
         ADMIN och CHAIRMAN får markera närvaro på vilket lag som helst.
@@ -887,7 +1037,7 @@ paths:
     get:
       tags: [Matches]
       operationId: listMatchesByTeam
-      summary: Lista ett lags matcher (senaste avspark först)
+      summary: Lista ett lags matcher (senaste avspark först, eller filtrerat med when)
       description: |
         ADMIN och CHAIRMAN får lista matcher för vilket lag som helst.
         COACH bara lag där hen finns i `team_coaches`.
@@ -905,6 +1055,7 @@ paths:
           in: query
           required: true
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
           description: Matcher.
@@ -925,7 +1076,10 @@ paths:
         Resultatet är valfritt. Båda måltalen utelämnas, eller båda skickas.
         Ett ensamt måltal är 400. `createdByUserId` sätts till den inloggade.
         ADMIN och CHAIRMAN får skapa matchen på vilket lag som helst.
+        `kickoffAt` får inte ligga före nu (datum och klockslag, svensk tid Europe/Stockholm), annars 400 (#115).
+        ADMIN är undantagen och får sätta vilken tid som helst. En match flyttas med `PUT /api/matches/{id}` (#127).
         Fel: "teamId is required", "opponent is required", "kickoffAt is required",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
         "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY",
         "goalsFor and goalsAgainst must both be set, or both left empty",
         "goalsFor and goalsAgainst cannot be negative" (400);
@@ -977,6 +1131,81 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+    put:
+      tags: [Matches]
+      operationId: updateMatch
+      summary: Ändra motståndare, avspark, plats och hemma/borta
+      description: |
+        Byter `opponent`, `kickoffAt`, `venue` och `homeAway` (#127). Laget kan inte bytas,
+        så närvaroraderna och resultatet ligger kvar. Resultatet ändras med `PUT /api/matches/{id}/result`.
+        Samma roller och lag som när matchen skapas. Alla fyra fälten krävs, precis som vid skapande.
+        En ny `kickoffAt` får inte ligga före nu (svensk tid), annars 400 (#115). ADMIN är undantagen.
+        Kontrollen görs bara när `kickoffAt` ändras: att rätta platsen på en gammal match med samma tid går igenom.
+        Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        Fel: "opponent is required", "kickoffAt is required",
+        "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
+        "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY" (400);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403, kontrolleras först);
+        PLAYER och PARENT får 403 från `@PreAuthorize`;
+        "Match not found" (404 för ADMIN och CHAIRMAN).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.update → MatchService.updateMatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMatchRequest' }
+      responses:
+        '200':
+          description: Den ändrade matchen.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/cancellation:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    put:
+      tags: [Matches]
+      operationId: cancelMatch
+      summary: Ställ in en match, eller aktivera den igen
+      description: |
+        Issue #133. Samma form som `PUT /api/trainings/{id}/cancellation`.
+        Sätter status CANCELLED. Matchen raderas inte. Närvaro och resultat ligger kvar.
+        `reason` är valfri. Tom text sparas som null.
+        Medan matchen är inställd ger närvaro, "Klar" och resultat 400 "This match is cancelled".
+        En inställd match fryses inte automatiskt. Den går fortfarande att ändra (`PUT /api/matches/{id}`).
+        Med `cancelled: false` aktiveras matchen igen: status blir SCHEDULED, `cancelReason` blir null.
+        `reason` ignoreras då. Saknas `cancelled` betyder det `true`.
+        Att aktivera en match som inte är inställd ändrar inget (200).
+        Samma roller och lag som när en match ändras.
+        Spelare och föräldrar ser `status` i `GET /api/my/matches`. Personal ser den i lagets lista.
+        Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.cancel → MatchService.cancelMatch / reactivateMatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelMatchRequest' }
+      responses:
+        '200':
+          description: Matchen är inställd, eller aktiverad igen med `cancelled` false.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/matches/{id}/result:
     parameters:
       - $ref: '#/components/parameters/MatchId'
@@ -988,6 +1217,7 @@ paths:
         Två måltal sätter resultatet. De får inte vara negativa.
         Båda måltalen `null` tömmer resultatet (`result` blir null), t.ex. när fel resultat skrivits in.
         Bara ett av måltalen satt ger 400. Matchen raderas inte.
+        En inställd match ger 400 "This match is cancelled" (issue #133).
         Samma roller och lag får tömma som får sätta.
         Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
         ADMIN och CHAIRMAN får 404 "Match not found" när id saknas.
@@ -1005,6 +1235,115 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/attendance:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    get:
+      tags: [Matches]
+      operationId: listMatchAttendance
+      summary: Lista närvaro för en match
+      description: |
+        Samma regel som för träningar (ADR 0010, #67).
+        Öppen match (`attendanceLockedAt` null): lagets aktiva spelare (roll PLAYER) just nu, med sparad
+        status eller `status: null`. En spelare som har slutat eller bytt lag syns inte längre.
+        Fryst match: exakt de sparade raderna. Den som har slutat finns kvar, den som har kommit senare syns inte.
+        Automatisk frysning: om klockan är mer än 8 timmar efter `kickoffAt` (svensk tid; en match har ingen
+        sluttid, så ca 2 timmar match + 6 timmar) fryses matchen först, med de rader som redan är sparade.
+        Inget läggs till och inget tas bort.
+        Fel: "Match not found" (404 för ADMIN och CHAIRMAN), "Player not found" (404);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403 för en COACH när matchen
+        saknas eller hör till ett annat lag); PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.listAttendance → MatchService.listAttendance
+      responses:
+        '200':
+          description: Närvarorader.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/attendance/lock:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+    put:
+      tags: [Matches]
+      operationId: lockMatchAttendance
+      summary: Frys matchens närvarolista ("Klar")
+      description: |
+        Alla spelare på den levande listan måste ha en status först. Finns minst en omarkerad spelare
+        (`status: null`) ges 400 och listan förblir öppen. Ett lag utan spelare kan frysas direkt.
+        Sparar en rad för varje spelare på den levande listan, tar bort sparade rader för spelare som
+        inte längre är med på listan och sätter `attendanceLockedAt`. Ingen body.
+        Att frysa en redan fryst match ändrar inget (200, samma `attendanceLockedAt`).
+        Samma roller och lagavgränsning som att markera närvaro.
+        Närvarofönster (issue #124): går först från 30 minuter före `kickoffAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
+        Fel: "Närvaron öppnar 30 minuter före start." (400); "All players must be marked before the attendance list can be frozen" (400);
+        "Match not found" (404 för ADMIN och CHAIRMAN);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.lockAttendance → MatchService.lockAttendance
+      responses:
+        '200':
+          description: Matchen med `attendanceLockedAt` satt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/matches/{id}/attendance/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/MatchId'
+      - name: playerId
+        in: path
+        required: true
+        description: Spelarens användar-id.
+        schema: { type: integer, format: int64 }
+    put:
+      tags: [Matches]
+      operationId: updateMatchAttendance
+      summary: Markera matchnärvaro för en spelare
+      description: |
+        Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
+        i matchens lag just nu; raden skapas om den saknas. Fryst match (även automatiskt fryst) nekas.
+        Närvarofönster (issue #124): går först från 30 minuter före `kickoffAt` (svensk tid), för alla roller.
+        Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
+        Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
+        "This player is not on the attendance list for this match", "Närvaron öppnar 30 minuter före start.",
+        "The attendance list for this match is frozen and can no longer be changed" (400);
+        "Match not found" (404 för ADMIN och CHAIRMAN);
+        "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403);
+        PLAYER och PARENT får 403 `{"message":"Access Denied"}`.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag. COACH endast lag där hen finns i `team_coaches`.
+      x-source: MatchController.updateAttendance → MatchService.updateAttendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAttendanceRequest' }
+      responses:
+        '200':
+          description: Uppdaterad närvarorad.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1030,14 +1369,50 @@ paths:
           required: false
           description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
-          description: Matcher (senaste avspark först).
+          description: Matcher (senaste avspark först; med `when=upcoming` närmast först).
           content:
             application/json:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/MyMatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/my/coaches:
+    get:
+      tags: [MySchedule]
+      operationId: listMyCoaches
+      summary: Tränarna i mitt (eller mitt barns) lag, med kontaktuppgifter
+      description: |
+        Samma personkontroll som `GET /api/my/trainings`.
+        - PLAYER: aktiva tränare (`team_coaches`) i eget lag. `childId` får inte skickas (403 "Players can only view their own schedule").
+        - PARENT: `childId` krävs om föräldern har barn (400 "childId is required for parents"); barnet måste vara
+          föräldrens, aktivt och PLAYER (403 "That child is not linked to you"). Okänt id ger 404 "Player not found".
+          Förälder utan barn får tom lista.
+        Svaret har bara id, namn, e-post och telefon, så att familjen kan nå tränaren (ADR 0009).
+        Inaktiva tränare och tränare i andra lag är aldrig med. `GET /api/teams/{id}/coaches` är oförändrad (PLAYER och PARENT får 403).
+      x-roles: [PLAYER, PARENT]
+      x-scope: PARENT endast tränarna i ett eget (länkat, aktivt) barns lag; PLAYER endast tränarna i sitt eget lag.
+      x-source: MyScheduleController.listCoaches → MyScheduleService.listMyCoaches
+      parameters:
+        - name: childId
+          in: query
+          required: false
+          description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Aktiva tränare i laget.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MyCoachResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1090,6 +1465,9 @@ paths:
         - PLAYER: eget lags träningar + egen status. `childId` får inte skickas (403 "Players can only view their own schedule").
         - PARENT: `childId` krävs om föräldern har barn (400 "childId is required for parents"); barnet måste vara
           föräldrens, aktivt och PLAYER (403 "That child is not linked to you"). Förälder utan barn får tom lista.
+        Samma frysregler som personalens närvarolista: en träning som har passerat `endsAt` + 6 timmar fryses
+        först. `status` är spelarens sparade status, eller null om spelaren inte är markerad eller inte finns
+        på den frysta listan.
         Fel: "User not found", "Player not found" (404).
       x-roles: [PLAYER, PARENT]
       x-scope: PARENT endast egna (länkade, aktiva) barn; PLAYER endast sig själv.
@@ -1100,9 +1478,10 @@ paths:
           required: false
           description: Barnets användar-id (krävs för PARENT med barn, förbjudet för PLAYER).
           schema: { type: integer, format: int64 }
+        - $ref: '#/components/parameters/ActivityWhenQuery'
       responses:
         '200':
-          description: Schemarader (senaste först).
+          description: Schemarader (senaste först; med `when=upcoming` närmast först).
           content:
             application/json:
               schema:
@@ -1253,6 +1632,20 @@ components:
       required: false
       description: Filtrera på lag.
       schema: { type: integer, format: int64 }
+    ActivityWhenQuery:
+      name: when
+      in: query
+      required: false
+      description: |
+        Kommande eller tidigare aktiviteter (issue #116). "Idag" räknas i Europe/Stockholm.
+        - `upcoming`: från och med midnatt idag, närmast först. Dagens aktiviteter syns hela dagen.
+        - `past`: före midnatt idag, senaste först.
+        - Utelämnad: allt, senaste först (som tidigare).
+        Annat värde ger 400 "Ogiltigt värde för when. Använd upcoming eller past."
+        Filtret smalnar bara av listan; lag- och personbehörighet är oförändrad.
+      schema:
+        type: string
+        enum: [upcoming, past]
     UserId:
       name: id
       in: path
@@ -1382,6 +1775,22 @@ components:
         teamId: { type: [integer, 'null'], format: int64 }
         teamName: { type: [string, 'null'] }
         active: { type: boolean, description: false = mjukt raderad. }
+        memberSince:
+          type: [string, 'null']
+          format: date
+          x-pii: true
+          description: |
+            Dagen personen blev medlem (#85). Sätts när användaren skapas.
+            null betyder "medlem sedan tidigare" (rad från före fältet), eller att
+            anroparen är PLAYER/PARENT. Visas bara för ADMIN, CHAIRMAN och COACH
+            (en COACH når bara rader i sitt eget lag).
+        memberUntil:
+          type: [string, 'null']
+          format: date
+          x-pii: true
+          description: |
+            Dagen medlemskapet slutade (#85). Sätts vid mjukradering, null så länge
+            personen är aktiv. Samma synlighet som memberSince.
     SearchUsersRequest:
       type: object
       description: |
@@ -1442,6 +1851,12 @@ components:
       properties:
         id: { type: integer, format: int64 }
         roleName: { $ref: '#/components/schemas/RoleName' }
+    PasswordResetResponse:
+      type: object
+      required: [id, temporaryPassword]
+      properties:
+        id: { type: integer, format: int64 }
+        temporaryPassword: { type: string, description: Temporärt lösenord i klartext; visas en gång., x-secret: true }
     UpdatePlayerRequest:
       type: object
       required: [name, email, teamId]
@@ -1475,20 +1890,38 @@ components:
 
     CreateTrainingRequest:
       type: object
-      required: [teamId, startsAt, endsAt]
+      required: [teamId, startsAt, endsAt, type]
       properties:
         teamId: { type: integer, format: int64 }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
-        title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'], description: Plats. Tom eller null sparas som null. }
+    CreateTrainingSeriesRequest:
+      type: object
+      required: [teamId, type, weekdays, startTime, endTime, fromDate, toDate]
+      properties:
+        teamId: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/TrainingType' }
+        weekdays:
+          type: array
+          minItems: 1
+          description: Veckodagar för träningarna. Dubbletter gör inget.
+          items:
+            type: string
+            enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+        startTime: { type: string, pattern: '^\d{2}:\d{2}(:\d{2})?$', example: '18:00', description: Klockslag utan zon (svensk tid). }
+        endTime: { type: string, pattern: '^\d{2}:\d{2}(:\d{2})?$', example: '19:30', description: Måste vara efter startTime samma dag. }
+        venue: { type: [string, 'null'], description: Plats för alla träningarna. Tom eller null sparas som null. }
+        fromDate: { type: string, format: date, example: '2026-03-01' }
+        toDate: { type: string, format: date, example: '2026-05-31', description: Tas med. Får inte vara före fromDate. }
     UpdateTrainingRequest:
       type: object
-      required: [startsAt, endsAt]
+      required: [startsAt, endsAt, type]
       properties:
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime', description: Måste vara efter startsAt. }
-        title: { type: [string, 'null'], description: 'Standard "Training" om tom.' }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'], description: Tom eller null rensar platsen. }
     CancelTrainingRequest:
       type: object
@@ -1498,24 +1931,48 @@ components:
           default: true
           description: true eller saknas ställer in träningen. false aktiverar den igen (SCHEDULED, orsaken töms).
         reason: { type: [string, 'null'], description: Valfri orsak när träningen ställs in. Tom text sparas som null. }
+    CancelMatchRequest:
+      type: object
+      properties:
+        cancelled:
+          type: [boolean, 'null']
+          default: true
+          description: true eller saknas ställer in matchen. false aktiverar den igen (SCHEDULED, orsaken töms).
+        reason: { type: [string, 'null'], description: Valfri orsak när matchen ställs in. Tom text sparas som null. }
+    MatchStatus:
+      type: string
+      description: SCHEDULED är en vanlig match. CANCELLED är inställd. Raden raderas inte.
+      enum: [SCHEDULED, CANCELLED]
     TrainingStatus:
       type: string
       description: SCHEDULED är en vanlig träning. CANCELLED är inställd. Raden raderas inte.
       enum: [SCHEDULED, CANCELLED]
+    TrainingType:
+      type: string
+      description: |
+        Träningens typ (#118). Listan ligger fast i koden. Appen visar det svenska namnet:
+        `FOOTBALL` = Fotbollsträning, `FITNESS` = Fysträning.
+        I svar visas en gammal träning utan typ som `FOOTBALL`. Den gamla kolumnen `title` används inte längre.
+      enum: [FOOTBALL, FITNESS]
     TrainingResponse:
       type: object
-      required: [id, teamId, startsAt, endsAt, title, createdByUserId]
+      required: [id, teamId, startsAt, endsAt, type, createdByUserId]
       properties:
         id: { type: integer, format: int64 }
         teamId: { type: integer, format: int64 }
         teamName: { type: [string, 'null'] }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
-        title: { type: string }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'] }
         status: { $ref: '#/components/schemas/TrainingStatus' }
         cancelReason: { type: [string, 'null'] }
         createdByUserId: { type: integer, format: int64 }
+        attendanceLockedAt:
+          description: När närvarolistan frystes ("Klar" eller 6 timmar efter `endsAt`). Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
     AttendanceResponse:
       type: object
       required: [playerUserId, playerName]
@@ -1554,6 +2011,15 @@ components:
           type: [integer, 'null']
           minimum: 0
           description: Valfritt vid skapande. Måste skickas tillsammans med goalsFor.
+    UpdateMatchRequest:
+      type: object
+      description: Laget kan inte bytas. Resultatet ändras inte här.
+      required: [opponent, kickoffAt, venue, homeAway]
+      properties:
+        opponent: { type: string, minLength: 1, description: Motståndarlag. Trimmas. }
+        kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        venue: { type: string, minLength: 1, description: Plats. Trimmas. }
+        homeAway: { $ref: '#/components/schemas/HomeAway' }
     SetMatchResultRequest:
       type: object
       description: Båda satta sätter resultatet. Båda null tömmer det. Bara ett satt ger 400.
@@ -1578,7 +2044,14 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MatchResult'
             - type: 'null'
+        status: { $ref: '#/components/schemas/MatchStatus' }
+        cancelReason: { type: [string, 'null'], description: Valfri orsak. Null när matchen inte är inställd. }
         createdByUserId: { type: integer, format: int64 }
+        attendanceLockedAt:
+          description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
     MyMatchResponse:
       type: object
       description: |
@@ -1598,6 +2071,13 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MatchResult'
             - type: 'null'
+        status: { $ref: '#/components/schemas/MatchStatus' }
+        cancelReason: { type: [string, 'null'], description: Valfri orsak. Null när matchen inte är inställd. }
+        attendanceLockedAt:
+          description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
 
     MyChildResponse:
       type: object
@@ -1607,22 +2087,36 @@ components:
         name: { type: [string, 'null'], x-pii: true }
         teamId: { type: [integer, 'null'], format: int64 }
         teamName: { type: [string, 'null'] }
+    MyCoachResponse:
+      type: object
+      description: En tränare som lagets spelare och föräldrar ser (ADR 0009). Bara kontaktfält.
+      required: [id]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: [string, 'null'], x-pii: true }
+        email: { type: [string, 'null'], x-pii: true }
+        mobilePhoneNumber: { type: [string, 'null'], x-pii: true }
     MyTrainingResponse:
       type: object
-      required: [id, teamId, startsAt, endsAt, title, playerUserId, playerName]
+      required: [id, teamId, startsAt, endsAt, type, playerUserId, playerName]
       properties:
         id: { type: integer, format: int64 }
         teamId: { type: integer, format: int64 }
         teamName: { type: [string, 'null'] }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
-        title: { type: string }
+        type: { $ref: '#/components/schemas/TrainingType' }
         venue: { type: [string, 'null'] }
         playerUserId: { type: integer, format: int64 }
         playerName: { type: [string, 'null'], x-pii: true }
         status: { $ref: '#/components/schemas/AttendanceStatus' }
         trainingStatus: { $ref: '#/components/schemas/TrainingStatus' }
         cancelReason: { type: [string, 'null'] }
+        attendanceLockedAt:
+          description: När närvarolistan frystes. Null = öppen lista.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
 
     PublicTeamResponse:
       type: object
@@ -1635,14 +2129,14 @@ components:
       type: object
       x-status: planned
       description: Publik träningsvy, utan närvaro, spelare och skapare.
-      required: [id, teamId, startsAt, endsAt, title]
+      required: [id, teamId, startsAt, endsAt, type]
       properties:
         id: { type: integer, format: int64 }
         teamId: { type: integer, format: int64 }
         teamName: { type: string }
         startsAt: { $ref: '#/components/schemas/LocalDateTime' }
         endsAt: { $ref: '#/components/schemas/LocalDateTime' }
-        title: { type: string }
+        type: { $ref: '#/components/schemas/TrainingType' }
     PublicCoachResponse:
       type: object
       x-status: planned

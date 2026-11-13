@@ -17,7 +17,7 @@ function isGenericForbidden(message: string): boolean {
     normalized.length === 0 ||
     normalized === 'access denied' ||
     normalized === 'forbidden' ||
-    normalized === 'request failed (403)'
+    normalized === 'förfrågan misslyckades (403)'
   );
 }
 
@@ -34,7 +34,7 @@ async function readServerMessage(response: Response): Promise<string> {
   try {
     const text = await response.text();
     if (!text) {
-      return `Request failed (${response.status})`;
+      return `Förfrågan misslyckades (${response.status})`;
     }
     try {
       const json = JSON.parse(text) as { message?: string };
@@ -46,7 +46,7 @@ async function readServerMessage(response: Response): Promise<string> {
     }
     return text;
   } catch {
-    return `Request failed (${response.status})`;
+    return `Förfrågan misslyckades (${response.status})`;
   }
 }
 

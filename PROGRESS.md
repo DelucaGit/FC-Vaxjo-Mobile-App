@@ -782,6 +782,68 @@ Why: the players are children. A consent can be forgotten or set by mistake, and
 
 `ddl-auto=update` does not drop columns, so `public_consent_at` may stay in a database that already ran the old code. It is unused and harmless. `UI/` is not changed.
 
+# Login lockout (#64, 10/11-2026)
+
+Decision (full reasoning in ADR 0008): `POST /api/auth/login` answers 429 `{"message":"För många inloggningsförsök. Försök igen om 15 minuter."}` for 15 minutes, even with the right password, after:
+- 5 failures for the same email from the same IP (the main rule),
+- 30 failures from one IP across any emails,
+- 20 failures for one email across any IPs.
+
+A failure is forgotten 15 minutes after the latest one. A successful login clears the email+IP and email counts (not the IP's). Unknown emails are counted too, so the lockout does not reveal which emails exist. The counts live in memory (`LoginAttemptLimiter`, a `ConcurrentHashMap`, old entries pruned on each failure), so a restart clears them. IPs are stored only as HMAC-SHA256 with a random key made at startup (`ClientIpPrivacy`), never logged raw (only /24 or /48), never in a response. Time comes from a `Clock` bean (`ClockConfig`, `systemUTC`); `ClubApiTest` swaps in `TestClock` and clears the limiter before each test. The app shows the Swedish text on any 429 from login.
+
+Client IP: `AuthController` uses `getRemoteAddr()` and never reads forwarded headers. In `prod`, `server.forward-headers-strategy=native` with `remote-ip-header=X-Real-IP` lets Tomcat's RemoteIpValve set it from Railway's `X-Real-IP`, but only for requests from Spring Boot's default internal-proxies list (left unchanged). Fallback: if the IP is still internal (private, loopback, 100.64/10, link-local), the IP rules are skipped and the email alone locks after 5, with one warning per hour in the log. Locally (127.0.0.1) this fallback is always on.
+
+Why: the API will be public on Railway, and nothing stopped password guessing. A plain per-IP rule behind Railway's proxy would have locked out the whole club. Scaling beyond one instance is issue #77.
+
+## Kontrollera efter första Railway-deploy (#64, #69)
+- [ ] Logga trunkerad `getRemoteAddr()` en gång från 4G och en gång från wifi, kontrollera att det är telefonens nät och inte 100.64.x. Ta sedan bort loggraden.
+- [ ] `curl` mot login med falsk `X-Real-IP` och `X-Forwarded-For`: spärren ska följa din riktiga IP, inte headern.
+- [ ] Spärra dig själv från 4G (5 fel), kontrollera att samma konto från wifi fortfarande får 401/200.
+- [ ] Ingen publik TCP-proxy är påslagen i Railway (den skulle gå förbi edge-proxyn och `X-Real-IP`).
+- [ ] Varningen "client IP is internal" syns inte i loggen.
+
+## Demo seed keeps changed passwords (10/11-2026)
+
+Decision: `DemoClubSeeder` (dev only) sets a password and `mustChangePassword=true` only when it creates a user. Existing users, the bootstrap admin included, keep their password and flag on restart. `DEMO_RESET_PASSWORDS=true` in `API/.env` (`app.seed.reset-passwords`, default false) brings back the old reset of the admin and all demo passwords, with one info line in the log. `AdminSeeder` already only created the admin and is unchanged.
+
+Why: every restart threw away the developer's new password and forced a password change again.
+
+## Coach contact for players and parents (#79, 10/11-2026)
+
+Decision (ADR 0009, accepted by Marcel 10/11-2026): new `GET /api/my/coaches` for PLAYER and PARENT. It returns the active coaches (`team_coaches`) of the player's own team, or of the parent's child's team (`childId`, same rules as `/api/my/trainings`), with only `id`, `name`, `email` and `mobilePhoneNumber`. `GET /api/teams/{id}/coaches` is unchanged and still 403 for PLAYER and PARENT.
+
+Why: a parent must be able to reach the coach, for example when the child has not come home. Cost: everyone on the team sees the coach's private phone and email, so the coaches must be told before the pilot.
+
+## Member start and end dates (#85, 10/11-2026)
+
+Decision (Marcel): `users` gets two nullable date columns, `member_since` and `member_until` (JSON `memberSince` / `memberUntil`, `YYYY-MM-DD`). Creating a user sets `memberSince` to today from the `Clock` bean; soft delete sets `memberUntil` to today. There is no reactivate endpoint yet; `DemoClubSeeder` clears `memberUntil` when it reactivates a demo user. Old rows keep null, which means "member since earlier". Only ADMIN, CHAIRMAN and COACH see the dates (`UserService.memberSinceForCaller`); PLAYER and PARENT get null, like the parent fields (F6).
+
+Why: the base for frozen attendance lists (#86) and for tracing who was a member on a given day.
+
+## Frozen attendance lists (#86, 10/11-2026)
+
+Decision (ADR 0010, accepted by Marcel): an open training attendance list is live (every active PLAYER on the team now, saved status or null), and `POST /api/trainings` no longer copies players. `PUT /api/trainings/{id}/attendance/lock` ("Klar") freezes it once every player is marked. A training that is not cancelled and ended more than 6 h ago (Europe/Stockholm) freezes on its own at the first read or write, keeping only the rows already saved ("alternativ A"). A frozen list never changes. New field `attendanceLockedAt` on `TrainingResponse` and `MyTrainingResponse`.
+
+Why: traceable history, so a new player does not show up on old trainings and a player who left stays. Cost: a frozen list cannot be corrected in the app yet, and unmarked players drop out of history if nobody presses Klar. Matches (#67) now follow the same rules, with kickoff + 8 h as the freeze limit (see below).
+
+## Match attendance with frozen lists (#67, 10/11-2026)
+
+Decision (ADR 0010): matches get attendance with the same rules as trainings. `GET /api/matches/{id}/attendance` shows the live list while open and exactly the saved rows once frozen. `PUT /api/matches/{id}/attendance/{playerId}` marks a player on the live list (400 when frozen). `PUT /api/matches/{id}/attendance/lock` ("Klar") freezes once every player is marked. A match freezes on its own 8 h after `kickoffAt` (Europe/Stockholm), because a match has no end time (about 2 h match + 6 h). Roles: ADMIN, CHAIRMAN and the match's own COACH; an unknown id is 404 for ADMIN/CHAIRMAN and 403 for COACH, like the other match endpoints. New table `match_attendance` and field `attendanceLockedAt` on `MatchResponse` and `MyMatchResponse`. Replaces PR #84.
+
+Why: the same traceable history as trainings. Cost: `MatchAttendanceRoster` is a close copy of `TrainingAttendanceRoster` instead of a shared generic class, so it is easy to read but a rule change must be made in both.
+
+## Training types (#118, 11/11-2026)
+
+Decision (grilling with Marcel): a training has a fixed type instead of a free-text title. Enum `TrainingType` with `FOOTBALL` ("Fotbollsträning") and `FITNESS` ("Fysträning"); the list lives in code, so a new type needs a small code change. `POST` and `PUT /api/trainings` take a required `type` instead of `title`; a missing or unknown type is 400 with a Swedish message. `TrainingResponse` and `MyTrainingResponse` show `type` and no longer `title`. New nullable column `trainings.type`; old rows have null and are shown as `FOOTBALL`. The `title` column is left in the database and still gets the type's Swedish name, because it is NOT NULL, but nothing reads it any more. Matches are not affected.
+
+Why: trainings should have the same names everywhere. Cost: the request field is a plain String parsed by `TrainingType.fromRequest`, not the enum itself, so an unknown value gets our own Swedish message instead of a generic JSON parse error.
+
+## No trainings or matches in the past (#115, 11/11-2026)
+
+Decision (grilling 11/11-2026): a training or match may not get a start time before now (date and clock time, Europe/Stockholm). The check runs when a time is set: on create, and on `PUT /api/trainings/{id}` only when `startsAt` changes, so a new place on an old training still saves. ADMIN is exempt (`ClubRole.canSetPastActivityTime`). The API answers 400 `{"message": "Starttiden har redan passerat. Välj en tid som inte har varit."}`; the rule lives in one small class, `ActivityStartRule`, which reads "now" from the `Clock` bean. The app locks "Spara" on "Ny träning", "Redigera träning" and "Ny match" and shows the same text. There is no endpoint to move a match yet, so only match create is checked.
+
+Why: a training in 2011 was created by mistake during a phone test, and such mistakes end up in the schedule and the attendance numbers. Cost: the app uses the phone's clock and time zone, so a phone set to another zone can be a few hours off; the API still says no then.
+
 ## Docker image for the API (#68)
 
 Decision: `API/Dockerfile` is a multi-stage build on `eclipse-temurin` 21 (pinned to `21.0.13_9`, Ubuntu noble). The JDK stage builds the jar with the Maven Wrapper and skips tests (CI runs them). The JRE stage runs only the jar as a non-root user on port 8080. `API/.dockerignore` keeps `.env`, `target/` and `.git` out of the build. `application.properties` now reads `DB_URL`, `DB_USERNAME` and `PORT` from the environment, with the old local values as defaults. `springboot4-dotenv` needs no change: `springdotenv.ignore-if-missing` is `true` by default, so a container without `.env` starts. How to build and run: `docs/docker.md`.

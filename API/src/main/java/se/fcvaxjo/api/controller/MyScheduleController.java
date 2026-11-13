@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import se.fcvaxjo.api.DTO.MatchResultResponse;
 import se.fcvaxjo.api.DTO.MyChildResponse;
+import se.fcvaxjo.api.DTO.MyCoachResponse;
 import se.fcvaxjo.api.DTO.MyMatchResponse;
 import se.fcvaxjo.api.DTO.MyTrainingResponse;
 import se.fcvaxjo.api.DTO.TeamResponse;
@@ -21,6 +22,7 @@ import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.Training;
+import se.fcvaxjo.api.service.ActivityWhen;
 import se.fcvaxjo.api.service.MyScheduleService;
 import se.fcvaxjo.api.service.MyScheduleService.ScheduleRow;
 import se.fcvaxjo.api.service.TeamService;
@@ -76,9 +78,10 @@ public class MyScheduleController {
     @GetMapping("/trainings")
     @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
     public List<MyTrainingResponse> listTrainings(
-            @RequestParam(required = false) Long childId) {
+            @RequestParam(required = false) Long childId,
+            @RequestParam(required = false) String when) {
         List<MyTrainingResponse> responses = new ArrayList<>();
-        for (ScheduleRow row : myScheduleService.listMyTrainings(childId)) {
+        for (ScheduleRow row : myScheduleService.listMyTrainings(childId, ActivityWhen.parse(when))) {
             Training t = row.training();
             AppUser player = row.player();
             responses.add(new MyTrainingResponse(
@@ -87,13 +90,14 @@ public class MyScheduleController {
                     myScheduleService.getTeamName(t.getTeamId()),
                     t.getStartsAt(),
                     t.getEndsAt(),
-                    t.getTitle(),
+                    t.typeOrFootball().name(),
                     t.getVenue(),
                     player.getId(),
                     player.getName(),
                     row.status(),
                     t.statusOrScheduled().name(),
-                    t.getCancelReason()));
+                    t.getCancelReason(),
+                    t.getAttendanceLockedAt()));
         }
         return responses;
     }
@@ -104,9 +108,11 @@ public class MyScheduleController {
      */
     @GetMapping("/matches")
     @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
-    public List<MyMatchResponse> listMatches(@RequestParam(required = false) Long childId) {
+    public List<MyMatchResponse> listMatches(
+            @RequestParam(required = false) Long childId,
+            @RequestParam(required = false) String when) {
         List<MyMatchResponse> responses = new ArrayList<>();
-        for (Match match : myScheduleService.listMyMatches(childId)) {
+        for (Match match : myScheduleService.listMyMatches(childId, ActivityWhen.parse(when))) {
             responses.add(new MyMatchResponse(
                     match.getId(),
                     match.getTeamId(),
@@ -115,7 +121,28 @@ public class MyScheduleController {
                     match.getKickoffAt(),
                     match.getVenue(),
                     match.getHomeAway().name(),
-                    resultOf(match)));
+                    resultOf(match),
+                    match.statusOrScheduled().name(),
+                    match.getCancelReason(),
+                    match.getAttendanceLockedAt()));
+        }
+        return responses;
+    }
+
+    /**
+     * PLAYER: coaches of their own team. PARENT: must pass childId of a linked child.
+     * Only name, email and phone, so the family can reach the coach (ADR 0009).
+     */
+    @GetMapping("/coaches")
+    @PreAuthorize("hasAnyRole('PLAYER', 'PARENT')")
+    public List<MyCoachResponse> listCoaches(@RequestParam(required = false) Long childId) {
+        List<MyCoachResponse> responses = new ArrayList<>();
+        for (AppUser coach : myScheduleService.listMyCoaches(childId)) {
+            responses.add(new MyCoachResponse(
+                    coach.getId(),
+                    coach.getName(),
+                    coach.getEmail(),
+                    coach.getMobilePhoneNumber()));
         }
         return responses;
     }
