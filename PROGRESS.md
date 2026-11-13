@@ -851,3 +851,11 @@ Decision: `API/Dockerfile` is a multi-stage build on `eclipse-temurin` 21 (pinne
 Why: inside a container `localhost` is the container itself, so the database address must come from outside. Railway sets `PORT`. Pinned tags mean a rebuild gives the same base image.
 
 Left for Marcel (HITL): install Docker Desktop, build the image, run it against local PostgreSQL with `prod`, check that `.env` is not in the image, and try the app on a real phone.
+
+## Hosting on Render + Neon (#158, 13/11-2026)
+
+Decision (ADR 0011, replaces Railway in ADR 0002): the API runs on Render Starter (Frankfurt), built from the Docker image (#68) through `render.yaml`. PostgreSQL is Neon Free (Frankfurt), direct connection with `sslmode=require`. Secrets are Render environment variables only. `GET /api/public/health` is the health check and does not touch the database. `prod` uses a pool of 5 connections. The phone app gets its address from `EXPO_PUBLIC_API_URL` (`UI/eas.json`, build `pilot`). Backups: own `pg_dump` before every deploy and weekly, because Neon Free keeps only about 6 hours of history. Steps and checklist: `docs/deploy-render.md`.
+
+Why: Railway's usage-based price could pass the budget. Render Starter + Neon is about 7 USD/month, always on.
+
+Open: which header Render uses for the client IP is not verified (the docs page could not be read). Until checked after the first deploy, the login lockout (ADR 0008) falls back to the email alone. The Railway checklist under "Kontrollera efter första Railway-deploy" is replaced by the one in `docs/deploy-render.md`.

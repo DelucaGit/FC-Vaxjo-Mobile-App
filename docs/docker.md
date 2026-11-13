@@ -1,6 +1,6 @@
 # Docker-image för API:et
 
-API:et kan byggas till en Docker-image (#68). Samma image ska köras på Railway. Vardagsutveckling sker fortfarande med Maven Wrapper (`bash mvnw spring-boot:run`), se README.
+API:et kan byggas till en Docker-image (#68). Samma image körs på Render (se `docs/deploy-render.md`). Vardagsutveckling sker fortfarande med Maven Wrapper (`bash mvnw spring-boot:run`), se README.
 
 Kräver Docker Desktop. Kör kommandona från repo-roten.
 
@@ -26,7 +26,7 @@ Inga hemligheter finns i imagen. Allt kommer från miljövariabler när containe
 | `DB_PASSWORD` | ja | Lösenord till databasen |
 | `JWT_SECRET` | ja | Minst 32 byte. API:et startar inte utan. |
 | `BOOTSTRAP_ADMIN_PASSWORD` | nej | Tillfälligt lösenord för första admin. Tomt = ingen admin skapas. |
-| `PORT` | nej | Porten API:et lyssnar på. Standard 8080. Railway sätter den själv. |
+| `PORT` | nej | Porten API:et lyssnar på. Standard 8080. Render sätter den själv. |
 
 Från containern når du PostgreSQL på din dator via `host.docker.internal` (fungerar i Docker Desktop på Windows och Mac).
 

@@ -1,2 +1,5 @@
 LK_POSTS.md
 .claude/
+
+# Databasbackuper (innehåller personuppgifter, #158)
+*.dump
