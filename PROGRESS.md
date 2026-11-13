@@ -843,3 +843,11 @@ Why: trainings should have the same names everywhere. Cost: the request field is
 Decision (grilling 11/11-2026): a training or match may not get a start time before now (date and clock time, Europe/Stockholm). The check runs when a time is set: on create, and on `PUT /api/trainings/{id}` only when `startsAt` changes, so a new place on an old training still saves. ADMIN is exempt (`ClubRole.canSetPastActivityTime`). The API answers 400 `{"message": "Starttiden har redan passerat. Välj en tid som inte har varit."}`; the rule lives in one small class, `ActivityStartRule`, which reads "now" from the `Clock` bean. The app locks "Spara" on "Ny träning", "Redigera träning" and "Ny match" and shows the same text. There is no endpoint to move a match yet, so only match create is checked.
 
 Why: a training in 2011 was created by mistake during a phone test, and such mistakes end up in the schedule and the attendance numbers. Cost: the app uses the phone's clock and time zone, so a phone set to another zone can be a few hours off; the API still says no then.
+
+## Docker image for the API (#68)
+
+Decision: `API/Dockerfile` is a multi-stage build on `eclipse-temurin` 21 (pinned to `21.0.13_9`, Ubuntu noble). The JDK stage builds the jar with the Maven Wrapper and skips tests (CI runs them). The JRE stage runs only the jar as a non-root user on port 8080. `API/.dockerignore` keeps `.env`, `target/` and `.git` out of the build. `application.properties` now reads `DB_URL`, `DB_USERNAME` and `PORT` from the environment, with the old local values as defaults. `springboot4-dotenv` needs no change: `springdotenv.ignore-if-missing` is `true` by default, so a container without `.env` starts. How to build and run: `docs/docker.md`.
+
+Why: inside a container `localhost` is the container itself, so the database address must come from outside. Railway sets `PORT`. Pinned tags mean a rebuild gives the same base image.
+
+Left for Marcel (HITL): install Docker Desktop, build the image, run it against local PostgreSQL with `prod`, check that `.env` is not in the image, and try the app on a real phone.
