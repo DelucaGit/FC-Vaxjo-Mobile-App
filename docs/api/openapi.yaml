@@ -1492,6 +1492,28 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/public/health:
+    get:
+      tags: [Public]
+      operationId: publicHealth
+      summary: Hälsokontroll (publikt)
+      security: []
+      x-roles: [PUBLIC]
+      description: |
+        Svarar `{"status":"UP"}` när API:et lever. Rör inte databasen, så att en kort
+        Neon-paus inte får Render att starta om ett friskt API. Ingen data.
+        Används av `healthCheckPath` i `render.yaml`.
+      x-source: PublicController.health
+      responses:
+        '200':
+          description: API:et är uppe.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: UP }
+
   /api/public/teams:
     get:
       tags: [Public]

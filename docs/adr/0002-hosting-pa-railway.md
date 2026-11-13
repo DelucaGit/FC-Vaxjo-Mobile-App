@@ -1,6 +1,6 @@
 # ADR 0002: Hosting på Railway i stället för AWS
 
-**Status:** Accepterad (Marcel, 2026-11-05) · **Datum:** 2026-11-05
+**Status:** Ersatt av ADR 0011 (Render + Neon, 2026-11-13) · **Datum:** 2026-11-05
 
 ## Kontext
 PROGRESS.md planerade AWS för API och PostgreSQL. För en liten ideell klubbapp med få användare blir AWS för dyrt och kräver för mycket drift. V1 körs i dag helt lokalt.

@@ -3,7 +3,7 @@
 A club app for FC Växjö: players, coaches, parents, and staff.
 
 **Now:** Java Spring Boot API + PostgreSQL + Expo (React Native) app, running on this computer. Login with email + password (JWT).
-**Later:** hosting on [Railway](https://railway.com) (API + PostgreSQL), not AWS. See `docs/adr/0002-hosting-pa-railway.md`.
+**Later:** hosting on Render (API) and Neon (PostgreSQL), both in Frankfurt. See `docs/adr/0011-hosting-pa-render-och-neon.md` and `docs/deploy-render.md`.
 
 ## API contract
 
@@ -52,7 +52,7 @@ To build and run the API as a Docker image (like on the server), see `docs/docke
 
 In `dev`, `DemoClubSeeder` fills in demo teams, users, and trainings, and SQL logging is on. Demo logins are in `API/POSTMAN_AUTH.md`, and the passwords are the values in your `API/.env`.
 
-Production turns SQL logging off. Set the environment variable `SPRING_PROFILES_ACTIVE=prod` (Railway variables, not a file in Git). That loads `application-prod.properties`. Do not set `dev` at the same time. If the variable is missing, no profile is active. The base file has `spring.jpa.show-sql=false`, so a forgotten profile does not print SQL and does not plant demo users. Passwords and `JWT_SECRET` stay in environment variables. Nothing secret is written in the prod file.
+Production turns SQL logging off. Set the environment variable `SPRING_PROFILES_ACTIVE=prod` (Render variables, not a file in Git). That loads `application-prod.properties`. Do not set `dev` at the same time. If the variable is missing, no profile is active. The base file has `spring.jpa.show-sql=false`, so a forgotten profile does not print SQL and does not plant demo users. Passwords and `JWT_SECRET` stay in environment variables. Nothing secret is written in the prod file.
 
 Run the tests from the `API` folder. You do not need local PostgreSQL or `API/.env`.
 
@@ -84,7 +84,7 @@ Same two commands in PowerShell:
 
 ## Secrets: never commit them
 
-Passwords, tokens, and keys live only in `API/.env` (gitignored) or in Railway variables. Never put them in code, docs, or Postman files; use placeholders like `{{adminPassword}}`.
+Passwords, tokens, and keys live only in `API/.env` (gitignored) or in Render variables. Never put them in code, docs, or Postman files; use placeholders like `{{adminPassword}}`.
 
 A pre-commit hook blocks commits that look like they contain secrets. Turn it on once per clone:
 

@@ -34,7 +34,7 @@ RUN groupadd --system app && useradd --system --gid app --no-create-home app
 COPY --from=build --chown=app:app /build/app.jar /app/app.jar
 USER app
 
-# Spring reads PORT (Railway sets it). Without PORT it listens on 8080.
+# Spring reads PORT (Render sets it). Without PORT it listens on 8080.
 EXPOSE 8080
 # MaxRAMPercentage lets Java use most of the container's memory limit
 # instead of the small default share.

@@ -2,6 +2,7 @@ package se.fcvaxjo.api.controller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +29,16 @@ public class PublicController {
 
     public PublicController(PublicClubService publicClubService) {
         this.publicClubService = publicClubService;
+    }
+
+    /**
+     * Health check for the host (Render calls this to see that the API is up).
+     * It does not touch the database on purpose: a short Neon sleep must not
+     * make the host restart a healthy API. It returns no data at all.
+     */
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Map.of("status", "UP");
     }
 
     @GetMapping("/teams")

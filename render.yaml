@@ -1,0 +1,30 @@
+# Render Blueprint för API:et (issue #158, ADR 0011). Se docs/deploy-render.md.
+# Imagen byggs av Render från API/Dockerfile (#68). Inga hemligheter står här:
+# variabler med "sync: false" fyller Marcel i på Render när Blueprinten skapas.
+services:
+  - type: web
+    name: fcvaxjo-api
+    runtime: docker
+    dockerfilePath: ./API/Dockerfile
+    dockerContext: ./API
+    region: frankfurt # Data stannar i EU. Går inte att ändra efteråt.
+    plan: starter # 512 MB / 0,5 CPU, alltid igång. Kontrollera pris på Render innan du skapar.
+    healthCheckPath: /api/public/health
+    autoDeployTrigger: checksPass # Deploy först när CI är grön
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Neons DIREKTA adress (utan -pooler):
+      # jdbc:postgresql://ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Minst 32 byte, slumpad. API:et startar inte utan.
+      - key: JWT_SECRET
+        sync: false
+      # Lösenord till första admin. Tomt = ingen admin skapas.
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
