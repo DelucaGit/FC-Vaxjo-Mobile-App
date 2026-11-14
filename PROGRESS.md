@@ -859,3 +859,9 @@ Decision (ADR 0011, replaces Railway in ADR 0002): the API runs on Render Starte
 Why: Railway's usage-based price could pass the budget. Render Starter + Neon is about 7 USD/month, always on.
 
 Open: which header Render uses for the client IP is not verified (the docs page could not be read). Until checked after the first deploy, the login lockout (ADR 0008) falls back to the email alone. The Railway checklist under "Kontrollera efter första Railway-deploy" is replaced by the one in `docs/deploy-render.md`.
+
+## Render Free i testfasen (14/11-2026)
+
+Decision (Marcel): we keep Neon Free as the database and run Render on `plan: free` in `render.yaml` until the app launches. Before launch the plan is changed to `starter` (always on, about 7 USD/month). Supabase was considered and dropped: its free project pauses after about a week without database activity and has to be resumed by hand, while Neon wakes by itself in under a second.
+
+Why: no cost while only the developer tests. Cost: Render Free sleeps after 15 minutes without traffic and waking takes about one minute (Render's own figure; users report 30 s to 2.5 min), so the first call of the day is slow. ADR 0011 and `docs/deploy-render.md` are updated. Nothing is created on Render or Neon yet.
