@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Working agreement (from `.cursor/rules/`)
 
-- **AI writes, developer understands.** Claude writes and edits the code. The developer must still understand every change: after making one, explain what changed and why in simple language (junior-friendly, no unexplained jargon), including any non-obvious choice, what it costs later, and the alternative. Prefer small, readable steps over big rewrites or clever abstractions, and warn early if a change would make the structure messy. This replaces the older "mentor mode" rule in `.cursor/rules/mentor-mode.mdc`.
+- **The developer writes the code; Claude plans, guides and reviews.** The roles are defined in rule 0 of the global `WORKFLOW.md`, and the review order in rule 11. Claude does not write or edit code unless Marcel explicitly asks for it for that specific task. When Marcel hits an error, Claude follows the hint ladder in rule 12 (question, hint, explanation, solution only on request). Prefer small, readable steps over big rewrites or clever abstractions, and warn early if a change would make the structure messy. This replaces the older "AI writes, developer understands" rule and the "mentor mode" rule in `.cursor/rules/mentor-mode.mdc`.
 - `LK_POSTS.md` is local only and gitignored. Never stage, commit, or push it.
 - **Kanban on GitHub Issues** replaces Jira. Issues are linked with "Blocked by"; phase 1 is the milestone "Fas 1: Pilot" (spec #57), with at most 2 issues in progress. Stories use plain language (`As a ____ I would like to ____ because ____.`); tasks use **Add / Why / Done when**.
 - **Vertical slices.** Each issue goes all the way: DB → API → app → real phone.
-- **Labels.** `AFK`: the agent does everything and Marcel reviews the PR. `HITL`: a human is needed for part of it.
+- **Labels.** `HITL`: a human is needed during the work.
 - **Done means all four:** (1) API tests green (`mvnw verify`); (2) app tests, lint and typecheck green; (3) run against the local API (after the move: against Render); (4) tried on a real phone.
 - Nothing is pushed or merged to `master` without Marcel's explicit yes.
 - Record locked decisions in `PROGRESS.md`. Architecture decisions go in `docs/adr/` (written in Swedish).
