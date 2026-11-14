@@ -1,8 +1,10 @@
 # Driftsättning på Render + Neon (#158)
 
-API:et körs på **Render** (Starter, Frankfurt) mot **Neon** (gratis PostgreSQL, Frankfurt). Beslutet står i ADR 0011. Imagen byggs av Render från `API/Dockerfile` (se `docs/docker.md`). Konfigurationen finns i `render.yaml` i repo-roten.
+API:et körs på **Render** (Frankfurt) mot **Neon** (gratis PostgreSQL, Frankfurt). Beslutet står i ADR 0011. Imagen byggs av Render från `API/Dockerfile` (se `docs/docker.md`). Konfigurationen finns i `render.yaml` i repo-roten.
 
 Priser och gratisgränser ändras. Kontrollera dem på render.com och neon.com innan du betalar.
+
+**Testfas på Render Free.** Tills appen lanseras kör vi `plan: free` i `render.yaml`. Tjänsten somnar efter 15 minuter utan trafik och väckningen tar enligt Render cirka en minut (användare rapporterar 30 sekunder till 2,5 minuter). Neon vaknar på under en sekund. Inför lanseringen: byt till `plan: starter` i `render.yaml` (alltid igång, cirka 7 USD/månad) och ändra planen på tjänsten i Render.
 
 ## Det du gör (människa)
 

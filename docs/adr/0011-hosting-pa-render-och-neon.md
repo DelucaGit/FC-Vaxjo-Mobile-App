@@ -6,7 +6,7 @@
 ADR 0002 valde Railway. Railway tar betalt efter användning, så räkningen kan dra över budgeten. Klubben vill ha ett API som alltid är uppe och kostar högst cirka 7–8 USD i månaden. Piloten ska vara igång senast 2026-12-20.
 
 ## Beslut
-- API:et körs på **Render Starter** (Frankfurt), byggt av Docker-imagen från #68. Konfigurationen ligger i `render.yaml`.
+- API:et körs på **Render** (Frankfurt), byggt av Docker-imagen från #68. Konfigurationen ligger i `render.yaml`. **Testfas (beslut Marcel 2026-11-14):** `plan: free` tills appen lanseras. Tjänsten somnar då efter 15 minuter och väckningen tar cirka 1 minut. Inför lanseringen byts planen till **Starter** (alltid igång).
 - PostgreSQL ligger hos **Neon Free** (AWS `eu-central-1`, Frankfurt), med den direkta anslutningen (inte `-pooler`) och `sslmode=require`.
 - Hemligheter (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_PASSWORD`) ligger bara som miljövariabler på Render, aldrig i git.
 - Render anropar `GET /api/public/health`, som inte rör databasen.

@@ -8,7 +8,9 @@ services:
     dockerfilePath: ./API/Dockerfile
     dockerContext: ./API
     region: frankfurt # Data stannar i EU. Går inte att ändra efteråt.
-    plan: starter # 512 MB / 0,5 CPU, alltid igång. Kontrollera pris på Render innan du skapar.
+    # Gratis under testfasen: somnar efter 15 min utan trafik, väckning tar cirka 1 min.
+    # Byt till "starter" (alltid igång, cirka 7 USD/mån) inför lanseringen. Kontrollera pris på Render.
+    plan: free
     healthCheckPath: /api/public/health
     autoDeployTrigger: checksPass # Deploy först när CI är grön
     envVars:
