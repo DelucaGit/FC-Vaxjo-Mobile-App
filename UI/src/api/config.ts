@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
  *   LAN IP below (e.g. 192.168.1.20) and set useLanIp to true.
  */
 const useLanIp = false;
-const lanIp = '192.168.1.20';
+const lanIp = '192.168.50.85';
 
 function getApiHost(): string {
   if (useLanIp) {
