@@ -10,13 +10,13 @@ import {
   type TextInputProps,
 } from 'react-native';
 import { Check, ChevronDown } from 'lucide-react-native';
-import { colors, radius, sizes, spacing, type } from '../../theme';
+import { colors, radii, radius, shadows, sizes, spacing, type } from '../../theme';
 
 type FieldProps = Omit<TextInputProps, 'style'> & {
   label: string;
 };
 
-/** Label above a 48 px input. The border turns red-brand while the field has focus. */
+/** Label above a 52 px input. The border turns red-brand while the field has focus. */
 export function Field({ label, onFocus, onBlur, multiline, ...input }: FieldProps) {
   const [focused, setFocused] = useState(false);
   return (
@@ -120,20 +120,22 @@ export function SelectField<T extends string | number>({
 }
 
 const styles = StyleSheet.create({
-  field: { gap: spacing.xs },
-  label: { ...type.meta, color: colors.text },
+  field: { gap: spacing.sm },
+  // Prototype `.lbl`: small, semibold, muted.
+  label: { ...type.sectionLabel, marginHorizontal: spacing.xs },
+  // Prototype `.inp`: white, thin border, 12 radius, 16 px inside.
   input: {
     ...type.input,
-    minHeight: sizes.touch,
+    minHeight: sizes.input,
     borderWidth: sizes.divider,
     borderColor: colors.border,
     borderRadius: radius,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.page,
     backgroundColor: colors.surface,
   },
   multiline: { minHeight: 96, paddingVertical: spacing.md },
   // Focus: primary border plus a ring. The ring is a wider border, not a shadow.
-  focused: { borderColor: colors.primary, borderWidth: 2, paddingHorizontal: spacing.md - 1 },
+  focused: { borderColor: colors.primary, borderWidth: 2, paddingHorizontal: spacing.page - 1 },
   select: { flexDirection: 'row', alignItems: 'center' },
   grow: { flex: 1 },
   placeholder: { color: colors.textMuted },
@@ -141,9 +143,10 @@ const styles = StyleSheet.create({
   sheet: {
     maxHeight: '70%',
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius,
-    borderTopRightRadius: radius,
+    borderTopLeftRadius: radii.sheet,
+    borderTopRightRadius: radii.sheet,
     paddingBottom: spacing.lg,
+    ...shadows.raised,
   },
   sheetTitle: { padding: spacing.page },
   option: {

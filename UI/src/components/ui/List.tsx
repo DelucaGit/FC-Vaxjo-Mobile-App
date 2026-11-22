@@ -1,11 +1,11 @@
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, sizes, spacing, type } from '../../theme';
+import { colors, radii, sizes, spacing, type } from '../../theme';
 import { dayLabel, activityDateLabel, type DateInput } from '../../lib/dates';
 
 /**
- * White box with a thin line above and below (spec: dividers, not cards).
+ * White card with round corners that groups rows (prototype `.grp`).
  * It puts a 1 px divider between rows, so the last row has none.
  */
 export function List({ children }: { children?: ReactNode }) {
@@ -38,7 +38,7 @@ export function Row({ children, onPress, right, testID }: RowProps) {
       <View style={styles.rowBody}>{children}</View>
       {right ? <View style={styles.rowRight}>{right}</View> : null}
       {onPress ? (
-        <ChevronRight size={20} color={colors.textMuted} strokeWidth={1.5} />
+        <ChevronRight size={20} color={colors.chevron} strokeWidth={2} />
       ) : null}
     </>
   );
@@ -68,7 +68,7 @@ type TextProps = {
   numberOfLines?: number;
 };
 
-/** 15 / 600. */
+/** 16 / 700. */
 export function RowTitle({ children, style, numberOfLines }: TextProps) {
   return (
     <Text style={[type.rowTitle, style]} numberOfLines={numberOfLines}>
@@ -96,7 +96,7 @@ type DateTextProps = {
   style?: StyleProp<TextStyle>;
 };
 
-/** Date row in Anton upper case: "TIS 12 NOV · 17:30–19:00". */
+/** Date row in semibold: "Tis 12 nov · 17:30–19:00". */
 export function DateText({ start, end, dayOnly = false, style }: DateTextProps) {
   return (
     <Text style={[type.dateRow, style]}>
@@ -106,19 +106,23 @@ export function DateText({ start, end, dayOnly = false, style }: DateTextProps) 
 }
 
 const styles = StyleSheet.create({
+  // Prototype `.grp`: a white card with a thin border and round corners, 16 px from the screen edge.
   list: {
+    marginHorizontal: spacing.page,
     backgroundColor: colors.surface,
-    borderTopWidth: sizes.divider,
-    borderBottomWidth: sizes.divider,
+    borderWidth: sizes.divider,
     borderColor: colors.border,
+    borderRadius: radii.card,
+    overflow: 'hidden',
   },
-  divider: { height: sizes.divider, backgroundColor: colors.border, marginLeft: spacing.page },
+  divider: { height: sizes.divider, backgroundColor: colors.border },
+  // Prototype `.ri`: 14 px inside on the sides.
   row: {
     minHeight: sizes.touch,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.page,
+    gap: spacing.md,
+    paddingHorizontal: 14,
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
   },

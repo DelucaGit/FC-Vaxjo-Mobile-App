@@ -55,27 +55,38 @@ export function Empty({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
+  // Prototype `.gt` / `.lbl`: the label sits a little inside the card edge below it.
   section: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.page,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.page + spacing.xs,
+    paddingTop: 20,
     paddingBottom: spacing.sm,
   },
   grow: { flex: 1 },
   action: { color: colors.primary },
   underline: { textDecorationLine: 'underline' },
-  week: { paddingHorizontal: spacing.page, paddingTop: spacing.lg, paddingBottom: spacing.sm },
+  week: {
+    paddingHorizontal: spacing.page + spacing.xs,
+    paddingTop: 18,
+    paddingBottom: spacing.sm,
+  },
   info: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 48,
     gap: spacing.page,
-    paddingHorizontal: spacing.page,
+    paddingHorizontal: 14,
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
   },
   infoValue: { flex: 1, alignItems: 'flex-end' },
   right: { textAlign: 'right' },
-  empty: { paddingHorizontal: spacing.page, paddingVertical: spacing.page },
+  // Prototype `.empty`: centred, muted, 16 px.
+  empty: {
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: spacing.page,
+    paddingVertical: spacing.lg,
+  },
 });

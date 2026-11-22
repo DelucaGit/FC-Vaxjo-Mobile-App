@@ -1,5 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../../theme';
+import { colors, radii, shadows, spacing, type } from '../../theme';
 import { Button } from './Button';
 
 type Props = {
@@ -46,12 +46,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     backgroundColor: colors.overlay,
   },
+  // Prototype `.sheet`: a white card with large round corners and a soft shadow.
   card: {
     gap: spacing.sm,
-    padding: spacing.page,
-    borderRadius: radius,
+    padding: 20,
+    borderRadius: radii.sheet,
     backgroundColor: colors.surface,
+    ...shadows.raised,
   },
-  title: { ...type.body, fontSize: 16, fontFamily: type.rowTitle.fontFamily },
+  title: type.heading,
   buttons: { gap: spacing.sm, marginTop: spacing.sm },
 });

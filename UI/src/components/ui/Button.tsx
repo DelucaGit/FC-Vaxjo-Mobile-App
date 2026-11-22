@@ -15,9 +15,10 @@ type Props = {
 };
 
 /**
- * The one button in the app (spec section 4).
- * Primary: red with light text. Secondary: white with a border.
- * Danger: white with a border and red text. Link: only red text.
+ * The one button in the app (prototype `.btn`).
+ * Primary: red with white text. Secondary: white with a thin border.
+ * Danger: soft red with dark red text. Link: only red text.
+ * Disabled: the same button, faded (prototype `.b-dis`).
  */
 export function Button({
   title,
@@ -39,7 +40,7 @@ export function Button({
         styles.base,
         variantStyles[variant],
         pressed && pressedStyles[variant],
-        disabled && variant !== 'link' && styles.disabled,
+        disabled && styles.disabled,
         block && styles.block,
         style,
       ]}
@@ -50,7 +51,6 @@ export function Button({
             type.button,
             { color: textColor(variant) },
             variant === 'link' && pressed && styles.underline,
-            disabled && styles.disabledText,
           ]}
         >
           {title}
@@ -67,6 +67,7 @@ function textColor(variant: ButtonVariant): string {
     case 'secondary':
       return colors.text;
     case 'danger':
+      return colors.danger;
     case 'link':
       return colors.primary;
   }
@@ -81,27 +82,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   block: { alignSelf: 'stretch' },
-  disabled: { backgroundColor: colors.border, borderColor: colors.border },
-  disabledText: { color: colors.textMuted },
+  disabled: { opacity: 0.4 },
   underline: { textDecorationLine: 'underline' },
 });
 
-const bordered: ViewStyle = {
-  backgroundColor: colors.surface,
-  borderWidth: sizes.divider,
-  borderColor: colors.border,
-};
-
 const variantStyles: Record<ButtonVariant, ViewStyle> = {
   primary: { backgroundColor: colors.primary },
-  secondary: bordered,
-  danger: bordered,
+  secondary: {
+    backgroundColor: colors.surface,
+    borderWidth: sizes.divider,
+    borderColor: colors.border,
+  },
+  danger: { backgroundColor: colors.dangerSoft },
   link: { paddingHorizontal: 0, alignItems: 'flex-start' },
 };
 
 const pressedStyles: Record<ButtonVariant, ViewStyle> = {
   primary: { backgroundColor: colors.primaryPressed },
   secondary: { backgroundColor: colors.muted },
-  danger: { backgroundColor: colors.muted },
+  danger: { opacity: 0.8 },
   link: {},
 };

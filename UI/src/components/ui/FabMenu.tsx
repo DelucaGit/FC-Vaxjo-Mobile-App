@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { colors, sizes, spacing } from '../../theme';
+import { colors, shadows, sizes, spacing } from '../../theme';
 import { Button } from './Button';
 
 export type FabAction = {
@@ -109,11 +109,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     // A soft shadow so the button reads as lying on top of the list.
-    elevation: 4,
-    shadowColor: colors.text,
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    ...shadows.raised,
   },
   fabPressed: { backgroundColor: colors.primaryPressed },
 });

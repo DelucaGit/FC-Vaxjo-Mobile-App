@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, type DimensionValue } from 'react-native';
-import { colors, radius, sizes, spacing } from '../../theme';
+import { colors, radii, sizes, spacing } from '../../theme';
 import { List } from './List';
 
 type Props = {
@@ -84,17 +84,17 @@ function usePulse() {
 }
 
 const styles = StyleSheet.create({
-  // Same box as Row: at least 48 high, page padding on the sides, 12 above and below.
+  // Same box as Row: at least 48 high, 14 on the sides, 12 above and below.
   row: {
     minHeight: sizes.touch,
     justifyContent: 'center',
     gap: 2,
-    paddingHorizontal: spacing.page,
+    paddingHorizontal: 14,
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
   },
   // Each line is as tall as the text it stands for, with a thinner bar in the middle.
   titleLine: { height: 20, justifyContent: 'center' },
   metaLine: { height: 18, justifyContent: 'center' },
-  bar: { height: 12, borderRadius: radius, backgroundColor: colors.border },
+  bar: { height: 12, borderRadius: radii.pill, backgroundColor: colors.border },
 });

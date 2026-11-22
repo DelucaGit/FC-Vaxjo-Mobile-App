@@ -1,9 +1,9 @@
-import { Anton_400Regular } from '@expo-google-fonts/anton';
 import {
-  WorkSans_400Regular,
-  WorkSans_500Medium,
-  WorkSans_600SemiBold,
-} from '@expo-google-fonts/work-sans';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
@@ -43,10 +43,10 @@ function RootNavigator() {
 export default function App() {
   // The keys become the fontFamily names used in src/theme/typography.ts.
   const [fontsLoaded, fontError] = useFonts({
-    Anton_400Regular,
-    WorkSans_400Regular,
-    WorkSans_500Medium,
-    WorkSans_600SemiBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   return (
