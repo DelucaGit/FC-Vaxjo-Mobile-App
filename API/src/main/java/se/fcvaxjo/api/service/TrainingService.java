@@ -22,10 +22,12 @@ import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.ClubRole;
+import se.fcvaxjo.api.model.LeaveRequestStatus;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.model.TrainingStatus;
 import se.fcvaxjo.api.model.TrainingType;
+import se.fcvaxjo.api.repository.LeaveRequestRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
@@ -33,6 +35,10 @@ import se.fcvaxjo.api.repository.UserRepository;
 
 @Service
 public class TrainingService {
+
+    /** Issue #213: an approved leave request keeps the player EXCUSED. */
+    static final String APPROVED_LEAVE_KEEPS_EXCUSED =
+            "Spelaren har godkänd ledighet och står som ledig. Det går inte att ändra.";
 
     /** Most trainings one series call may create (issue #129). More gives 400. */
     static final int MAX_SERIES_TRAININGS = 60;
@@ -45,6 +51,7 @@ public class TrainingService {
     private final TrainingAttendanceRoster roster;
     private final Clock clock;
     private final ActivityStartRule startRule;
+    private final LeaveRequestRepository leaveRequestRepository;
 
     public TrainingService(
             TrainingRepository trainingRepository,
@@ -54,7 +61,8 @@ public class TrainingService {
             UserRepository userRepository,
             TrainingAttendanceRoster roster,
             Clock clock,
-            ActivityStartRule startRule) {
+            ActivityStartRule startRule,
+            LeaveRequestRepository leaveRequestRepository) {
         this.trainingRepository = trainingRepository;
         this.attendanceRepository = attendanceRepository;
         this.teamService = teamService;
@@ -63,6 +71,7 @@ public class TrainingService {
         this.roster = roster;
         this.clock = clock;
         this.startRule = startRule;
+        this.leaveRequestRepository = leaveRequestRepository;
     }
 
     public Training createTraining(Long teamId, LocalDateTime startsAt, LocalDateTime endsAt, String type) {
@@ -320,6 +329,11 @@ public class TrainingService {
         if (!roster.isLivePlayer(training.getTeamId(), playerUserId)) {
             throw new BadRequestException(
                     "This player is not on the attendance list for this training");
+        }
+        if (status != AttendanceStatus.EXCUSED
+                && leaveRequestRepository.existsByPlayerUserIdAndTrainingIdAndStatus(
+                        playerUserId, training.getId(), LeaveRequestStatus.APPROVED)) {
+            throw new BadRequestException(APPROVED_LEAVE_KEEPS_EXCUSED);
         }
         TrainingAttendance row = attendanceRepository
                 .findByTrainingIdAndPlayerUserId(training.getId(), playerUserId)

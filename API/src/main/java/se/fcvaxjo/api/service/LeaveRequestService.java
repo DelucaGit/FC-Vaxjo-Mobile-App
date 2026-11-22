@@ -3,7 +3,9 @@ package se.fcvaxjo.api.service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -17,21 +19,30 @@ import se.fcvaxjo.api.DTO.LeaveRequestResponse;
 import se.fcvaxjo.api.exception.BadRequestException;
 import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
+import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.LeaveReasonType;
 import se.fcvaxjo.api.model.LeaveRequest;
 import se.fcvaxjo.api.model.LeaveRequestStatus;
 import se.fcvaxjo.api.model.Match;
+import se.fcvaxjo.api.model.MatchAttendance;
 import se.fcvaxjo.api.model.MatchStatus;
+import se.fcvaxjo.api.model.TeamCoach;
 import se.fcvaxjo.api.model.Training;
+import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.model.TrainingStatus;
 import se.fcvaxjo.api.repository.LeaveRequestRepository;
+import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
+import se.fcvaxjo.api.repository.TeamCoachRepository;
+import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
 import se.fcvaxjo.api.repository.UserRepository;
 
 /**
  * Leave requests for PLAYER (self) and PARENT (own children), issue #210.
  * The controller only lets PLAYER and PARENT in; this class checks which player.
+ * Staff (ADMIN, CHAIRMAN, COACH) list and answer requests, issue #213. Team scope is the same
+ * as for trainings and matches: a coach only for teams in team_coaches (ADR 0006).
  */
 @Service
 public class LeaveRequestService {
@@ -50,6 +61,11 @@ public class LeaveRequestService {
     static final String DUPLICATE = "Det finns redan en ledighetsbegäran för den här aktiviteten.";
     static final String NOT_FOUND = "Ledighetsbegäran hittades inte.";
     static final String ALREADY_ANSWERED = "Begäran är redan besvarad och kan inte dras tillbaka.";
+    static final String ALREADY_DECIDED = "Begäran är redan besvarad.";
+    static final String ATTENDANCE_LOCKED =
+            "Närvarolistan är redan låst. Ledigheten kan inte godkännas.";
+    static final String UNKNOWN_STATUS = "Okänd status. Använd PENDING, APPROVED eller DENIED.";
+    static final String TEAM_DENIED = "Du kan bara se ledighetsbegäran för lag du är tränare för.";
 
     private final LeaveRequestRepository leaveRequestRepository;
     private final UserRepository userRepository;
@@ -57,6 +73,11 @@ public class LeaveRequestService {
     private final MatchRepository matchRepository;
     private final UserService userService;
     private final TeamService teamService;
+    private final TrainingService trainingService;
+    private final MatchService matchService;
+    private final TrainingAttendanceRepository trainingAttendanceRepository;
+    private final MatchAttendanceRepository matchAttendanceRepository;
+    private final TeamCoachRepository teamCoachRepository;
     private final Clock clock;
 
     public LeaveRequestService(
@@ -66,6 +87,11 @@ public class LeaveRequestService {
             MatchRepository matchRepository,
             UserService userService,
             TeamService teamService,
+            TrainingService trainingService,
+            MatchService matchService,
+            TrainingAttendanceRepository trainingAttendanceRepository,
+            MatchAttendanceRepository matchAttendanceRepository,
+            TeamCoachRepository teamCoachRepository,
             Clock clock) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.userRepository = userRepository;
@@ -73,6 +99,11 @@ public class LeaveRequestService {
         this.matchRepository = matchRepository;
         this.userService = userService;
         this.teamService = teamService;
+        this.trainingService = trainingService;
+        this.matchService = matchService;
+        this.trainingAttendanceRepository = trainingAttendanceRepository;
+        this.matchAttendanceRepository = matchAttendanceRepository;
+        this.teamCoachRepository = teamCoachRepository;
         this.clock = clock;
     }
 
@@ -183,6 +214,137 @@ public class LeaveRequestService {
             throw new BadRequestException(ALREADY_ANSWERED);
         }
         leaveRequestRepository.delete(row);
+    }
+
+    /**
+     * Staff list, newest first. ADMIN and CHAIRMAN see every team, a COACH only own teams.
+     * teamId narrows the list; a coach asking for another team gets 403. status filters by status.
+     */
+    public List<LeaveRequestResponse> listForStaff(String statusName, Long teamId) {
+        LeaveRequestStatus status = parseStatus(statusName);
+        Set<Long> coachTeams = null;
+        if (!hasRole("ADMIN") && !hasRole("CHAIRMAN")) {
+            if (!hasRole("COACH")) {
+                throw new AccessDeniedException(TEAM_DENIED);
+            }
+            coachTeams = new HashSet<>();
+            for (TeamCoach link : teamCoachRepository.findByUserId(currentUserId())) {
+                coachTeams.add(link.getTeamId());
+            }
+            if (teamId != null && !coachTeams.contains(teamId)) {
+                throw new AccessDeniedException(TEAM_DENIED);
+            }
+        }
+        List<LeaveRequestResponse> responses = new ArrayList<>();
+        for (LeaveRequest row : leaveRequestRepository.findAllByOrderByCreatedAtDescIdDesc()) {
+            if (status != null && row.getStatus() != status) {
+                continue;
+            }
+            LeaveRequestResponse response = toResponse(row);
+            Long rowTeam = response.getTeamId();
+            if (teamId != null && !teamId.equals(rowTeam)) {
+                continue;
+            }
+            if (coachTeams != null && !coachTeams.contains(rowTeam)) {
+                continue;
+            }
+            responses.add(response);
+        }
+        return responses;
+    }
+
+    /**
+     * Approves a PENDING request and marks the player EXCUSED on that training or match
+     * (the attendance row is created if missing). Not allowed once the attendance list is locked.
+     * The attendance window (30 minutes before start) does not apply: approving is done in advance.
+     */
+    @Transactional
+    public LeaveRequestResponse approve(Long id) {
+        LeaveRequest row = findForStaff(id);
+        if (row.getTrainingId() != null) {
+            // getById checks the team scope (403) and auto-freezes a list whose time has come.
+            Training training = trainingService.getById(row.getTrainingId());
+            assertPending(row);
+            if (training.getAttendanceLockedAt() != null) {
+                throw new BadRequestException(ATTENDANCE_LOCKED);
+            }
+            TrainingAttendance attendance = trainingAttendanceRepository
+                    .findByTrainingIdAndPlayerUserId(training.getId(), row.getPlayerUserId())
+                    .orElseGet(() -> {
+                        TrainingAttendance created = new TrainingAttendance();
+                        created.setTrainingId(training.getId());
+                        created.setPlayerUserId(row.getPlayerUserId());
+                        return created;
+                    });
+            attendance.setStatus(AttendanceStatus.EXCUSED);
+            trainingAttendanceRepository.save(attendance);
+        } else {
+            Match match = matchService.getById(row.getMatchId());
+            assertPending(row);
+            if (match.getAttendanceLockedAt() != null) {
+                throw new BadRequestException(ATTENDANCE_LOCKED);
+            }
+            MatchAttendance attendance = matchAttendanceRepository
+                    .findByMatchIdAndPlayerUserId(match.getId(), row.getPlayerUserId())
+                    .orElseGet(() -> {
+                        MatchAttendance created = new MatchAttendance();
+                        created.setMatchId(match.getId());
+                        created.setPlayerUserId(row.getPlayerUserId());
+                        return created;
+                    });
+            attendance.setStatus(AttendanceStatus.EXCUSED);
+            matchAttendanceRepository.save(attendance);
+        }
+        return toResponse(decide(row, LeaveRequestStatus.APPROVED, null));
+    }
+
+    /** Denies a PENDING request with an optional note. Attendance is not touched. */
+    @Transactional
+    public LeaveRequestResponse deny(Long id, String note) {
+        LeaveRequest row = findForStaff(id);
+        assertStaffScope(row);
+        assertPending(row);
+        String trimmed = note == null ? null : note.trim();
+        return toResponse(decide(row, LeaveRequestStatus.DENIED,
+                trimmed == null || trimmed.isEmpty() ? null : trimmed));
+    }
+
+    private LeaveRequest findForStaff(Long id) {
+        return leaveRequestRepository.findById(id).orElseThrow(() -> new NotFoundException(NOT_FOUND));
+    }
+
+    /** Same team check as the activity's own endpoints: 403 for a coach of another team. */
+    private void assertStaffScope(LeaveRequest row) {
+        if (row.getTrainingId() != null) {
+            trainingService.getById(row.getTrainingId());
+        } else {
+            matchService.getById(row.getMatchId());
+        }
+    }
+
+    private void assertPending(LeaveRequest row) {
+        if (row.getStatus() != LeaveRequestStatus.PENDING) {
+            throw new BadRequestException(ALREADY_DECIDED);
+        }
+    }
+
+    private LeaveRequest decide(LeaveRequest row, LeaveRequestStatus status, String note) {
+        row.setStatus(status);
+        row.setCoachNote(note);
+        row.setDecidedByUserId(currentUserId());
+        row.setDecidedAt(now());
+        return leaveRequestRepository.save(row);
+    }
+
+    private LeaveRequestStatus parseStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LeaveRequestStatus.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(UNKNOWN_STATUS);
+        }
     }
 
     private boolean mayAct(Long me, Long playerUserId) {

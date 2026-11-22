@@ -19,7 +19,7 @@ import se.fcvaxjo.api.DTO.LeaveRequestResponse;
 import se.fcvaxjo.api.service.LeaveRequestService;
 
 /**
- * Leave requests (issue #210). Only PLAYER and PARENT; staff answer them elsewhere (later issue).
+ * Leave requests (issue #210). Only PLAYER and PARENT; staff answer them in StaffLeaveRequestController (#213).
  * Which player is allowed is checked in LeaveRequestService.
  */
 @RestController

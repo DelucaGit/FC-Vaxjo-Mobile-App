@@ -32,6 +32,7 @@ import se.fcvaxjo.api.model.Team;
 import se.fcvaxjo.api.model.Training;
 import se.fcvaxjo.api.model.TrainingAttendance;
 import se.fcvaxjo.api.model.TrainingType;
+import se.fcvaxjo.api.repository.LeaveRequestRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.TrainingAttendanceRepository;
 import se.fcvaxjo.api.repository.TrainingRepository;
@@ -61,6 +62,10 @@ class TrainingServiceTest {
     /** The past-start rule is tested over HTTP (ActivityStartInPastTest). */
     @Mock
     private ActivityStartRule startRule;
+
+    /** No approved leave requests (issue #213): the mock answers false. */
+    @Mock
+    private LeaveRequestRepository leaveRequestRepository;
 
     @InjectMocks
     private TrainingService trainingService;
