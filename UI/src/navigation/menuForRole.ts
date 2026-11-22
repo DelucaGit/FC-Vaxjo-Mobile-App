@@ -3,6 +3,7 @@ import {
   ClipboardList,
   Contact,
   History,
+  Mail,
   Search,
   Shield,
   UserPlus,
@@ -25,6 +26,8 @@ export type MenuItem = {
 
 const PAST: MenuItem = { label: 'Tidigare aktiviteter', route: 'PastActivities', icon: History };
 const ACTIVITIES: MenuItem = { label: 'Aktiviteter', route: 'Activities', icon: CalendarDays };
+/** The pending leave requests for the teams the user is responsible for (issue #214). */
+const LEAVE: MenuItem = { label: 'Ledighetsbegäran', route: 'LeaveRequests', icon: Mail };
 
 const PLAYER_MENU: readonly MenuItem[] = [
   { label: 'Schema', route: 'Schedule', icon: CalendarDays },
@@ -35,6 +38,7 @@ const PLAYER_MENU: readonly MenuItem[] = [
 
 const COACH_MENU: readonly MenuItem[] = [
   ACTIVITIES,
+  LEAVE,
   { label: 'Lag', route: 'Squad', icon: Users },
   { label: 'Sök spelare', route: 'Search', icon: Search },
   PAST,
@@ -42,6 +46,7 @@ const COACH_MENU: readonly MenuItem[] = [
 
 const ADMIN_MENU: readonly MenuItem[] = [
   ACTIVITIES,
+  LEAVE,
   { label: 'Lag', route: 'Teams', icon: Shield },
   { label: 'Användare', route: 'Users', icon: UserRound },
   { label: 'Ny användare', route: 'NewUser', icon: UserPlus },

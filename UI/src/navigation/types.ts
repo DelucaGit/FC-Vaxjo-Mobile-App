@@ -42,6 +42,8 @@ export type AppStackParamList = {
   CancelMatch: { matchId: number };
   SetResult: { matchId: number };
   Attendance: { kind: ActivityKind; id: number };
+  /** "Ledighetsbegäran": the pending requests to answer with Godkänn or Neka. */
+  LeaveRequests: undefined;
 
   // Teams and players
   /** "Laget": the coach's own teams. */

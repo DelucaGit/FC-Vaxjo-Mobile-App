@@ -31,6 +31,7 @@ function mockApi() {
     { get: (_, name) => (name === '__esModule' ? true : jest.fn(async () => [])) },
   );
 }
+jest.mock('../api/leaveRequests', () => mockApi());
 jest.mock('../api/matches', () => mockApi());
 jest.mock('../api/my', () => mockApi());
 jest.mock('../api/teams', () => mockApi());
@@ -73,14 +74,14 @@ describe('the menu', () => {
     [
       'COACH',
       'Activities',
-      ['Aktiviteter', 'Lag', 'Sök spelare', 'Tidigare aktiviteter'],
+      ['Aktiviteter', 'Ledighetsbegäran', 'Lag', 'Sök spelare', 'Tidigare aktiviteter'],
       'Sök spelare',
       'Search',
     ],
     [
       'ADMIN',
       'Activities',
-      ['Aktiviteter', 'Lag', 'Användare', 'Ny användare', 'Tidigare aktiviteter'],
+      ['Aktiviteter', 'Ledighetsbegäran', 'Lag', 'Användare', 'Ny användare', 'Tidigare aktiviteter'],
       'Användare',
       'Users',
     ],
