@@ -67,6 +67,8 @@ tags:
     description: Den inloggades egna vy (`/api/my`).
   - name: LeaveRequests
     description: Personalen svarar på ledighetsbegäranden (issue #213).
+  - name: SavedVenues
+    description: Klubbens gemensamma lista med sparade platser (issue #217).
   - name: Public
     description: |
       Publika GET-anrop för hemsidan (ADR 0003 och ADR 0007). Ingen inloggning.
@@ -1537,6 +1539,75 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/saved-venues:
+    get:
+      tags: [SavedVenues]
+      operationId: listSavedVenues
+      summary: Klubbens sparade platser
+      description: |
+        En lista för hela klubben, inte per lag (issue #217). Sorterad på namn (svensk ordning).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: Hela klubben. Ingen lagbegränsning.
+      x-source: SavedVenueController.list → SavedVenueService.list
+      responses:
+        '200':
+          description: Sparade platser.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SavedVenueResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [SavedVenues]
+      operationId: createSavedVenue
+      summary: Lägg till en sparad plats
+      description: |
+        Namn och adress trimmas. Tom adress sparas som `null`. Inloggad användare sparas som `createdByUserId`.
+        - Namn saknas eller är tomt: "Ange ett namn på platsen." (400).
+        - Namnet finns redan, jämfört utan skillnad på stora och små bokstäver: "Det finns redan en sparad plats med det namnet." (400).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: Hela klubben. Ingen lagbegränsning.
+      x-source: SavedVenueController.create → SavedVenueService.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSavedVenueRequest' }
+      responses:
+        '201':
+          description: Sparad plats.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedVenueResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/saved-venues/{id}:
+    delete:
+      tags: [SavedVenues]
+      operationId: deleteSavedVenue
+      summary: Ta bort en sparad plats
+      description: |
+        Tar bort raden ur listan. Träningar och matcher har platsen som egen text och ändras inte.
+        Vilken tränare som helst får ta bort, även en plats som någon annan har lagt till. Okänt id ger 404.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: Hela klubben. Ingen lagbegränsning.
+      x-source: SavedVenueController.delete → SavedVenueService.delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Borttagen.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/my/matches:
     get:
       tags: [MySchedule]
@@ -2334,6 +2405,25 @@ components:
       description: Valfri kommentar när personalen nekar en ledighetsbegäran.
       properties:
         note: { type: [string, 'null'] }
+    CreateSavedVenueRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Krävs. Trimmas och måste vara unikt, utan skillnad på stora och små bokstäver.
+        address:
+          type: [string, 'null']
+          description: Valfri, till exempel för bortamatcher. Tom blir `null`.
+    SavedVenueResponse:
+      type: object
+      description: En plats i klubbens gemensamma lista.
+      required: [id, name, createdByUserId]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        address: { type: [string, 'null'] }
+        createdByUserId: { type: integer, format: int64 }
     MyChildResponse:
       type: object
       required: [id, name]
