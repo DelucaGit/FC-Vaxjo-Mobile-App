@@ -224,6 +224,20 @@ Kod idag: stämmer. Anonymt anrop är 401.
 - Neka sparar den valfria kommentaren i `coachNote` och rör inte närvaron.
 - Efter godkänd ledighet ger `PUT .../attendance/{playerId}` med annan status än `EXCUSED` 400, så `EXCUSED` ligger kvar. `EXCUSED` igen ger 200.
 
+#### Sparade platser (issue #217)
+
+En lista för hela klubben. Ingen lagbegränsning, så alla tränare ser och ändrar samma lista.
+
+| Anrop | ADMIN | CHAIRMAN | COACH | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|
+| `GET /api/saved-venues` | 200 | 200 | 200, även platser som en annan tränare lagt till | 403 | 403 | 401 | Stämmer (`SavedVenueAccessTest`) |
+| `POST /api/saved-venues` | 201 | 201 | 201 | 403 | 403 | 401 | Stämmer (`SavedVenueAccessTest`) |
+| `DELETE /api/saved-venues/{id}` | 204 | 204 | 204, även en annan tränares plats | 403 | 403 | 401 | Stämmer (`SavedVenueAccessTest`) |
+
+- Namnet krävs och trimmas (saknas eller tomt 400). Det är unikt utan skillnad på stora och små bokstäver; dubblett ger 400 med "Det finns redan en sparad plats med det namnet.". Adressen är valfri, tom blir `null`.
+- Listan är sorterad på namn. Okänt id vid borttagning 404.
+- Att ta bort en sparad plats ändrar inte träningar eller matcher. De har platsen som egen text.
+
 ### Planerade publika anrop
 
 `GET /api/public/teams`, `GET /api/public/matches/upcoming`, `GET /api/public/matches/history` är öppna utan token. Ingen spelardata, ingen e-post och ingen telefon (ADR 0007). Den gamla truppen `GET /api/public/teams/{id}/players` är borttagen och ger 404. `PublicLeakTest` seedar en spelare med unika värden och anropar alla publika GET-endpoints som Spring känner till.
