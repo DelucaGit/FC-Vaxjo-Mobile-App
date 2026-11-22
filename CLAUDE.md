@@ -73,3 +73,17 @@ npm run typecheck
   - `readErrorMessage` turns a generic Spring 403 into a Swedish message for the user.
 - **Storage and config.** Tokens are kept in `expo-secure-store` (`tokenStorage.ts`) and the profile in AsyncStorage (`authStorage.ts`). The API host is set in `src/api/config.ts`: Android emulator uses `10.0.2.2`; for a real phone, set `useLanIp` and the PC's LAN IP.
 - User-facing text in the app is in Swedish.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `DelucaGit/FC-Vaxjo-Mobile-App`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
