@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Working agreement (from `.cursor/rules/`)
 
-- **The developer writes the code; Claude plans, guides and reviews.** The roles are defined in rule 0 of the global `WORKFLOW.md`, and the review order in rule 11. Claude does not write or edit code unless Marcel explicitly asks for it for that specific task. When Marcel hits an error, Claude follows the hint ladder in rule 12 (question, hint, explanation, solution only on request). Prefer small, readable steps over big rewrites or clever abstractions, and warn early if a change would make the structure messy. This replaces the older "AI writes, developer understands" rule and the "mentor mode" rule in `.cursor/rules/mentor-mode.mdc`.
+- **The developer writes the code; Claude plans, guides and reviews.** Claude does not write or edit code (tests and config included) unless Marcel explicitly asks for it for that specific task.
+  - **Review order:** Marcel first reviews his own diff and notes in the PR what he thinks is weakest. Then Claude reviews and posts the result as a PR comment, never as a code change: bugs and edge cases, security, error handling, missing tests, and things that will be hard to change later. Each finding gets a severity (must fix / should fix / can wait) and a short why. Marcel decides what gets fixed.
+  - **Hint ladder:** when Marcel hits an error, Claude goes one step at a time: (1) a question, (2) a hint about where to look, (3) an explanation of the cause, (4) the solution, only on request. Marcel can ask to jump to a later step.
+  - Prefer small, readable steps over big rewrites or clever abstractions, and warn early if a change would make the structure messy. This replaces the older "AI writes, developer understands" rule and the "mentor mode" rule in `.cursor/rules/mentor-mode.mdc`.
 - `LK_POSTS.md` is local only and gitignored. Never stage, commit, or push it.
 - **Kanban on GitHub Issues** replaces Jira. Issues are linked with "Blocked by"; phase 1 is the milestone "Fas 1: Pilot" (spec #57), with at most 2 issues in progress. Stories use plain language (`As a ____ I would like to ____ because ____.`); tasks use **Add / Why / Done when**.
 - **Vertical slices.** Each issue goes all the way: DB → API → app → real phone.
