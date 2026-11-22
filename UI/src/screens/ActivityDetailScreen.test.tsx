@@ -98,6 +98,7 @@ const match = {
 test('match: result, Hemma/Borta, lock stamp, "Ändra" and "Ange resultat"', async () => {
   mockRole = 'COACH';
   jest.mocked(getMatch).mockResolvedValue(match);
+  jest.mocked(listMatchAttendance).mockResolvedValue([]);
 
   await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
 
@@ -107,7 +108,6 @@ test('match: result, Hemma/Borta, lock stamp, "Ändra" and "Ange resultat"', asy
   expect(screen.getByText('Låst 21 nov 19:05')).toBeTruthy();
   expect(screen.queryByText('Redigera träning')).toBeNull();
   expect(screen.queryByText('Ställ in träning')).toBeNull();
-  expect(listMatchAttendance).not.toHaveBeenCalled();
 
   await fireEvent.press(screen.getByText('Ange resultat'));
   expect(navigation.navigate).toHaveBeenCalledWith('SetResult', { matchId: 3 });
@@ -115,13 +115,16 @@ test('match: result, Hemma/Borta, lock stamp, "Ändra" and "Ange resultat"', asy
   expect(navigation.navigate).toHaveBeenCalledWith('EditMatch', { matchId: 3 });
 });
 
-test('match: "Ändra" is hidden for a role that may not change matches', async () => {
+test('match: "Ändra" and the player list are hidden for a role that may not change matches', async () => {
   mockRole = 'PLAYER';
+  jest.mocked(listMatchAttendance).mockClear();
   jest.mocked(getMatch).mockResolvedValue(match);
 
   await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
 
   expect(await screen.findByText('Match mot Östers IF')).toBeTruthy();
+  expect(screen.queryByText(/^Spelare/)).toBeNull();
+  expect(listMatchAttendance).not.toHaveBeenCalled();
   expect(screen.queryByText('Ändra')).toBeNull();
   expect(screen.queryByText('Ställ in match')).toBeNull();
 });
@@ -171,4 +174,43 @@ test('cancelled match: a player gets no "Återaktivera"', async () => {
 
   expect(await screen.findByText('Inställd')).toBeTruthy();
   expect(screen.queryByText('Återaktivera')).toBeNull();
+});
+
+describe('Spelare (N)', () => {
+  test('training: lists every player with name and number, no status', async () => {
+    mockRole = 'COACH';
+    jest.mocked(getTraining).mockResolvedValue(training);
+    jest.mocked(listTrainingAttendance).mockResolvedValue([
+      { playerUserId: 1, playerName: 'Alva Berg', playerNumber: 7, status: 'PRESENT' },
+      { playerUserId: 2, playerName: 'Bo Ek', playerNumber: null, status: 'EXCUSED' },
+      { playerUserId: 3, playerName: 'Cleo Lind', playerNumber: 12, status: null },
+    ]);
+
+    await render(<ActivityDetailScreen {...propsFor('training', 5)} />);
+
+    expect(await screen.findByText('Spelare (3)')).toBeTruthy();
+    expect(screen.getByText('Alva Berg')).toBeTruthy();
+    expect(screen.getByText('#7')).toBeTruthy();
+    expect(screen.getByText('Bo Ek')).toBeTruthy();
+    expect(screen.getByText('Cleo Lind')).toBeTruthy();
+    expect(screen.getByText('#12')).toBeTruthy();
+    expect(screen.queryByText(/Närvarande|Frånvarande|Ledig|Ursäktad/)).toBeNull();
+  });
+
+  test('match (coach): lists the players of a locked list', async () => {
+    mockRole = 'COACH';
+    jest.mocked(getMatch).mockResolvedValue(match);
+    jest.mocked(listMatchAttendance).mockResolvedValue([
+      { playerUserId: 1, playerName: 'Alva Berg', playerNumber: 7, status: 'ABSENT' },
+      // Left out of an automatic lock: not on the list.
+      { playerUserId: 2, playerName: 'Bo Ek', playerNumber: 9, status: null },
+    ]);
+
+    await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
+
+    expect(await screen.findByText('Spelare (1)')).toBeTruthy();
+    expect(screen.getByText('Alva Berg')).toBeTruthy();
+    expect(screen.queryByText('Bo Ek')).toBeNull();
+    expect(screen.queryByText('Frånvarande')).toBeNull();
+  });
 });
