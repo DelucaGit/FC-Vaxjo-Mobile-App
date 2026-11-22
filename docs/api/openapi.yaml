@@ -1349,6 +1349,91 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/my/leave-requests:
+    post:
+      tags: [MySchedule]
+      operationId: createMyLeaveRequest
+      summary: Begär ledigt från en träning eller match (spelare eller förälder)
+      description: |
+        Skapar en ledighetsbegäran med status `PENDING` (issue #210).
+        - Exakt en av `trainingId` och `matchId` (400 annars).
+        - `reasonType`: SICK, SCHOOL, FAMILY, INJURY eller OTHER (400 annars). OTHER kräver `reasonText`
+          med minst 5 tecken efter trim (400). Texten sparas trimmad.
+        - PLAYER: för sig själv. `playerUserId` får utelämnas eller vara det egna id:t; annat id ger 403.
+        - PARENT: `playerUserId` krävs (400) och måste vara ett eget, aktivt barn med rollen PLAYER (403 annars, även för okänt id).
+        - Spelaren måste höra till aktivitetens lag (403). Okänd träning eller match ger 404.
+        - Inställd aktivitet ger 400. Bara före start (Europe/Stockholm, `startsAt`/`kickoffAt`); vid eller efter start ger 400.
+        - En begäran per spelare och aktivitet (400 vid dubblett).
+      x-roles: [PLAYER, PARENT]
+      x-scope: PLAYER endast sig själv; PARENT endast egna (länkade, aktiva) barn; spelaren måste höra till aktivitetens lag.
+      x-source: LeaveRequestController.create → LeaveRequestService.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLeaveRequestRequest' }
+      responses:
+        '201':
+          description: Skapad begäran (PENDING).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveRequestResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [MySchedule]
+      operationId: listMyLeaveRequests
+      summary: Mina (eller mina barns) ledighetsbegäranden
+      description: |
+        - PLAYER: egna begäranden. `childId` får inte skickas (403).
+        - PARENT: utan `childId` alla egna (aktiva) barns begäranden; med `childId` bara det barnet, som måste vara eget (403 annars).
+        Senast skapade först. Orsaken visas bara för spelaren och spelarens förälder.
+      x-roles: [PLAYER, PARENT]
+      x-scope: PLAYER endast sig själv; PARENT endast egna (länkade, aktiva) barn.
+      x-source: LeaveRequestController.list → LeaveRequestService.listMine
+      parameters:
+        - name: childId
+          in: query
+          required: false
+          description: Barnets användar-id (valfritt för PARENT, förbjudet för PLAYER).
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Begäranden.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LeaveRequestResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/my/leave-requests/{id}:
+    delete:
+      tags: [MySchedule]
+      operationId: withdrawMyLeaveRequest
+      summary: Dra tillbaka en obesvarad ledighetsbegäran
+      description: |
+        Tar bort raden. Bara egen (PLAYER) eller eget barns (PARENT) begäran; någon annans ger 404, som ett okänt id.
+        Bara status `PENDING`; en besvarad begäran ger 400.
+      x-roles: [PLAYER, PARENT]
+      x-scope: PLAYER endast sig själv; PARENT endast egna (länkade, aktiva) barn.
+      x-source: LeaveRequestController.withdraw → LeaveRequestService.withdraw
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Borttagen.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/my/matches:
     get:
       tags: [MySchedule]
@@ -2101,6 +2186,46 @@ components:
             - $ref: '#/components/schemas/LocalDateTime'
             - type: 'null'
 
+    CreateLeaveRequestRequest:
+      type: object
+      description: Exakt en av `trainingId` och `matchId`. `playerUserId` krävs för PARENT.
+      required: [reasonType]
+      properties:
+        trainingId: { type: [integer, 'null'], format: int64 }
+        matchId: { type: [integer, 'null'], format: int64 }
+        playerUserId: { type: [integer, 'null'], format: int64 }
+        reasonType:
+          type: string
+          enum: [SICK, SCHOOL, FAMILY, INJURY, OTHER]
+          x-pii: true
+        reasonText:
+          type: [string, 'null']
+          description: Krävs (minst 5 tecken efter trim) när `reasonType` är OTHER.
+          x-pii: true
+    LeaveRequestResponse:
+      type: object
+      description: En ledighetsbegäran. Orsaken är personuppgift och kan vara känslig (sjukdom, skada).
+      required: [id, playerUserId, activityKind, activityId, reasonType, status, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        playerUserId: { type: integer, format: int64 }
+        playerName: { type: [string, 'null'], x-pii: true }
+        activityKind: { type: string, enum: [TRAINING, MATCH] }
+        activityId: { type: integer, format: int64 }
+        activityStart:
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
+        teamId: { type: [integer, 'null'], format: int64 }
+        teamName: { type: [string, 'null'] }
+        reasonType:
+          type: string
+          enum: [SICK, SCHOOL, FAMILY, INJURY, OTHER]
+          x-pii: true
+        reasonText: { type: [string, 'null'], x-pii: true }
+        status: { type: string, enum: [PENDING, APPROVED, DENIED] }
+        coachNote: { type: [string, 'null'] }
+        createdAt: { $ref: '#/components/schemas/LocalDateTime' }
     MyChildResponse:
       type: object
       required: [id, name]

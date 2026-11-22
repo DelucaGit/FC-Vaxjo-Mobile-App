@@ -206,6 +206,9 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `GET /api/my/matches` | Samma personregler som träningarna. Motståndare, tid, plats, hemma/borta och resultat. Ingen e-post | Stämmer |
 | `?when=upcoming\|past` på `GET /api/my/trainings`, `/api/my/matches`, `/api/trainings`, `/api/matches` | Filtret smalnar bara av listan. Samma lag- och personregler som utan filter (tränare för annat lag 403, annat barn 403). `upcoming` från midnatt idag (Europe/Stockholm), `past` före. Annat värde 400 | Stämmer (`ActivityWhenFilterTest`) |
 | `GET /api/my/coaches` | PLAYER och PARENT, samma personregler som träningarna (okänt barn 404). Bara de aktiva tränarna i det egna (barnets) laget, med id, namn, e-post och telefon (ADR 0009). Inte andra lags tränare. ADMIN, CHAIRMAN och COACH 403 | Stämmer (`MyCoachesAccessTest`) |
+| `POST /api/my/leave-requests` | PLAYER för sig själv (annat `playerUserId` 403). PARENT för eget aktivt barn (`playerUserId` krävs, 400; annat eller okänt barn 403). Spelaren måste höra till aktivitetens lag (403). Exakt en av träning och match, orsak SICK/SCHOOL/FAMILY/INJURY/OTHER, OTHER kräver minst 5 tecken efter trim, inställd aktivitet, vid eller efter start och dubblett ger 400. Okänd aktivitet 404. Ny begäran är PENDING. ADMIN, CHAIRMAN och COACH 403, ANON 401 | Stämmer (`LeaveRequestAccessTest`) |
+| `GET /api/my/leave-requests` | PLAYER bara sina egna (childId 403). PARENT alla egna barns, eller ett eget barn med `childId` (annat barn 403). Orsaken (x-pii) syns aldrig för en annan förälder. ADMIN, CHAIRMAN och COACH 403, ANON 401 | Stämmer (`LeaveRequestAccessTest`) |
+| `DELETE /api/my/leave-requests/{id}` | PLAYER egen, PARENT eget barns begäran, bara PENDING (besvarad 400). Någon annans eller okänt id 404. ADMIN, CHAIRMAN och COACH 403, ANON 401 | Stämmer (`LeaveRequestAccessTest`) |
 
 ### Planerade publika anrop
 
