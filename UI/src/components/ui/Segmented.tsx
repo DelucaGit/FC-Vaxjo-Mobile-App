@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, sizes, type } from '../../theme';
+import { colors, radii, sizes, type } from '../../theme';
 import type { Option } from './Field';
 
 type Props<T extends string | number> = {
@@ -13,8 +13,8 @@ type Props<T extends string | number> = {
 };
 
 /**
- * A row of radio buttons on a muted background (spec section 4).
- * The chosen one is red with light text.
+ * A row of radio buttons in a white pill.
+ * The chosen one is red with white text.
  */
 export function Segmented<T extends string | number>({
   options,
@@ -50,13 +50,16 @@ export function Segmented<T extends string | number>({
   );
 }
 
+// Looks like the prototype's chips (`.chip`): a white pill with a thin border, the chosen one red.
 const styles = StyleSheet.create({
   group: {
     flexDirection: 'row',
-    padding: 2,
+    padding: 3,
     gap: 2,
-    backgroundColor: colors.muted,
-    borderRadius: radius,
+    backgroundColor: colors.surface,
+    borderWidth: sizes.divider,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
   },
   segment: {
     flex: 1,
@@ -64,7 +67,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-    borderRadius: radius - 2,
+    borderRadius: radii.pill,
   },
   active: { backgroundColor: colors.primary },
   text: { color: colors.text },

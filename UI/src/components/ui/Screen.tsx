@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { colors, sizes, spacing, type } from '../../theme';
+import { colors, radii, sizes, spacing, type } from '../../theme';
 import type { RefreshState } from './useRefresh';
 
 const logo = require('../../../assets/fc-logo.png');
@@ -50,7 +50,7 @@ export function Screen({
             hitSlop={8}
             style={styles.back}
           >
-            <ChevronLeft size={sizes.icon} color={colors.text} strokeWidth={2} />
+            <ChevronLeft size={sizes.icon - 2} color={colors.text} strokeWidth={2} />
           </Pressable>
         ) : (
           <View style={styles.brand}>
@@ -121,18 +121,28 @@ export function pullToRefresh({ refreshing, onRefresh }: RefreshState) {
   );
 }
 
+// Prototype `.bar` and `.body`: the header and the content share the light grey page
+// background, and the white cards stand out on it.
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.surface },
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
     height: sizes.header,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.page,
-    backgroundColor: colors.surface,
-    borderBottomWidth: sizes.divider,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
-  back: { marginLeft: -spacing.xs },
+  // Prototype `.round`: a white circle with a thin border.
+  back: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: sizes.divider,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // flexShrink 0: the logo and name never get squeezed; the title gives way instead.
   brand: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   logo: { width: 32, height: 32 },
@@ -142,12 +152,11 @@ const styles = StyleSheet.create({
   right: { marginLeft: spacing.sm },
   body: { flex: 1 },
   content: { flex: 1, backgroundColor: colors.background },
+  // Prototype `.foot`: buttons on the page background, no line above.
   bottom: {
     flexDirection: 'row',
     gap: spacing.sm,
     padding: spacing.page,
-    backgroundColor: colors.surface,
-    borderTopWidth: sizes.divider,
-    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
 });

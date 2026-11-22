@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
-import { colors, radius, sizes, spacing, type } from '../../theme';
+import { colors, fonts, radius, sizes, spacing, type } from '../../theme';
 
 /** How long a message stays on screen. */
 export const TOAST_MS = 2500;
@@ -77,12 +77,12 @@ const styles = StyleSheet.create({
     right: spacing.page,
     alignItems: 'center',
   },
-  // Dark box with light text: stands out on the light screens without a shadow (spec section 3).
+  // Prototype `#toast`: dark box with white semibold text, stands out on the light screens.
   box: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.page,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: radius,
     backgroundColor: colors.text,
   },
-  text: { ...type.body, color: colors.onPrimary },
+  text: { ...type.body, fontFamily: fonts.semibold, fontSize: 15, color: colors.onPrimary, textAlign: 'center' },
 });
