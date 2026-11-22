@@ -76,14 +76,21 @@ function tap(name: string) {
   return fireEvent.press(screen.getByRole('button', { name }));
 }
 
+/** The bottom "Spara" button. The dialog has its own "Spara", so this one is remembered. */
+let bottomSpara: ReturnType<typeof screen.getByRole> | null = null;
+
 async function pressSpara() {
-  await fireEvent.press(screen.getByRole('button', { name: 'Spara' }));
+  bottomSpara = screen.getByRole('button', { name: 'Spara' });
+  await fireEvent.press(bottomSpara);
 }
 
 async function confirmSave() {
-  // The dialog's own button is the last "Spara" on the screen.
-  const buttons = screen.getAllByRole('button', { name: 'Spara' });
-  await fireEvent.press(buttons[buttons.length - 1]);
+  // The dialog's button is the "Spara" that is not the bottom one.
+  const dialogButton = screen
+    .getAllByRole('button', { name: 'Spara' })
+    .find((button) => button !== bottomSpara);
+  if (!dialogButton) throw new Error('The confirm dialog has no Spara button');
+  await fireEvent.press(dialogButton);
 }
 
 /** Local time, the same way the app reads the API's date-time strings. */
