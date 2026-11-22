@@ -5,8 +5,14 @@ import type { ActivityWhen } from '../api/request';
 import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { cancelledLabel } from '../components/activities/activityItems';
-import { ChildPicker, useChildPicker } from '../components/schedule/ChildPicker';
-import { groupByWeek, statusLabel } from '../components/schedule/activities';
+import { HomeTimelineView, type HomeActivity } from '../components/home';
+import { ChildPicker, firstName, useChildPicker } from '../components/schedule/ChildPicker';
+import {
+  groupByWeek,
+  homeFromMatch,
+  homeFromTraining,
+  statusLabel,
+} from '../components/schedule/activities';
 import {
   DateText,
   Empty,
@@ -19,18 +25,93 @@ import {
   useRefresh,
   WeekLabel,
 } from '../components/ui';
+import { homeTimeline } from '../lib/activities/homeTimeline';
 import { toDate } from '../lib/dates';
 import { colors, spacing, type } from '../theme';
 
 /** `now` is when the data arrived; it decides which trainings are "past". */
 type Data = { trainings: MyTraining[]; matches: MyMatch[]; now: number };
 
+/** The upcoming activities as start-page cards, and when they arrived. */
+type HomeData = { activities: HomeActivity[]; now: Date };
+
 /**
- * "Schema" for PLAYER and PARENT (spec section 7): today's and coming trainings
- * and matches per week, soonest first. A parent with several children picks one at the top.
+ * "Schema", the start page (Startsida) for PLAYER and PARENT: Nästa aktivitet at the top,
+ * then Kommande vecka, and "Visa fler" adds seven days at a time (rule in `homeTimeline`).
+ * A parent with several children picks one at the top. The player is never asked
+ * whether they come, so the page has no attendance control or own status.
  */
 export default function ScheduleScreen() {
-  return <MyActivityList title="Schema" when="upcoming" />;
+  const { session } = useAuth();
+  const picker = useChildPicker(session?.roleName);
+  const isParent = session?.roleName === 'PARENT';
+  const childId = picker.child?.id;
+
+  const [data, setData] = useState<HomeData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // "Visa fler" counts per child, so a new child starts at one week again.
+  const [more, setMore] = useState<{ childId: number | undefined; weeks: number }>({
+    childId: undefined,
+    weeks: 0,
+  });
+  const extraWeeks = more.childId === childId ? more.weeks : 0;
+
+  const noChild = isParent && !picker.loading && childId == null;
+
+  const load = useCallback(
+    (isActive: () => boolean = () => true) => {
+      if (picker.loading || noChild) {
+        return Promise.resolve();
+      }
+      return Promise.all([listMyTrainings(childId, 'upcoming'), listMyMatches(childId, 'upcoming')])
+        .then(([trainings, matches]) => {
+          if (!isActive()) return;
+          setData({
+            activities: [...trainings.map(homeFromTraining), ...matches.map(homeFromMatch)],
+            now: new Date(),
+          });
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Något gick fel');
+        });
+    },
+    [picker.loading, noChild, childId],
+  );
+
+  useEffect(() => {
+    let active = true;
+    void load(() => active);
+    return () => {
+      active = false;
+    };
+  }, [load]);
+  const refresh = useRefresh(load);
+
+  const shownError = picker.error ?? error;
+  const loaded = noChild || data != null;
+  const timeline =
+    data && !noChild
+      ? homeTimeline(data.activities, data.now, extraWeeks)
+      : { next: null, comingWeek: [], hasMore: false };
+  const forName =
+    isParent && picker.children.length > 1 && picker.child ? firstName(picker.child.name) : undefined;
+
+  return (
+    <Screen title="Schema" refresh={refresh}>
+      <ChildPicker state={picker} />
+      {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
+      {!shownError && !loaded ? <SkeletonList /> : null}
+      {!shownError && loaded ? (
+        <HomeTimelineView
+          {...timeline}
+          extraWeeks={extraWeeks}
+          onShowMore={() => setMore({ childId, weeks: extraWeeks + 1 })}
+          forName={forName}
+        />
+      ) : null}
+    </Screen>
+  );
 }
 
 type ListProps = {
@@ -42,7 +123,7 @@ type ListProps = {
 
 /**
  * The player's or parent's own trainings and matches, per week.
- * Shared by "Schema" and "Tidigare aktiviteter" so both use the same child picker and rows.
+ * Used by "Tidigare aktiviteter" (the start page above has its own layout).
  */
 export function MyActivityList({ title, when, onBack }: ListProps) {
   const { session } = useAuth();
