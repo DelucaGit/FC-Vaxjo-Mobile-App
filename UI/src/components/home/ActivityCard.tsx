@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cancelledLabel } from '../activities/activityItems';
 import { timeLabel, toDate } from '../../lib/dates';
 import { colors, fonts, radii, spacing, type } from '../../theme';
@@ -10,21 +10,23 @@ type Props = {
   activity: HomeActivity;
   /** Shown after the venue, e.g. on the coach start page with several teams. */
   teamName?: string;
+  /** Makes the card a button, e.g. to open the activity's detail page. */
+  onPress?: () => void;
 };
 
 /**
  * One activity in Kommande vecka (prototype `.arow`): a day block on the left,
  * then the title, the time and the venue. A match has a red day block.
  */
-export function ActivityCard({ activity, teamName }: Props) {
+export function ActivityCard({ activity, teamName, onPress }: Props) {
   const start = toDate(activity.startsAt);
   const isMatch = activity.kind === 'match';
   const time = activity.endsAt
     ? `${timeLabel(activity.startsAt)}–${timeLabel(activity.endsAt)}`
     : timeLabel(activity.startsAt);
   const place = placeLine(activity, teamName);
-  return (
-    <View testID={`activity-${activity.key}`} style={styles.card}>
+  const content = (
+    <>
       <View style={[styles.day, isMatch && styles.dayMatch]}>
         <Text style={[styles.dayName, isMatch && styles.onMatch]}>{DAYS[start.getDay()]}</Text>
         <Text style={[styles.dayNumber, isMatch && styles.onMatch]}>{start.getDate()}</Text>
@@ -38,6 +40,20 @@ export function ActivityCard({ activity, teamName }: Props) {
           </Text>
         ) : null}
       </View>
+    </>
+  );
+  return onPress ? (
+    <Pressable
+      testID={`activity-${activity.key}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.card}
+    >
+      {content}
+    </Pressable>
+  ) : (
+    <View testID={`activity-${activity.key}`} style={styles.card}>
+      {content}
     </View>
   );
 }

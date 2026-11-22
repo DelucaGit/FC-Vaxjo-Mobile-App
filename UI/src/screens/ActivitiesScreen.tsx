@@ -32,6 +32,8 @@ import {
   fromMatch,
   fromTraining,
   groupByWeek,
+  homeFromTeamMatch,
+  homeFromTeamTraining,
   isPartlyMarked,
   needsAttendanceCount,
   unmarkedLabel,
@@ -39,7 +41,9 @@ import {
   type AttendanceCount,
 } from '../components/activities/activityItems';
 import { ErrorText } from '../components/activities/TrainingForm';
-import type { AppStackParamList } from '../navigation/types';
+import { HomeTimelineView, type HomeActivity } from '../components/home';
+import { homeTimeline } from '../lib/activities/homeTimeline';
+import type { ActivityKind, AppStackParamList } from '../navigation/types';
 import { colors, spacing, type } from '../theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Activities'>;
@@ -47,10 +51,161 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Activities'>;
 /** Key for the attendance counts: a training and a match may share an id. */
 const countKey = (item: ActivityItem) => `${item.kind}-${item.id}`;
 
-/** "Aktiviteter" (spec section 7): the chosen team's today's and coming trainings and matches, per week. */
+/** Which teams the start page shows: all the user's teams, or one picked team. */
+type TeamChoice = 'all' | number;
+
+/** One card on the start page, with what a tap and the team filter need. */
+type HomeEntry = { teamId: number; kind: ActivityKind; id: number; activity: HomeActivity };
+
+/** The upcoming activities of the user's teams, and when they arrived. */
+type HomeData = { entries: HomeEntry[]; now: Date };
+
+/**
+ * "Aktiviteter", the start page (Startsida) for COACH, CHAIRMAN and ADMIN: Nästa aktivitet,
+ * Kommande vecka and "Visa fler" (rule in `homeTimeline`), for every team the user manages,
+ * trainings and matches together. Every card shows its team and opens the activity.
+ * With several teams a picker narrows it to one team, which is also the team the plus button
+ * creates for (the create screens need one team).
+ */
 export default function ActivitiesScreen({ navigation }: Props) {
+  const { session } = useAuth();
+  const role = session?.roleName;
+  const [teams, setTeams] = useState<Team[] | null>(null);
+  const [choice, setChoice] = useState<TeamChoice>('all');
+  const [data, setData] = useState<HomeData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // "Visa fler" counts per team choice, so a new choice starts at one week again.
+  const [more, setMore] = useState<{ choice: TeamChoice; weeks: number }>({
+    choice: 'all',
+    weeks: 0,
+  });
+  const extraWeeks = more.choice === choice ? more.weeks : 0;
+
+  // Teams: a coach only sees their own. /my/teams answers 403 for CHAIRMAN, so club-wide roles
+  // use /teams. Then the upcoming trainings and matches of every team, all at once.
+  // Written with .then (not async/await) so the lint rule can see that setState runs later.
+  const load = useCallback(
+    (isActive: () => boolean = () => true) =>
+      (isClubWide(role) ? listTeams() : listMyTeams())
+        .then((list) =>
+          Promise.all(
+            list.map((team) =>
+              Promise.all([listTrainings(team.id, 'upcoming'), listMatches(team.id, 'upcoming')]).then(
+                ([trainings, matches]): HomeEntry[] => [
+                  ...trainings.map((t) => ({
+                    teamId: team.id,
+                    kind: 'training' as const,
+                    id: t.id,
+                    activity: homeFromTeamTraining(t),
+                  })),
+                  ...matches.map((m) => ({
+                    teamId: team.id,
+                    kind: 'match' as const,
+                    id: m.id,
+                    activity: homeFromTeamMatch(m),
+                  })),
+                ],
+              ),
+            ),
+          ).then((perTeam) => {
+            if (!isActive()) return;
+            setTeams(list);
+            setData({ entries: perTeam.flat(), now: new Date() });
+            setError(null);
+          }),
+        )
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Något gick fel');
+        }),
+    [role],
+  );
+
+  // Runs every time the screen gets focus, so a new or changed activity shows up on the way back.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void load(() => active);
+      return () => {
+        active = false;
+      };
+    }, [load]),
+  );
+  const refresh = useRefresh(load);
+
+  const shown = data
+    ? data.entries.filter((entry) => choice === 'all' || entry.teamId === choice)
+    : [];
+  const byKey = new Map(shown.map((entry) => [entry.activity.key, entry]));
+  const timeline = data
+    ? homeTimeline(
+        shown.map((entry) => entry.activity),
+        data.now,
+        extraWeeks,
+      )
+    : { next: null, comingWeek: [], hasMore: false };
+
+  // The create screens need one team: the only one, or the one picked.
+  const createTeamId = teams?.length === 1 ? teams[0].id : choice === 'all' ? null : choice;
+
+  const open = (activity: HomeActivity) => {
+    const entry = byKey.get(activity.key);
+    if (entry) navigation.navigate('ActivityDetail', { kind: entry.kind, id: entry.id });
+  };
+
   return (
-    <TeamActivityList title="Aktiviteter" when="upcoming" navigation={navigation} canCreate />
+    <Screen
+      title="Aktiviteter"
+      refresh={refresh}
+      overlay={
+        createTeamId != null ? (
+          <FabMenu
+            actions={[
+              {
+                label: 'Lägg till fotbollsträning',
+                onPress: () =>
+                  navigation.navigate('NewTraining', { teamId: createTeamId, type: 'FOOTBALL' }),
+              },
+              {
+                label: 'Lägg till fysträning',
+                onPress: () =>
+                  navigation.navigate('NewTraining', { teamId: createTeamId, type: 'FITNESS' }),
+              },
+              {
+                label: 'Ny match',
+                onPress: () => navigation.navigate('NewMatch', { teamId: createTeamId }),
+              },
+            ]}
+          />
+        ) : undefined
+      }
+    >
+      <ErrorText message={error} />
+      {teams && teams.length > 1 ? (
+        <View style={styles.picker}>
+          <Segmented<TeamChoice>
+            accessibilityLabel="Lag"
+            options={[
+              { label: 'Alla lag', value: 'all' },
+              ...teams.map((t) => ({ label: t.name, value: t.id })),
+            ]}
+            value={choice}
+            onChange={setChoice}
+          />
+        </View>
+      ) : null}
+      {!error && data === null ? <SkeletonList /> : null}
+      {teams && teams.length === 0 ? <Empty text="Inga lag" /> : null}
+      {data && teams && teams.length > 0 ? (
+        <HomeTimelineView
+          {...timeline}
+          extraWeeks={extraWeeks}
+          onShowMore={() => setMore({ choice, weeks: extraWeeks + 1 })}
+          onPressActivity={open}
+        />
+      ) : null}
+      {/* Empty room at the end, so the plus button never covers the last activity. */}
+      {createTeamId != null ? <View style={styles.fabSpace} /> : null}
+    </Screen>
   );
 }
 
@@ -65,8 +220,9 @@ type ListProps = {
 };
 
 /**
- * One team's trainings and matches, with the same team picker for every role.
- * Shared by "Aktiviteter" and "Tidigare aktiviteter". A tap opens the activity's detail view.
+ * One team's trainings and matches per week, with the same team picker for every role.
+ * Used by "Tidigare aktiviteter" (the start page above has its own layout).
+ * A tap opens the activity's detail view.
  */
 export function TeamActivityList({ title, when, navigation, canCreate = false, onBack }: ListProps) {
   const { session } = useAuth();

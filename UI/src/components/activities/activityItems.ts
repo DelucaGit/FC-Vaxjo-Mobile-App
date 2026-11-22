@@ -3,6 +3,7 @@ import type { AttendanceRow, Training } from '../../api/trainings';
 import { trainingTypeName } from '../../api/trainingTypes';
 import { isoWeek, toDate } from '../../lib/dates';
 import type { ActivityKind } from '../../navigation/types';
+import type { HomeActivity } from '../home/homeActivity';
 
 /**
  * One row on "Aktiviteter": a training or a match in the same shape,
@@ -66,6 +67,41 @@ export function fromMatch(m: Match): ActivityItem {
     cancelled,
     cancelReason: m.cancelReason ?? null,
     attendanceLockedAt: m.attendanceLockedAt,
+  };
+}
+
+/** The key a start-page card gets: a training and a match may share an id. */
+export function homeKey(item: Pick<ActivityItem, 'kind' | 'id'>): string {
+  return `${item.kind === 'training' ? 't' : 'm'}${item.id}`;
+}
+
+/** A training from the API as a card on the coach/admin start page, with its team name. */
+export function homeFromTeamTraining(t: Training): HomeActivity {
+  return {
+    key: homeKey({ kind: 'training', id: t.id }),
+    kind: 'training',
+    startsAt: t.startsAt,
+    endsAt: t.endsAt,
+    title: trainingTypeName(t.type),
+    venue: t.venue || null,
+    cancelled: t.status === 'CANCELLED',
+    cancelReason: t.cancelReason,
+    teamName: t.teamName,
+  };
+}
+
+/** A match from the API as a card on the coach/admin start page, with its team name. */
+export function homeFromTeamMatch(m: Match): HomeActivity {
+  return {
+    key: homeKey({ kind: 'match', id: m.id }),
+    kind: 'match',
+    startsAt: m.kickoffAt,
+    title: matchTitle(m),
+    venue: m.venue,
+    homeAway: m.homeAway,
+    cancelled: m.status === 'CANCELLED',
+    cancelReason: m.cancelReason ?? null,
+    teamName: m.teamName,
   };
 }
 

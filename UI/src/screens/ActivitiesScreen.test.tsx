@@ -28,12 +28,13 @@ const props = { navigation, route: { key: 'a', name: 'Activities' } } as unknown
   typeof ActivitiesScreen
 >[0];
 
+// Far in the future, so every activity is upcoming whatever day the tests run.
 const training = {
   id: 1,
   teamId: 10,
   teamName: 'P2014',
-  startsAt: '2020-11-10T17:30:00',
-  endsAt: '2020-11-10T19:00:00',
+  startsAt: '2099-01-05T17:30:00',
+  endsAt: '2099-01-05T19:00:00',
   type: 'FOOTBALL',
   venue: 'Konstgräset',
   status: 'SCHEDULED',
@@ -42,7 +43,45 @@ const training = {
   attendanceLockedAt: null,
 };
 
+const match = {
+  id: 1,
+  teamId: 20,
+  teamName: 'F2015',
+  opponent: 'Östers IF',
+  kickoffAt: '2099-01-06T10:00:00',
+  venue: 'Värendsvallen',
+  homeAway: 'AWAY',
+  result: null,
+  status: 'SCHEDULED',
+  cancelReason: null,
+  createdByUserId: 1,
+  attendanceLockedAt: null,
+};
+
+/** Each team's own activities, the way the API answers per team. */
+function mockActivities(trainings: object[], matches: object[]) {
+  jest
+    .mocked(listTrainings)
+    .mockImplementation(
+      async (teamId) => trainings.filter((t) => (t as { teamId: number }).teamId === teamId) as never,
+    );
+  jest
+    .mocked(listMatches)
+    .mockImplementation(
+      async (teamId) => matches.filter((m) => (m as { teamId: number }).teamId === teamId) as never,
+    );
+}
+
+const twoTeams = [
+  { id: 10, name: 'P2014' },
+  { id: 20, name: 'F2015' },
+];
+
+/** The testIDs of the Kommande vecka cards, top to bottom. */
+const cardIds = () => screen.queryAllByTestId(/^activity-/).map((el) => el.props.testID);
+
 beforeEach(() => {
+  jest.clearAllMocks();
   mockRole = 'COACH';
   jest.mocked(listMyTeams).mockResolvedValue([{ id: 10, name: 'P2014' }]);
   jest.mocked(listTeams).mockResolvedValue([
@@ -55,96 +94,126 @@ beforeEach(() => {
   jest.mocked(listMatchAttendance).mockResolvedValue([]);
 });
 
-test('lists trainings and matches per week with their status', async () => {
-  jest.mocked(listTrainings).mockResolvedValue([
-    training as never,
-    {
-      ...training,
-      id: 2,
-      type: 'FITNESS',
-      startsAt: '2020-11-11T17:30:00',
-      endsAt: '2020-11-11T19:00:00',
-      status: 'CANCELLED',
-      cancelReason: 'Snö',
-    } as never,
-  ]);
-  jest.mocked(listMatches).mockResolvedValue([
-    {
-      id: 1,
-      teamId: 10,
-      teamName: 'P2014',
-      opponent: 'Östers IF',
-      kickoffAt: '2020-11-21T10:00:00',
-      venue: 'Värendsvallen',
-      homeAway: 'AWAY',
-      result: { goalsFor: 3, goalsAgainst: 1 },
-      createdByUserId: 1,
-      attendanceLockedAt: '2020-11-21T19:05:00',
-    },
-    {
-      id: 2,
-      teamId: 10,
-      teamName: 'P2014',
-      opponent: 'IFK Värnamo',
-      kickoffAt: '2020-11-22T10:00:00',
-      venue: 'Värendsvallen',
-      homeAway: 'HOME',
-      result: null,
-      status: 'CANCELLED',
-      cancelReason: 'Regn',
-      createdByUserId: 1,
-      attendanceLockedAt: null,
-    },
-  ]);
-  jest.mocked(listTrainingAttendance).mockResolvedValue([
-    { playerUserId: 1, playerName: 'A', playerNumber: 7, status: 'PRESENT' },
-    { playerUserId: 2, playerName: 'B', playerNumber: 8, status: null },
-    { playerUserId: 3, playerName: 'C', playerNumber: 9, status: null },
-  ]);
-
-  await render(<ActivitiesScreen {...props} />);
-
-  expect(await screen.findByText('2 ej markerade')).toBeTruthy();
-  expect(screen.getByText('Vecka 46')).toBeTruthy();
-  expect(screen.getByText('Vecka 47')).toBeTruthy();
-  expect(screen.getByText('P2014')).toBeTruthy();
-
-  const cancelled = screen.getByTestId('activity-training-2');
-  expect(within(cancelled).getByText('Inställd · Snö')).toBeTruthy();
-  expect(within(cancelled).getByText('Fysträning')).toHaveStyle({ textDecorationLine: 'line-through' });
-
-  const matchRow = screen.getByTestId('activity-match-1');
-  expect(within(matchRow).getByText('Match mot Östers IF')).toBeTruthy();
-  expect(within(matchRow).getByText('3–1')).toBeTruthy();
-  expect(within(matchRow).getByText('Värendsvallen · Borta')).toBeTruthy();
-  expect(within(matchRow).getByText('Närvaro låst')).toBeTruthy();
-
-  const cancelledMatch = screen.getByTestId('activity-match-2');
-  expect(within(cancelledMatch).getByText('Inställd · Regn')).toBeTruthy();
-  expect(within(cancelledMatch).getByText('Match mot IFK Värnamo')).toHaveStyle({
-    textDecorationLine: 'line-through',
+describe('the start page', () => {
+  beforeEach(() => {
+    jest.mocked(listMyTeams).mockResolvedValue(twoTeams);
+    mockActivities(
+      [
+        training,
+        {
+          ...training,
+          id: 2,
+          teamId: 20,
+          teamName: 'F2015',
+          type: 'FITNESS',
+          venue: '',
+          startsAt: '2099-01-08T17:30:00',
+          endsAt: '2099-01-08T19:00:00',
+        },
+      ],
+      [
+        match,
+        // More than seven days after the next activity: only after "Visa fler".
+        { ...match, id: 2, teamId: 10, teamName: 'P2014', kickoffAt: '2099-01-15T10:00:00' },
+      ],
+    );
   });
 
-  // Only the started, open, active training needs an attendance call.
-  expect(listTrainingAttendance).toHaveBeenCalledTimes(1);
-  expect(listTrainingAttendance).toHaveBeenCalledWith(1);
-  expect(listMatchAttendance).not.toHaveBeenCalled();
+  test("shows Nästa aktivitet and Kommande vecka for all the coach's teams, with team names", async () => {
+    await render(<ActivitiesScreen {...props} />);
 
-  await fireEvent.press(matchRow);
-  expect(navigation.navigate).toHaveBeenCalledWith('ActivityDetail', { kind: 'match', id: 1 });
-  expect(screen.queryByText('Ny träning')).toBeNull();
+    const next = await screen.findByTestId('next-t1');
+    expect(within(next).getByText('Nästa aktivitet')).toBeTruthy();
+    expect(within(next).getByText('Fotbollsträning')).toBeTruthy();
+    expect(within(next).getByText('Konstgräset · P2014')).toBeTruthy();
+
+    expect(screen.getByText('Kommande vecka')).toBeTruthy();
+    // Trainings and matches from both teams together, soonest first.
+    expect(cardIds()).toEqual(['activity-m1', 'activity-t2']);
+    expect(within(screen.getByTestId('activity-m1')).getByText(/Värendsvallen · Borta · F2015/)).toBeTruthy();
+    expect(within(screen.getByTestId('activity-t2')).getByText(/F2015/)).toBeTruthy();
+
+    // A coach asks only for their own teams.
+    expect(listTeams).not.toHaveBeenCalled();
+    expect(listTrainings).toHaveBeenCalledWith(10, 'upcoming');
+    expect(listTrainings).toHaveBeenCalledWith(20, 'upcoming');
+    expect(listMatches).toHaveBeenCalledWith(10, 'upcoming');
+    expect(listMatches).toHaveBeenCalledWith(20, 'upcoming');
+  });
+
+  test('"Visa fler" adds the next seven days', async () => {
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByTestId('next-t1');
+    expect(screen.queryByTestId('activity-m2')).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Visa fler' }));
+
+    expect(cardIds()).toEqual(['activity-m1', 'activity-t2', 'activity-m2']);
+    expect(within(screen.getByTestId('activity-m2')).getByText(/P2014/)).toBeTruthy();
+    expect(screen.getByText('Kommande aktiviteter')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Visa fler' })).toBeNull();
+  });
+
+  test('a tap on a card opens the activity', async () => {
+    await render(<ActivitiesScreen {...props} />);
+
+    await fireEvent.press(await screen.findByTestId('next-t1'));
+    expect(navigation.navigate).toHaveBeenLastCalledWith('ActivityDetail', { kind: 'training', id: 1 });
+
+    await fireEvent.press(screen.getByTestId('activity-m1'));
+    expect(navigation.navigate).toHaveBeenLastCalledWith('ActivityDetail', { kind: 'match', id: 1 });
+  });
+
+  test('the team picker narrows the page to one team and gives the plus button that team', async () => {
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByTestId('next-t1');
+    // With every team shown the create screens would not know which team to use.
+    expect(screen.queryByRole('button', { name: 'Lägg till aktivitet' })).toBeNull();
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'F2015' }));
+
+    expect(screen.getByTestId('next-m1')).toBeTruthy();
+    expect(cardIds()).toEqual(['activity-t2']);
+    expect(screen.queryByTestId('next-t1')).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Lägg till aktivitet' }));
+    await fireEvent.press(screen.getByText('Ny match'));
+    expect(navigation.navigate).toHaveBeenCalledWith('NewMatch', { teamId: 20 });
+  });
+});
+
+test('a cancelled activity shows Inställd and the reason', async () => {
+  mockActivities(
+    [{ ...training, status: 'CANCELLED', cancelReason: 'Snö' }],
+    [{ ...match, teamId: 10, teamName: 'P2014', status: 'CANCELLED', cancelReason: 'Regn' }],
+  );
+  await render(<ActivitiesScreen {...props} />);
+
+  const next = await screen.findByTestId('next-t1');
+  expect(within(next).getByText('Inställd · Snö')).toBeTruthy();
+  expect(within(next).getByText('Fotbollsträning')).toHaveStyle({ textDecorationLine: 'line-through' });
+  const card = screen.getByTestId('activity-m1');
+  expect(within(card).getByText('Inställd · Regn')).toBeTruthy();
+  expect(within(card).getByText('Match mot Östers IF')).toHaveStyle({
+    textDecorationLine: 'line-through',
+  });
+});
+
+test('says so when there is nothing coming up', async () => {
+  await render(<ActivitiesScreen {...props} />);
+  expect(await screen.findByText('Inga kommande aktiviteter')).toBeTruthy();
 });
 
 describe('the plus button', () => {
   const openMenu = async () => {
     await render(<ActivitiesScreen {...props} />);
-    await screen.findByText('Inga aktiviteter');
+    await screen.findByText('Inga kommande aktiviteter');
     await fireEvent.press(screen.getByRole('button', { name: 'Lägg till aktivitet' }));
   };
 
   test('is closed at first and shows the three choices on a tap', async () => {
     await render(<ActivitiesScreen {...props} />);
-    await screen.findByText('Inga aktiviteter');
+    await screen.findByText('Inga kommande aktiviteter');
     expect(screen.queryByText('Lägg till fotbollsträning')).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Lägg till aktivitet' }));
@@ -187,34 +256,32 @@ describe('the plus button', () => {
   });
 });
 
-test('a chairman picks among all teams', async () => {
+test('a chairman sees the activities of all teams', async () => {
   mockRole = 'CHAIRMAN';
+  mockActivities([training], [match]);
   await render(<ActivitiesScreen {...props} />);
 
-  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+  expect(await screen.findByTestId('next-t1')).toBeTruthy();
+  expect(screen.getByTestId('activity-m1')).toBeTruthy();
   expect(listMyTeams).not.toHaveBeenCalled();
-  expect(listTrainings).toHaveBeenLastCalledWith(10, 'upcoming');
-
-  await fireEvent.press(screen.getByRole('radio', { name: 'F2015' }));
-  await screen.findByText('Inga aktiviteter');
-  expect(listTrainings).toHaveBeenLastCalledWith(20, 'upcoming');
-  expect(listMatches).toHaveBeenLastCalledWith(20, 'upcoming');
+  expect(listTrainings).toHaveBeenCalledWith(10, 'upcoming');
+  expect(listTrainings).toHaveBeenCalledWith(20, 'upcoming');
 });
 
 test('pulling the list down loads the activities again', async () => {
   await render(<ActivitiesScreen {...props} />);
-  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+  expect(await screen.findByText('Inga kommande aktiviteter')).toBeTruthy();
 
   jest.mocked(listTrainings).mockResolvedValue([training] as never);
   await pullToRefresh();
 
   expect(await screen.findByText('Fotbollsträning')).toBeTruthy();
-  expect(screen.queryByText('Inga aktiviteter')).toBeNull();
+  expect(screen.queryByText('Inga kommande aktiviteter')).toBeNull();
 });
 
 test('a failed refresh shows the same error message', async () => {
   await render(<ActivitiesScreen {...props} />);
-  expect(await screen.findByText('Inga aktiviteter')).toBeTruthy();
+  expect(await screen.findByText('Inga kommande aktiviteter')).toBeTruthy();
 
   jest.mocked(listTrainings).mockRejectedValue(
     new Error('Den här funktionen är inte tillgänglig för din roll än.'),
@@ -234,29 +301,4 @@ test('shows the error message from the API', async () => {
   expect(
     await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),
   ).toBeTruthy();
-});
-
-test('asks only for upcoming activities and does not show past ones', async () => {
-  // The fake API answers like the real one: `upcoming` leaves out what has already been.
-  const coming = {
-    ...training,
-    id: 2,
-    startsAt: '2099-01-05T17:30:00',
-    endsAt: '2099-01-05T19:00:00',
-    type: 'FITNESS',
-  };
-  jest
-    .mocked(listTrainings)
-    .mockImplementation(
-      async (_teamId, when) => (when === 'upcoming' ? [coming] : [training, coming]) as never,
-    );
-
-  await render(<ActivitiesScreen {...props} />);
-
-  expect(await screen.findByText('Fysträning')).toBeTruthy();
-  expect(screen.queryByText('Fotbollsträning')).toBeNull();
-  expect(listTrainings).toHaveBeenCalledWith(10, 'upcoming');
-  expect(listMatches).toHaveBeenCalledWith(10, 'upcoming');
-  // The schedule keeps its plus button ("Tidigare aktiviteter" has none).
-  expect(screen.getByRole('button', { name: 'Lägg till aktivitet' })).toBeTruthy();
 });
