@@ -39,7 +39,11 @@ export type AppStackParamList = {
    */
   NewTraining: { teamId?: number; type?: TrainingType } | undefined;
   EditTraining: { trainingId: number };
-  NewMatch: { teamId: number };
+  /**
+   * The "Ny match" guide. From the start page's plus button: the team picked there.
+   * From the menu: no params, so the coach picks the team.
+   */
+  NewMatch: { teamId?: number } | undefined;
   EditMatch: { matchId: number };
   CancelTraining: { trainingId: number };
   CancelMatch: { matchId: number };
