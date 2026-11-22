@@ -1,11 +1,14 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { listMyLeaveRequests, type LeaveRequest } from '../api/leaveRequests';
 import { listMyMatches, listMyTrainings, type MyMatch, type MyTraining } from '../api/my';
 import type { ActivityWhen } from '../api/request';
 import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { cancelledLabel } from '../components/activities/activityItems';
-import { HomeTimelineView, type HomeActivity } from '../components/home';
+import { HomeTimelineView, LeaveAction, type HomeActivity } from '../components/home';
 import { ChildPicker, firstName, useChildPicker } from '../components/schedule/ChildPicker';
 import {
   groupByWeek,
@@ -27,21 +30,41 @@ import {
 } from '../components/ui';
 import { homeTimeline } from '../lib/activities/homeTimeline';
 import { toDate } from '../lib/dates';
+import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, type } from '../theme';
 
 /** `now` is when the data arrived; it decides which trainings are "past". */
 type Data = { trainings: MyTraining[]; matches: MyMatch[]; now: number };
 
-/** The upcoming activities as start-page cards, and when they arrived. */
-type HomeData = { activities: HomeActivity[]; now: Date };
+/** A start-page card plus the activity's API id, needed for "Begär ledigt". */
+type ScheduleActivity = HomeActivity & { id: number };
+
+/**
+ * The upcoming activities as start-page cards, the leave requests for them
+ * (key "t12" / "m12" → request), and when they arrived.
+ */
+type HomeData = {
+  activities: ScheduleActivity[];
+  requests: Map<string, LeaveRequest>;
+  now: Date;
+};
+
+type Props = NativeStackScreenProps<AppStackParamList, 'Schedule'>;
+
+/** The card key of the activity a request is for, the same as `homeFromTraining` / `homeFromMatch`. */
+function requestKey(request: LeaveRequest): string {
+  return `${request.activityKind === 'TRAINING' ? 't' : 'm'}${request.activityId}`;
+}
 
 /**
  * "Schema", the start page (Startsida) for PLAYER and PARENT: Nästa aktivitet at the top,
  * then Kommande vecka, and "Visa fler" adds seven days at a time (rule in `homeTimeline`).
  * A parent with several children picks one at the top. The player is never asked
  * whether they come, so the page has no attendance control or own status.
+ * An upcoming, not cancelled activity has "Begär ledigt" (issue #211); once a request
+ * exists, its status is shown instead. A parent asks for the selected child.
  */
-export default function ScheduleScreen() {
+export default function ScheduleScreen({ navigation }: Props) {
   const { session } = useAuth();
   const picker = useChildPicker(session?.roleName);
   const isParent = session?.roleName === 'PARENT';
@@ -63,11 +86,21 @@ export default function ScheduleScreen() {
       if (picker.loading || noChild) {
         return Promise.resolve();
       }
-      return Promise.all([listMyTrainings(childId, 'upcoming'), listMyMatches(childId, 'upcoming')])
-        .then(([trainings, matches]) => {
+      // The requests load together with the schedule, so the page knows which
+      // activities already have one. A parent gets only the selected child's.
+      return Promise.all([
+        listMyTrainings(childId, 'upcoming'),
+        listMyMatches(childId, 'upcoming'),
+        listMyLeaveRequests(childId),
+      ])
+        .then(([trainings, matches, requests]) => {
           if (!isActive()) return;
           setData({
-            activities: [...trainings.map(homeFromTraining), ...matches.map(homeFromMatch)],
+            activities: [
+              ...trainings.map((t) => ({ ...homeFromTraining(t), id: t.id })),
+              ...matches.map((m) => ({ ...homeFromMatch(m), id: m.id })),
+            ],
+            requests: new Map(requests.map((r) => [requestKey(r), r])),
             now: new Date(),
           });
           setError(null);
@@ -79,13 +112,16 @@ export default function ScheduleScreen() {
     [picker.loading, noChild, childId],
   );
 
-  useEffect(() => {
-    let active = true;
-    void load(() => active);
-    return () => {
-      active = false;
-    };
-  }, [load]);
+  // Reload on focus, so a request sent from "Begär ledigt" shows its status at once.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void load(() => active);
+      return () => {
+        active = false;
+      };
+    }, [load]),
+  );
   const refresh = useRefresh(load);
 
   const shownError = picker.error ?? error;
@@ -96,6 +132,35 @@ export default function ScheduleScreen() {
       : { next: null, comingWeek: [], hasMore: false };
   const forName =
     isParent && picker.children.length > 1 && picker.child ? firstName(picker.child.name) : undefined;
+
+  const renderAction = (card: HomeActivity, onColor: boolean) => {
+    if (!data) return null;
+    const request = data.requests.get(card.key);
+    if (request) {
+      return <LeaveAction status={request.status} />;
+    }
+    const activity = data.activities.find((a) => a.key === card.key);
+    // Only before the start (the API says no from then on), and never when cancelled.
+    if (!activity || activity.cancelled || toDate(activity.startsAt) <= data.now) {
+      return null;
+    }
+    return (
+      <LeaveAction
+        onColor={onColor}
+        onRequest={() =>
+          navigation.navigate('RequestLeave', {
+            kind: activity.kind,
+            id: activity.id,
+            playerUserId: isParent ? childId : undefined,
+            title: activity.title,
+            startsAt: activity.startsAt,
+            endsAt: activity.endsAt,
+            forName: isParent && picker.child ? firstName(picker.child.name) : undefined,
+          })
+        }
+      />
+    );
+  };
 
   return (
     <Screen title="Schema" refresh={refresh}>
@@ -108,6 +173,7 @@ export default function ScheduleScreen() {
           extraWeeks={extraWeeks}
           onShowMore={() => setMore({ childId, weeks: extraWeeks + 1 })}
           forName={forName}
+          renderAction={renderAction}
         />
       ) : null}
     </Screen>

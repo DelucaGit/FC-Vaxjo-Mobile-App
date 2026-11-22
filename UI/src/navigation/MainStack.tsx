@@ -19,6 +19,7 @@ import NewUserScreen from '../screens/NewUserScreen';
 import PastActivitiesScreen from '../screens/PastActivitiesScreen';
 import PlayerProfileScreen from '../screens/PlayerProfileScreen';
 import PlayerViewScreen from '../screens/PlayerViewScreen';
+import RequestLeaveScreen from '../screens/RequestLeaveScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SetResultScreen from '../screens/SetResultScreen';
@@ -39,6 +40,7 @@ const Stack = createNativeStackNavigator<AppStackParamList>();
 const SCREENS: Record<RouteName, ComponentType<any>> = {
   Schedule: ScheduleScreen,
   Coaches: CoachesScreen,
+  RequestLeave: RequestLeaveScreen,
   Activities: ActivitiesScreen,
   ActivityDetail: ActivityDetailScreen,
   NewTraining: NewTrainingScreen,
@@ -100,7 +102,7 @@ export function routesForRole(roleName: string | null | undefined): readonly Rou
   switch (roleName) {
     case 'PLAYER':
     case 'PARENT':
-      groups = [['Schedule', 'Coaches'], EVERY_ROLE];
+      groups = [['Schedule', 'Coaches', 'RequestLeave'], EVERY_ROLE];
       break;
     case 'COACH':
       groups = [ACTIVITIES, SQUAD, SEARCH, EVERY_ROLE];

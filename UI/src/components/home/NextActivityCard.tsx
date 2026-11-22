@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { cancelledLabel } from '../activities/activityItems';
@@ -13,13 +14,15 @@ type Props = {
   forName?: string;
   /** Makes the card a button, e.g. to open the activity's detail page. */
   onPress?: () => void;
+  /** Shown at the bottom, e.g. "Begär ledigt" or the request's status. */
+  action?: ReactNode;
 };
 
 /**
  * Nästa aktivitet: the large card at the top of the start page (prototype `.heroc`).
  * Red for a training, dark for a match. A cancelled one stays, with "Inställd" and the reason.
  */
-export function NextActivityCard({ activity, teamName, forName, onPress }: Props) {
+export function NextActivityCard({ activity, teamName, forName, onPress, action }: Props) {
   const isMatch = activity.kind === 'match';
   const place = placeLine(activity, teamName);
   const style = [styles.card, isMatch ? styles.match : styles.training];
@@ -44,6 +47,7 @@ export function NextActivityCard({ activity, teamName, forName, onPress }: Props
           <Text style={styles.pillText}>{cancelledLabel(activity.cancelReason ?? null)}</Text>
         </View>
       ) : null}
+      {action}
     </>
   );
   return onPress ? (

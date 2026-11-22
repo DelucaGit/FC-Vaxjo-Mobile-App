@@ -13,6 +13,20 @@ export type AppStackParamList = {
   // Spelare / Förälder
   Schedule: undefined;
   Coaches: undefined;
+  /**
+   * "Begär ledigt" for one upcoming activity. playerUserId is the selected child
+   * (PARENT); a PLAYER leaves it out. title and startsAt only show which activity it is.
+   */
+  RequestLeave: {
+    kind: ActivityKind;
+    id: number;
+    playerUserId?: number;
+    title: string;
+    startsAt: string;
+    endsAt?: string | null;
+    /** The child's first name, shown to a parent: "För Elsa". */
+    forName?: string;
+  };
 
   // Tränare / Ordförande / Admin: activities
   Activities: undefined;
