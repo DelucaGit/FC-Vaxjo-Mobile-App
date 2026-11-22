@@ -8,19 +8,13 @@ import {
 } from 'react';
 import { Modal, Pressable, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ellipsis } from 'lucide-react-native';
 import type { NavigationHelpers, StackNavigationState } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { colors, radii, shadows, sizes, spacing, type } from '../theme';
-import { MenuContext } from './menuContext';
+import { MenuContext, ProfileMenuContext } from './menuContext';
 import { menuForRole, type MenuItem, type MenuRoute } from './menuForRole';
+import { initialsFor, ProfileMenu, useOwnName } from './ProfileMenu';
 import type { AppStackParamList } from './types';
-
-/**
- * "Mer" (Byt lösenord, Logga ut) stays here for now, under the role's pages.
- * Task #206 replaces it with the profile menu.
- */
-const MORE_ITEM: MenuItem = { label: 'Mer', route: 'More', icon: Ellipsis };
 
 type LayoutProps = {
   state: StackNavigationState<AppStackParamList>;
@@ -78,32 +72,56 @@ function MenuProvider({
   navigation: NavigationHelpers<AppStackParamList>;
   children: ReactNode;
 }) {
-  const { session } = useAuth();
-  const [open, setOpen] = useState(false);
-  const value = useMemo(() => ({ openMenu: () => setOpen(true), rootKey }), [rootKey]);
-  const items = [...menuForRole(session?.roleName), MORE_ITEM];
+  const { session, logout } = useAuth();
+  // One value for both, so the menu and the profile menu are never open at the same time.
+  const [open, setOpen] = useState<'menu' | 'profile' | null>(null);
+  const value = useMemo(() => ({ openMenu: () => setOpen('menu'), rootKey }), [rootKey]);
+  const items = menuForRole(session?.roleName);
+
+  // The profile menu shows the name, or the e-mail when the role may not read its own user.
+  const ownName = useOwnName(session?.userId);
+  const name = ownName ?? session?.email ?? '';
+  const initials = initialsFor(name);
+  const profileValue = useMemo(
+    () => ({ initials, openProfileMenu: () => setOpen('profile') }),
+    [initials],
+  );
 
   // Each menu item starts its page over, like pressing a tab did before.
   function go(route: MenuRoute) {
-    setOpen(false);
+    setOpen(null);
     navigation.reset({ index: 0, routes: [{ name: route }] });
   }
 
   return (
     <StackMenuContext.Provider value={value}>
-      {children}
+      <ProfileMenuContext.Provider value={profileValue}>{children}</ProfileMenuContext.Provider>
+      <ProfileMenu
+        visible={open === 'profile'}
+        name={name}
+        roleName={session?.roleName}
+        onClose={() => setOpen(null)}
+        onChangePassword={() => {
+          setOpen(null);
+          navigation.navigate('ChangePassword');
+        }}
+        onLogout={() => {
+          setOpen(null);
+          logout();
+        }}
+      />
       <Modal
-        visible={open}
+        visible={open === 'menu'}
         transparent
         animationType="fade"
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={() => setOpen(null)}
       >
         {/* Prototype `.scrim`: the dark layer. Pressing it closes the menu. */}
         <Pressable
           testID="menu-scrim"
           accessibilityRole="button"
           accessibilityLabel="Stäng meny"
-          onPress={() => setOpen(false)}
+          onPress={() => setOpen(null)}
           style={styles.scrim}
         />
         {/* Prototype `.drawer`: the panel on the left. */}

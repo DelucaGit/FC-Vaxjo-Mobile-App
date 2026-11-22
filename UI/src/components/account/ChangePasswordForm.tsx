@@ -12,7 +12,7 @@ type Props = {
 
 /**
  * The three fields from "Byt lösenord" (spec section 7). Used both by the
- * forced change after the first login and by the one under "Mer".
+ * forced change after the first login and by the one in the profile menu.
  * "Spara" stays locked until all three are filled and the two new ones match.
  */
 export function ChangePasswordForm({ onSaved }: Props) {
