@@ -33,8 +33,11 @@ export type AppStackParamList = {
   // Tränare / Ordförande / Admin: activities
   Activities: undefined;
   ActivityDetail: { kind: ActivityKind; id: number };
-  /** type comes from the button the coach pressed on "Aktiviteter". */
-  NewTraining: { teamId: number; type: TrainingType };
+  /**
+   * The "Ny träning" guide. From the start page's plus button: the team and type picked there.
+   * From the menu: no params, so the coach picks the team and it is a football training.
+   */
+  NewTraining: { teamId?: number; type?: TrainingType } | undefined;
   EditTraining: { trainingId: number };
   NewMatch: { teamId: number };
   EditMatch: { matchId: number };
