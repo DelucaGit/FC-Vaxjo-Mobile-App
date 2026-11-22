@@ -143,7 +143,8 @@ class MatchEndTimeTest extends ClubApiTest {
         get(Actor.PLAYER_ALFA, "/api/my/matches")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].endsAt").value("2026-12-12T16:00:00"));
-        get(Actor.PARENT_ALFA, "/api/my/matches")
+        // A parent picks the child with childId.
+        get(Actor.PARENT_ALFA, "/api/my/matches", "childId", String.valueOf(world.playerAlfaId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].endsAt").value("2026-12-12T16:00:00"));
     }

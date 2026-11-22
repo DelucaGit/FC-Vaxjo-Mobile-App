@@ -31,7 +31,7 @@ import se.fcvaxjo.api.repository.UserRepository;
  * Frozen match: exactly the saved rows, nothing else.
  *
  * This is a close copy of TrainingAttendanceRoster. The two differ in the entity types
- * and in when the auto-freeze happens (a match has no end time). A shared generic class
+ * and in when the auto-freeze happens (a match's end time is optional). A shared generic class
  * would save a few lines but be harder to read, so they stay separate.
  *
  * This class does no access checks. MatchService has already checked who may see or
@@ -46,6 +46,12 @@ public class MatchAttendanceRoster {
      * a training gets after it ends.
      */
     public static final long AUTO_FREEZE_HOURS_AFTER_KICKOFF = 8;
+
+    /**
+     * A match with an end time freezes this long after it (issue #219),
+     * the same as TrainingAttendanceRoster.AUTO_FREEZE_HOURS.
+     */
+    public static final long AUTO_FREEZE_HOURS_AFTER_END = 6;
 
     /** Kickoff times are club wall-clock times in Sweden, stored without a zone. */
     static final ZoneId CLUB_ZONE = ZoneId.of("Europe/Stockholm");
@@ -71,7 +77,8 @@ public class MatchAttendanceRoster {
 
     /**
      * Lazy auto-freeze. Call this before reading or changing a match.
-     * An open match whose kickoff was more than 8 hours ago is frozen with the rows
+     * An open match is frozen 6 hours after endsAt, or 8 hours after kickoff when it
+     * has no end time. It is frozen with the rows
      * it already has. Nothing is added: "now" may be days later, and today's team
      * is not the team that played.
      */
@@ -85,7 +92,7 @@ public class MatchAttendanceRoster {
             return match;
         }
         LocalDateTime now = now();
-        if (!now.isAfter(match.getKickoffAt().plusHours(AUTO_FREEZE_HOURS_AFTER_KICKOFF))) {
+        if (!now.isAfter(autoFreezeLimit(match))) {
             return match;
         }
         match.setAttendanceLockedAt(now);
@@ -167,6 +174,14 @@ public class MatchAttendanceRoster {
             }
         }
         return players;
+    }
+
+    /** Counts from the end time when there is one, otherwise from kickoff. */
+    private static LocalDateTime autoFreezeLimit(Match match) {
+        if (match.getEndsAt() != null) {
+            return match.getEndsAt().plusHours(AUTO_FREEZE_HOURS_AFTER_END);
+        }
+        return match.getKickoffAt().plusHours(AUTO_FREEZE_HOURS_AFTER_KICKOFF);
     }
 
     private LocalDateTime now() {

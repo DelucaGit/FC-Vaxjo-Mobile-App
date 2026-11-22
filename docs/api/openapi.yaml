@@ -1086,6 +1086,7 @@ paths:
         ADMIN är undantagen och får sätta vilken tid som helst. En match flyttas med `PUT /api/matches/{id}` (#127).
         Fel: "teamId is required", "opponent is required", "kickoffAt is required",
         "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
+        "Sluttiden måste vara efter avsparken." (400, när `endsAt` är satt och inte efter `kickoffAt`, #219),
         "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY",
         "goalsFor and goalsAgainst must both be set, or both left empty",
         "goalsFor and goalsAgainst cannot be negative" (400);
@@ -1148,8 +1149,10 @@ paths:
         En ny `kickoffAt` får inte ligga före nu (svensk tid), annars 400 (#115). ADMIN är undantagen.
         Kontrollen görs bara när `kickoffAt` ändras: att rätta platsen på en gammal match med samma tid går igenom.
         Samma 403 för en COACH när id saknas och när matchen hör till ett annat lag.
+        `endsAt` ersätts också: utelämnas den töms sluttiden (#219).
         Fel: "opponent is required", "kickoffAt is required",
         "Starttiden har redan passerat. Välj en tid som inte har varit." (400, inte ADMIN),
+        "Sluttiden måste vara efter avsparken." (400, #219),
         "venue is required", "homeAway is required (HOME or AWAY)", "homeAway must be HOME or AWAY" (400);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403, kontrolleras först);
         PLAYER och PARENT får 403 från `@PreAuthorize`;
@@ -1258,8 +1261,9 @@ paths:
         Öppen match (`attendanceLockedAt` null): lagets aktiva spelare (roll PLAYER) just nu, med sparad
         status eller `status: null`. En spelare som har slutat eller bytt lag syns inte längre.
         Fryst match: exakt de sparade raderna. Den som har slutat finns kvar, den som har kommit senare syns inte.
-        Automatisk frysning: om klockan är mer än 8 timmar efter `kickoffAt` (svensk tid; en match har ingen
-        sluttid, så ca 2 timmar match + 6 timmar) fryses matchen först, med de rader som redan är sparade.
+        Automatisk frysning: om klockan är mer än 6 timmar efter `endsAt` (svensk tid, samma som en träning, #219),
+        eller mer än 8 timmar efter `kickoffAt` när matchen saknar sluttid (ca 2 timmar match + 6 timmar),
+        fryses matchen först, med de rader som redan är sparade.
         Inget läggs till och inget tas bort.
         Fel: "Match not found" (404 för ADMIN och CHAIRMAN), "Player not found" (404);
         "Only ADMIN, CHAIRMAN, or a coach of this team can manage matches" (403 för en COACH när matchen
@@ -2282,6 +2286,11 @@ components:
         teamId: { type: integer, format: int64 }
         opponent: { type: string, minLength: 1, description: Motståndarlag. Trimmas. }
         kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt:
+          description: Valfri sluttid (#219). Måste vara efter kickoffAt när den är satt.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
         venue: { type: string, minLength: 1, description: Plats. Trimmas. }
         homeAway: { $ref: '#/components/schemas/HomeAway' }
         goalsFor:
@@ -2299,6 +2308,11 @@ components:
       properties:
         opponent: { type: string, minLength: 1, description: Motståndarlag. Trimmas. }
         kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt:
+          description: Valfri sluttid (#219). Måste vara efter kickoffAt när den är satt.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
         venue: { type: string, minLength: 1, description: Plats. Trimmas. }
         homeAway: { $ref: '#/components/schemas/HomeAway' }
     SetMatchResultRequest:
@@ -2318,6 +2332,11 @@ components:
         teamName: { type: [string, 'null'] }
         opponent: { type: string }
         kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt:
+          description: Sluttid (#219). Null när matchen saknar sluttid.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
         venue: { type: string }
         homeAway: { $ref: '#/components/schemas/HomeAway' }
         result:
@@ -2329,7 +2348,7 @@ components:
         cancelReason: { type: [string, 'null'], description: Valfri orsak. Null när matchen inte är inställd. }
         createdByUserId: { type: integer, format: int64 }
         attendanceLockedAt:
-          description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
+          description: När närvarolistan frystes ("Klar", 6 timmar efter `endsAt`, eller 8 timmar efter `kickoffAt` utan sluttid). Null = öppen lista.
           oneOf:
             - $ref: '#/components/schemas/LocalDateTime'
             - type: 'null'
@@ -2345,6 +2364,11 @@ components:
         teamName: { type: [string, 'null'] }
         opponent: { type: string }
         kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt:
+          description: Sluttid (#219). Null när matchen saknar sluttid.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
         venue: { type: string }
         homeAway: { $ref: '#/components/schemas/HomeAway' }
         result:
@@ -2355,7 +2379,7 @@ components:
         status: { $ref: '#/components/schemas/MatchStatus' }
         cancelReason: { type: [string, 'null'], description: Valfri orsak. Null när matchen inte är inställd. }
         attendanceLockedAt:
-          description: När närvarolistan frystes ("Klar" eller 8 timmar efter `kickoffAt`). Null = öppen lista.
+          description: När närvarolistan frystes ("Klar", 6 timmar efter `endsAt`, eller 8 timmar efter `kickoffAt` utan sluttid). Null = öppen lista.
           oneOf:
             - $ref: '#/components/schemas/LocalDateTime'
             - type: 'null'
@@ -2510,6 +2534,11 @@ components:
         teamName: { type: string }
         opponent: { type: string, description: Motståndarlag. }
         kickoffAt: { $ref: '#/components/schemas/LocalDateTime' }
+        endsAt:
+          description: Sluttid (#219). Null när matchen saknar sluttid.
+          oneOf:
+            - $ref: '#/components/schemas/LocalDateTime'
+            - type: 'null'
         venue: { type: string, description: Plats/arena. }
         homeAway: { type: string, enum: [HOME, AWAY] }
         result:

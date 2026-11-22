@@ -119,6 +119,7 @@ public class MyScheduleController {
                     myScheduleService.getTeamName(match.getTeamId()),
                     match.getOpponent(),
                     match.getKickoffAt(),
+                    match.getEndsAt(),
                     match.getVenue(),
                     match.getHomeAway().name(),
                     resultOf(match),
