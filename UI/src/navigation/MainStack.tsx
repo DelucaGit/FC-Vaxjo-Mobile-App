@@ -11,7 +11,6 @@ import CoachesScreen from '../screens/CoachesScreen';
 import EditMatchScreen from '../screens/EditMatchScreen';
 import EditTrainingScreen from '../screens/EditTrainingScreen';
 import MoreChangePasswordScreen from '../screens/MoreChangePasswordScreen';
-import MoreScreen from '../screens/MoreScreen';
 import NewMatchScreen from '../screens/NewMatchScreen';
 import NewPlayerScreen from '../screens/NewPlayerScreen';
 import NewTeamScreen from '../screens/NewTeamScreen';
@@ -62,7 +61,6 @@ const SCREENS: Record<RouteName, ComponentType<any>> = {
   Users: UsersScreen,
   UserDetail: UserDetailScreen,
   NewUser: NewUserScreen,
-  More: MoreScreen,
   ChangePassword: MoreChangePasswordScreen,
   PastActivities: PastActivitiesScreen,
 };
@@ -77,8 +75,8 @@ const ACTIVITY_ACTIONS: readonly RouteName[] = [
   'SetResult',
   'Attendance',
 ];
-/** "Mer" and "Tidigare aktiviteter": every role. */
-const MORE: readonly RouteName[] = ['More', 'ChangePassword', 'PastActivities', ...ACTIVITY_ACTIONS];
+/** "Byt lösenord" (from the profile menu) and "Tidigare aktiviteter": every role. */
+const EVERY_ROLE: readonly RouteName[] = ['ChangePassword', 'PastActivities', ...ACTIVITY_ACTIONS];
 const ACTIVITIES: readonly RouteName[] = ['Activities', 'NewTraining', 'NewMatch', ...ACTIVITY_ACTIONS];
 const SQUAD: readonly RouteName[] = ['Squad', 'PlayerView', 'PlayerProfile', 'NewPlayer'];
 const SEARCH: readonly RouteName[] = ['Search', 'PlayerView', 'PlayerProfile'];
@@ -102,17 +100,17 @@ export function routesForRole(roleName: string | null | undefined): readonly Rou
   switch (roleName) {
     case 'PLAYER':
     case 'PARENT':
-      groups = [['Schedule', 'Coaches'], MORE];
+      groups = [['Schedule', 'Coaches'], EVERY_ROLE];
       break;
     case 'COACH':
-      groups = [ACTIVITIES, SQUAD, SEARCH, MORE];
+      groups = [ACTIVITIES, SQUAD, SEARCH, EVERY_ROLE];
       break;
     case 'CHAIRMAN':
     case 'ADMIN':
-      groups = [ACTIVITIES, TEAMS, USERS, MORE];
+      groups = [ACTIVITIES, TEAMS, USERS, EVERY_ROLE];
       break;
     default:
-      groups = [MORE];
+      groups = [EVERY_ROLE];
   }
   return [...new Set(groups.flat())];
 }
@@ -126,7 +124,9 @@ export default function MainStack() {
   const { session } = useAuth();
   const roleName = session?.roleName;
   const routes = routesForRole(roleName);
-  const initialRouteName = menuForRole(roleName)[0]?.route ?? 'More';
+  // An unknown role has an empty menu: it starts on a page every role has, and can
+  // still log out from the profile menu.
+  const initialRouteName = menuForRole(roleName)[0]?.route ?? 'PastActivities';
 
   return (
     <Stack.Navigator

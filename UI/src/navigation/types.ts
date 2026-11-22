@@ -48,8 +48,7 @@ export type AppStackParamList = {
   UserDetail: { userId: number };
   NewUser: undefined;
 
-  // Mer
-  More: undefined;
+  // Every role: "Byt lösenord" opens from the profile menu.
   ChangePassword: undefined;
   /** "Tidigare aktiviteter": every role, newest first. */
   PastActivities: undefined;

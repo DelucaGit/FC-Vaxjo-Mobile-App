@@ -9,3 +9,13 @@ export const MenuContext = createContext<MenuContextValue | null>(null);
 export function useMenu(): MenuContextValue | null {
   return useContext(MenuContext);
 }
+
+export type ProfileMenuContextValue = { initials: string; openProfileMenu: () => void };
+
+/** Set by the menu (Menu.tsx) around the whole signed-in stack, so every page has the initials button. */
+export const ProfileMenuContext = createContext<ProfileMenuContextValue | null>(null);
+
+/** Opens the profile menu. Null outside the signed-in stack, then there is no initials button. */
+export function useProfileMenu(): ProfileMenuContextValue | null {
+  return useContext(ProfileMenuContext);
+}

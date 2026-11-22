@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Menu } from 'lucide-react-native';
-import { useMenu } from '../../navigation/menuContext';
+import { useMenu, useProfileMenu } from '../../navigation/menuContext';
 import { colors, radii, sizes, spacing, type } from '../../theme';
 import type { RefreshState } from './useRefresh';
 
@@ -45,6 +45,8 @@ export function Screen({
   // Set only on the first page of the stack, so a pushed page keeps its back arrow.
   const menu = useMenu();
   const showMenu = menu !== null;
+  // Set on every page of the signed-in stack: the initials that open the profile menu.
+  const profile = useProfileMenu();
 
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
@@ -97,6 +99,17 @@ export function Screen({
           {title}
         </Text>
         {right ? <View style={styles.right}>{right}</View> : null}
+        {profile ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Öppna profilmeny"
+            onPress={profile.openProfileMenu}
+            hitSlop={8}
+            style={[styles.round, styles.initials]}
+          >
+            <Text style={styles.initialsText}>{profile.initials}</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* A wrapper, so the overlay covers the content area but not the header or bottom bar. */}
@@ -170,6 +183,9 @@ const styles = StyleSheet.create({
   // flex 1 + minWidth 0: the title fills the free space and can shrink below its text width.
   title: { flex: 1, minWidth: 0, marginLeft: spacing.md, textAlign: 'right' },
   right: { marginLeft: spacing.sm },
+  // Prototype `.avatar`: a dark circle with white initials, at the far right.
+  initials: { marginLeft: spacing.md, backgroundColor: colors.text, borderColor: colors.text },
+  initialsText: { ...type.rowTitle, fontSize: 14, color: colors.onPrimary },
   body: { flex: 1 },
   content: { flex: 1, backgroundColor: colors.background },
   // Prototype `.foot`: buttons on the page background, no line above.
