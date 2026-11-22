@@ -1,5 +1,6 @@
 import { TextInput } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Button } from './Button';
 import { Guide, GuideOption, type GuideStep } from './Guide';
 
 type Answers = { color: string | null; name: string };
@@ -125,6 +126,22 @@ describe('Guide', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Tillbaka' }));
     expect(onExit).toHaveBeenCalled();
+  });
+
+  test('a step can put an action next to its question, only on that step', async () => {
+    const onEdit = jest.fn();
+    const withAction: GuideStep<Answers>[] = [
+      { ...steps[0], headerAction: () => <Button title="Redigera" variant="link" onPress={onEdit} /> },
+      steps[1],
+    ];
+    await setup({ steps: withAction }).view;
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Redigera' }));
+    expect(onEdit).toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Röd' }));
+    await fireEvent.press(next());
+    expect(screen.queryByRole('button', { name: 'Redigera' })).toBeNull();
   });
 
   test('the summary shows an error and locks "Bekräfta" while busy', async () => {

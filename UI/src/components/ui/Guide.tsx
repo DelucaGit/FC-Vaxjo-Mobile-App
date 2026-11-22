@@ -21,6 +21,8 @@ export type GuideStep<A> = {
   canProceed: (answers: A) => boolean;
   /** The step's own controls. `update` merges a change into the answers. */
   render: (answers: A, update: (patch: Partial<A>) => void) => ReactNode;
+  /** Optional small control in a row with the question, e.g. "Redigera" (issue #218). */
+  headerAction?: (answers: A) => ReactNode;
 };
 
 type Props<A> = {
@@ -102,9 +104,12 @@ export function Guide<A>({
           ))}
         </View>
 
-        <Text accessibilityRole="header" style={styles.question}>
-          {step ? step.question : 'Stämmer det här?'}
-        </Text>
+        <View style={styles.questionRow}>
+          <Text accessibilityRole="header" style={styles.question}>
+            {step ? step.question : 'Stämmer det här?'}
+          </Text>
+          {step?.headerAction ? step.headerAction(answers) : null}
+        </View>
 
         {step ? (
           step.render(answers, update)
@@ -164,7 +169,10 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 6, marginVertical: 6, marginHorizontal: 2 },
   dot: { height: 4, flex: 1, borderRadius: radii.pill, backgroundColor: colors.border },
   dotOn: { backgroundColor: colors.primary },
+  // Prototype `.qrow`: the question grows, the action sits at its right.
+  questionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   question: {
+    flex: 1,
     fontFamily: fonts.bold,
     fontSize: 26,
     lineHeight: 30,

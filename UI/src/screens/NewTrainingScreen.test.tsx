@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { createTraining, createTrainingSeries } from '../api/trainings';
+import { listSavedVenues } from '../api/savedVenues';
 import { loadVisibleTeams } from '../lib/players/teams';
 import { dayAccessibilityLabel, dayKey } from '../lib/schedule/calendar';
 import { PAST_START_MESSAGE } from '../lib/activities/startTime';
@@ -11,6 +12,11 @@ jest.mock('../api/trainings', () => ({
   createTrainingSeries: jest.fn(),
 }));
 jest.mock('../lib/players/teams', () => ({ loadVisibleTeams: jest.fn() }));
+jest.mock('../api/savedVenues', () => ({
+  listSavedVenues: jest.fn(),
+  createSavedVenue: jest.fn(),
+  deleteSavedVenue: jest.fn(),
+}));
 
 let mockRole = 'COACH';
 jest.mock('../auth/AuthContext', () => ({
@@ -20,6 +26,11 @@ jest.mock('../auth/AuthContext', () => ({
 const ALFA = { id: 10, name: 'P2014' };
 const BETA = { id: 11, name: 'F2015' };
 
+const VENUES = [
+  { id: 1, name: 'Konstgräset', address: null, createdByUserId: 1 },
+  { id: 2, name: 'Kronobergsvallen 1', address: null, createdByUserId: 1 },
+];
+
 const navigation = { goBack: jest.fn(), popTo: jest.fn() };
 const props = (params?: object) =>
   ({ navigation, route: { key: 'k', name: 'NewTraining', params } }) as any;
@@ -28,6 +39,7 @@ beforeEach(() => {
   mockRole = 'COACH';
   jest.clearAllMocks();
   jest.mocked(loadVisibleTeams).mockResolvedValue([ALFA, BETA]);
+  jest.mocked(listSavedVenues).mockResolvedValue(VENUES);
 });
 
 // Days in next month, so they are always in the future and one "Nästa månad" away.
@@ -61,15 +73,15 @@ async function pickDay(key: string, monthsAhead = 1) {
   await press(dayAccessibilityLabel(key));
 }
 
-/** Lag (already picked), Dag, Tid (default 17:30–19:00), Plats. Ends on Upprepa. */
-async function fillToRepeat(venue = '') {
+/** Lag (already picked), Dag, Tid (default 17:30–19:00), Plats (a saved venue). Ends on Upprepa. */
+async function fillToRepeat(venue = 'Kronobergsvallen 1') {
   await render(<NewTrainingScreen {...props({ teamId: 10, type: 'FOOTBALL' })} />);
   await screen.findByRole('header', { name: 'Vilket lag?' });
   await fireEvent.press(nextButton());
   await pickDay(day(2));
   await fireEvent.press(nextButton());
   await fireEvent.press(nextButton());
-  if (venue) await fireEvent.changeText(screen.getByLabelText('Plats (valfri)'), venue);
+  await fireEvent.press(await screen.findByRole('radio', { name: venue }));
   await fireEvent.press(nextButton());
   expect(question('Upprepa varje vecka?')).toBeOnTheScreen();
 }
@@ -110,7 +122,7 @@ describe('NewTrainingScreen (Guide, #216)', () => {
 
     await press('Bakåt');
     expect(question('Var ska ni vara?')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Plats (valfri)').props.value).toBe('Konstgräset');
+    expect(await screen.findByRole('radio', { name: 'Konstgräset' })).toBeChecked();
     await press('Bakåt');
     expect(question('Vilken tid?')).toBeOnTheScreen();
     expect(screen.getByRole('tab', { name: 'Start 17:30' })).toBeOnTheScreen();
@@ -125,6 +137,22 @@ describe('NewTrainingScreen (Guide, #216)', () => {
     expect(screen.getByRole('radio', { name: 'Nej, bara en gång' })).toBeChecked();
   });
 
+  test('Plats is a saved venue and must be picked before Nästa (#218)', async () => {
+    await render(<NewTrainingScreen {...props({ teamId: 10 })} />);
+    await screen.findByRole('header', { name: 'Vilket lag?' });
+    await fireEvent.press(nextButton());
+    await pickDay(day(2));
+    await fireEvent.press(nextButton());
+    await fireEvent.press(nextButton());
+
+    expect(question('Var ska ni vara?')).toBeOnTheScreen();
+    expect(await screen.findByRole('radio', { name: 'Konstgräset' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Redigera' })).toBeOnTheScreen();
+    expect(nextButton()).toBeDisabled();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Konstgräset' }));
+    expect(nextButton()).toBeEnabled();
+  });
+
   test('a day must be picked before Nästa', async () => {
     await render(<NewTrainingScreen {...props({ teamId: 10 })} />);
     await screen.findByRole('header', { name: 'Vilket lag?' });
@@ -137,7 +165,7 @@ describe('NewTrainingScreen (Guide, #216)', () => {
 
   test('without repeat, Bekräfta shows the summary and creates one training', async () => {
     jest.mocked(createTraining).mockResolvedValue(saved);
-    await fillToRepeat(' Konstgräset ');
+    await fillToRepeat('Konstgräset');
     expect(nextButton()).toBeDisabled();
     await fireEvent.press(screen.getByRole('radio', { name: 'Nej, bara en gång' }));
     await fireEvent.press(nextButton());
@@ -177,7 +205,7 @@ describe('NewTrainingScreen (Guide, #216)', () => {
     expect(
       screen.getByText(`Varje vecka till ${dayAccessibilityLabel(day(16))} (3 träningar skapas)`),
     ).toBeOnTheScreen();
-    expect(screen.getByText('Ingen plats')).toBeOnTheScreen();
+    expect(screen.getByText('Kronobergsvallen 1')).toBeOnTheScreen();
     await press('Bekräfta');
 
     const weekday = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][
@@ -189,7 +217,7 @@ describe('NewTrainingScreen (Guide, #216)', () => {
       weekdays: [weekday],
       startTime: '17:30',
       endTime: '19:00',
-      venue: null,
+      venue: 'Kronobergsvallen 1',
       fromDate: day(2),
       toDate: day(16),
     });

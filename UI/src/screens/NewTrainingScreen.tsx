@@ -12,11 +12,12 @@ import {
 import { trainingTypeName } from '../api/trainingTypes';
 import { useAuth } from '../auth/AuthContext';
 import { canSetPastActivityTime } from '../auth/permissions';
-import { Field, Screen, SkeletonList, useToast } from '../components/ui';
+import { Screen, SkeletonList, useToast } from '../components/ui';
 import { Guide, GuideOption, type GuideStep } from '../components/ui/Guide';
 import { MonthCalendar } from '../components/ui/MonthCalendar';
 import { TimeWheel } from '../components/ui/TimeWheel';
 import { ErrorText } from '../components/activities/TrainingForm';
+import { venueGuideStep } from '../components/activities/VenueStep';
 import { toTrainingPayload } from '../components/activities/trainingValues';
 import { PAST_START_MESSAGE, isPastStart } from '../lib/activities/startTime';
 import {
@@ -43,7 +44,7 @@ export type TrainingAnswers = {
   start: string;
   /** "19:00" */
   end: string;
-  /** Optional. */
+  /** A saved venue's name (issue #218). '' until one is picked. */
   venue: string;
   /** null until the coach has answered. */
   repeat: boolean | null;
@@ -96,6 +97,7 @@ function startTeam(teams: readonly Team[], wanted: number | undefined): number |
 
 /**
  * "Ny träning" as a Guide (issue #216): Lag, Dag, Tid, Plats, Upprepa, then a summary.
+ * Plats is picked from the club's saved venues and is required (issue #218).
  * Opened from the menu (no params, a football training) or from the start page's plus
  * button (team and type picked there). After saving the coach lands on the start page.
  */
@@ -110,6 +112,8 @@ export default function NewTrainingScreen({ navigation, route }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Plats step's edit mode (issue #218). Its "Redigera" sits in the Guide's question row.
+  const [editingVenues, setEditingVenues] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -194,21 +198,13 @@ export default function NewTrainingScreen({ navigation, route }: Props) {
         </>
       ),
     },
-    {
-      key: 'venue',
+    venueGuideStep<TrainingAnswers>({
       question: 'Var ska ni vara?',
-      label: 'Plats',
-      summary: (a) => a.venue.trim() || 'Ingen plats',
-      canProceed: () => true,
-      render: (a, update) => (
-        <Field
-          label="Plats (valfri)"
-          value={a.venue}
-          onChangeText={(venue) => update({ venue })}
-          maxLength={80}
-        />
-      ),
-    },
+      editing: editingVenues,
+      setEditing: setEditingVenues,
+      venueOf: (a) => a.venue,
+      patch: (venue) => ({ venue }),
+    }),
     {
       key: 'repeat',
       question: 'Upprepa varje vecka?',
