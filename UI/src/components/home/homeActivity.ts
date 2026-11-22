@@ -18,6 +18,8 @@ export type HomeActivity = {
   homeAway?: HomeAway;
   cancelled: boolean;
   cancelReason?: string | null;
+  /** The activity's own team, on a start page that mixes several teams (coach, admin). */
+  teamName?: string | null;
 };
 
 /** "Hemma" or "Borta". */
@@ -30,7 +32,7 @@ export function placeLine(activity: HomeActivity, teamName?: string): string {
   return [
     activity.venue,
     activity.homeAway ? homeAwayText(activity.homeAway) : null,
-    teamName,
+    teamName ?? activity.teamName,
   ]
     .filter((part): part is string => Boolean(part))
     .join(' · ');

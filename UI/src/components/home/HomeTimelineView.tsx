@@ -15,6 +15,8 @@ type Props = {
   /** Passed on to the cards. */
   teamName?: string;
   forName?: string;
+  /** When given, every card is a button that calls this with its activity. */
+  onPressActivity?: (activity: HomeActivity) => void;
 };
 
 /**
@@ -29,19 +31,30 @@ export function HomeTimelineView({
   onShowMore,
   teamName,
   forName,
+  onPressActivity,
 }: Props) {
   if (!next) {
     return <Empty text="Inga kommande aktiviteter" />;
   }
   return (
     <>
-      <NextActivityCard activity={next} teamName={teamName} forName={forName} />
+      <NextActivityCard
+        activity={next}
+        teamName={teamName}
+        forName={forName}
+        onPress={onPressActivity ? () => onPressActivity(next) : undefined}
+      />
       <Text style={styles.heading}>
         {extraWeeks === 0 ? 'Kommande vecka' : 'Kommande aktiviteter'}
       </Text>
       {comingWeek.length === 0 ? <Text style={styles.hint}>Inget mer inplanerat just nu.</Text> : null}
       {comingWeek.map((activity) => (
-        <ActivityCard key={activity.key} activity={activity} teamName={teamName} />
+        <ActivityCard
+          key={activity.key}
+          activity={activity}
+          teamName={teamName}
+          onPress={onPressActivity ? () => onPressActivity(activity) : undefined}
+        />
       ))}
       {hasMore ? (
         <Pressable accessibilityRole="button" onPress={onShowMore} style={styles.more}>

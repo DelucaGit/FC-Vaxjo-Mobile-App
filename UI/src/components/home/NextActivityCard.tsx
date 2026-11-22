@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { cancelledLabel } from '../activities/activityItems';
 import { activityDateLabel } from '../../lib/dates';
@@ -11,20 +11,20 @@ type Props = {
   teamName?: string;
   /** A parent sees whose activity it is: "Nästa aktivitet för Elsa". */
   forName?: string;
+  /** Makes the card a button, e.g. to open the activity's detail page. */
+  onPress?: () => void;
 };
 
 /**
  * Nästa aktivitet: the large card at the top of the start page (prototype `.heroc`).
  * Red for a training, dark for a match. A cancelled one stays, with "Inställd" and the reason.
  */
-export function NextActivityCard({ activity, teamName, forName }: Props) {
+export function NextActivityCard({ activity, teamName, forName, onPress }: Props) {
   const isMatch = activity.kind === 'match';
   const place = placeLine(activity, teamName);
-  return (
-    <View
-      testID={`next-${activity.key}`}
-      style={[styles.card, isMatch ? styles.match : styles.training]}
-    >
+  const style = [styles.card, isMatch ? styles.match : styles.training];
+  const content = (
+    <>
       <Text style={styles.kick}>{forName ? `Nästa aktivitet för ${forName}` : 'Nästa aktivitet'}</Text>
       <Text style={[styles.big, activity.cancelled && styles.struck]}>{activity.title}</Text>
       <View style={styles.metaList}>
@@ -44,6 +44,15 @@ export function NextActivityCard({ activity, teamName, forName }: Props) {
           <Text style={styles.pillText}>{cancelledLabel(activity.cancelReason ?? null)}</Text>
         </View>
       ) : null}
+    </>
+  );
+  return onPress ? (
+    <Pressable testID={`next-${activity.key}`} accessibilityRole="button" onPress={onPress} style={style}>
+      {content}
+    </Pressable>
+  ) : (
+    <View testID={`next-${activity.key}`} style={style}>
+      {content}
     </View>
   );
 }
