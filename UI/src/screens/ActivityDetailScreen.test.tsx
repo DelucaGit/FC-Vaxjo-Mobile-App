@@ -115,6 +115,16 @@ test('match: result, Hemma/Borta, lock stamp, "Ändra" and "Ange resultat"', asy
   expect(navigation.navigate).toHaveBeenCalledWith('EditMatch', { matchId: 3 });
 });
 
+test('match: the end time is shown next to the kick-off when set (#219)', async () => {
+  mockRole = 'COACH';
+  jest.mocked(getMatch).mockResolvedValue({ ...match, endsAt: '2020-11-21T11:30:00' });
+  jest.mocked(listMatchAttendance).mockResolvedValue([]);
+
+  await render(<ActivityDetailScreen {...propsFor('match', 3)} />);
+
+  expect(await screen.findByText(/10:00–11:30$/)).toBeTruthy();
+});
+
 test('match: "Ändra" and the player list are hidden for a role that may not change matches', async () => {
   mockRole = 'PLAYER';
   jest.mocked(listMatchAttendance).mockClear();

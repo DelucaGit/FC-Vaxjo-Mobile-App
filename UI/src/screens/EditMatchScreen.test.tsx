@@ -58,10 +58,22 @@ test('saving sends the changes and goes back', async () => {
   expect(updateMatch).toHaveBeenCalledWith(3, {
     opponent: 'Östers IF',
     kickoffAt: '2099-11-21T13:30:00',
+    endsAt: null,
     venue: 'Myresjöhus Arena',
     homeAway: 'AWAY',
   });
   expect(navigation.goBack).toHaveBeenCalled();
+});
+
+test('saving keeps the end time, since the API clears it when left out (#219)', async () => {
+  jest.mocked(getMatch).mockResolvedValue({ ...saved, endsAt: '2099-11-21T11:45:00' });
+  jest.mocked(updateMatch).mockResolvedValue(saved);
+  await render(<EditMatchScreen {...props} />);
+
+  await fireEvent.changeText(await screen.findByLabelText('Plats'), 'Myresjöhus Arena');
+  await fireEvent.press(saveButton());
+
+  expect(updateMatch).toHaveBeenCalledWith(3, expect.objectContaining({ endsAt: '2099-11-21T11:45:00' }));
 });
 
 test('an error from the API is shown and the screen stays', async () => {

@@ -96,7 +96,7 @@ export function attendanceApi(kind: ActivityKind, id: number): AttendanceApi {
       const m = await getMatch(id);
       return {
         start: m.kickoffAt,
-        end: null,
+        end: m.endsAt ?? null,
         title: `Match mot ${m.opponent}`,
         lockedAt: m.attendanceLockedAt,
       };

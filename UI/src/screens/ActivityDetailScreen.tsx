@@ -201,7 +201,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
         <>
           <View style={styles.head}>
             <Text style={[type.heading, cancelled && styles.struck]}>{matchTitle(match)}</Text>
-            <DateText start={match.kickoffAt} />
+            <DateText start={match.kickoffAt} end={match.endsAt} />
           </View>
           <List>
             <InfoRow label="Lag" value={match.teamName} />

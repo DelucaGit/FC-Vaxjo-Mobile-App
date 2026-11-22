@@ -85,6 +85,7 @@ export function homeFromMatch(m: MyMatch): HomeActivity {
     key: `m${m.id}`,
     kind: 'match',
     startsAt: m.kickoffAt,
+    endsAt: m.endsAt ?? null,
     title: `Match mot ${m.opponent}`,
     venue: m.venue,
     homeAway: m.homeAway,

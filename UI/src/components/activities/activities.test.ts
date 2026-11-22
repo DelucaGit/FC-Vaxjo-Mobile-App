@@ -4,6 +4,7 @@ import {
   fromMatch,
   fromTraining,
   groupByWeek,
+  homeFromTeamMatch,
   isPartlyMarked,
   needsAttendanceCount,
 } from './activityItems';
@@ -47,6 +48,13 @@ describe('activityItems', () => {
     expect(item.title).toBe('Match mot Östers IF');
     expect(item.result).toBe('3–1');
     expect(item.place).toBe('Värendsvallen · Hemma');
+  });
+
+  test("a match's end time is shown when it has one (#219)", () => {
+    expect(fromMatch(match).endsAt).toBeNull();
+    const withEnd = { ...match, endsAt: '2026-11-21T11:30:00' };
+    expect(fromMatch(withEnd).endsAt).toBe('2026-11-21T11:30:00');
+    expect(homeFromTeamMatch(withEnd).endsAt).toBe('2026-11-21T11:30:00');
   });
 
   test('groups sorted activities by ISO week', () => {
