@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FC Växjö – C3 Ren meny (prototyp)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F3F5F7;--card:#FFFFFF;--ink:#111827;--mute:#6B7280;--line:#E5E7EB;--red:#8F1822;--redh:#7A1019;--grn:#15803D;--grnl:#DCFCE7;--amb:#B45309;--ambl:#FEF3C7;--redd:#B91C1C;--redl:#FEE2E2;--r:16px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#DDE1E6;font-family:Inter,system-ui,sans-serif;font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
+h1,h2,h3,b,.h{font-weight:700}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;text-align:left;padding:0}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.mute{color:var(--mute)}.sm{font-size:13px}
+.ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:14px;font-size:14px}
+.ctrl button{padding:10px 16px;min-height:44px;border-radius:99px;background:#fff;font-weight:600;border:1px solid var(--line);transition:background .15s}
+.ctrl button.on{background:var(--ink);color:#fff}
+.phone{width:min(390px,100%);height:800px;max-height:calc(100vh - 80px);min-height:640px;background:var(--bg);border-radius:44px;border:9px solid #111827;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(17,24,39,.2)}
+.app{position:absolute;inset:0;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:12px;padding:28px 16px 10px}
+.bar h2{flex:1;margin:0;font-size:20px;letter-spacing:-.01em}
+.round{width:48px;height:48px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;flex:none;transition:transform .12s,background .15s;color:var(--ink)}
+.round:active{background:var(--line);transform:scale(.95)}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:16px;flex:none;transition:transform .12s}
+button.avatar:active{transform:scale(.95)}
+.av-s{width:44px;height:44px;font-size:15px}
+.body{flex:1;overflow:auto;padding:6px 16px 28px}
+.pop{animation:pop .24s ease-out}
+@keyframes pop{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.card:active,.ri:active,.li:active,.di:active,.opt:active,.chip:active,.pc:active{background:#F3F5F7}
+.heroc{display:block;width:100%;background:var(--red);color:#fff;border-radius:var(--r);padding:18px;margin-bottom:8px;transition:background .15s,transform .12s}
+button.heroc:active{background:var(--redh);transform:scale(.985)}
+.heroc .kick{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;opacity:.85}
+.heroc .big{font-size:24px;font-weight:700;line-height:1.15;margin:6px 0 4px;letter-spacing:-.01em}
+.heroc .sub{font-size:14px;opacity:.88}
+.hrow{display:flex;align-items:center;gap:10px;margin-top:14px}
+.hbtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:12px;background:#fff;color:var(--red);font-weight:700;font-size:15px}
+.gt{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.08em;margin:20px 6px 8px}
+.grp{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ri{display:flex;align-items:center;gap:14px;width:100%;min-height:68px;padding:10px 14px;transition:background .15s}
+.ri+.ri{border-top:1px solid var(--line)}
+.ri:active{background:#F3F5F7}
+.ico{width:44px;height:44px;border-radius:50%;background:#F3F5F7;color:#4B5563;display:grid;place-items:center;flex:none;transition:background .15s,color .15s}
+.rt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.rt b{font-size:16px}.rs{font-size:13px;color:var(--mute);font-weight:500}
+.chev{color:#9CA3AF;display:grid;flex:none}
+.badge{min-width:24px;height:24px;padding:0 8px;border-radius:99px;background:var(--red);color:#fff;font-size:13px;font-weight:700;display:inline-grid;place-items:center;flex:none}
+.row{display:flex;gap:10px}
+.btn{min-height:48px;border-radius:12px;padding:0 16px;font-size:16px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s,background .15s;flex:1;text-align:center}
+.btn:active{transform:scale(.97)}
+.b-red{background:var(--red);color:#fff}.b-red:active{background:var(--redh)}
+.b-navy{background:var(--ink);color:#fff}
+.b-sand{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.b-ok{background:var(--grnl);color:var(--grn)}
+.b-w{background:#fff;color:var(--red)}
+.b-dis{opacity:.4;cursor:not-allowed}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}
+.chip{min-height:48px;padding:0 16px;border-radius:99px;background:var(--card);border:1px solid var(--line);display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;transition:background .15s,transform .12s}
+.chip.on{background:var(--red);border-color:var(--red);color:#fff}
+.chip .avatar{width:32px;height:32px;font-size:12px}
+.card{display:block;width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;transition:background .15s,transform .12s}
+.card .ct{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:17px;font-weight:700}
+.card .meta{display:flex;gap:6px;align-items:center;color:var(--mute);font-size:14px;margin:6px 0 10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px 4px 8px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.p-yes{background:var(--grnl);color:var(--grn)}.p-no{background:var(--redl);color:var(--redd)}.p-none{background:#F3F5F7;color:var(--mute)}.p-amb{background:var(--ambl);color:var(--amb)}
+.hint{font-size:14px;color:var(--mute);margin:6px 2px 12px}
+.ta{min-height:84px;padding:12px 16px;font-size:16px;resize:none;display:block;margin-bottom:6px}
+.day{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.08em;margin:18px 4px 8px}
+.banner{background:var(--ambl);color:var(--amb);border-radius:12px;padding:14px;display:flex;gap:10px;align-items:center;font-size:15px;font-weight:600;margin-bottom:12px}
+.sect{font-size:17px;font-weight:700;margin:20px 4px 8px}
+.empty{text-align:center;padding:30px 10px;color:var(--mute);font-size:16px}
+.empty svg{width:140px;height:100px;margin-bottom:8px}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 6px;text-align:center;transition:transform .12s,background .15s;position:relative;min-height:112px}
+.pc .avatar{margin:0 auto 6px;width:48px;height:48px}
+.pc .nm{font-size:14px;font-weight:600}.pc .nr{font-size:12px;color:var(--mute)}
+.pc.on{background:var(--grnl);border-color:var(--grn)}
+.pc .tick{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--grn);color:#fff;display:none;place-items:center}
+.pc.on .tick{display:grid}
+.counter{font-size:26px;font-weight:700;text-align:center;margin:8px 0 12px}
+.foot{position:sticky;bottom:-28px;padding:12px 0 6px;background:linear-gradient(transparent,var(--bg) 30%);display:flex;gap:10px}
+.inp{width:100%;min-height:56px;border-radius:12px;border:1px solid var(--line);background:#fff;padding:0 16px;font:inherit;font-weight:600;font-size:18px;color:var(--ink);outline:0;transition:border-color .15s}
+.inp:focus{border-color:var(--red)}
+.q{font-size:26px;font-weight:700;line-height:1.15;margin:10px 2px 18px;letter-spacing:-.01em}
+.dots{display:flex;gap:6px;margin:6px 2px}.dots i{height:4px;flex:1;border-radius:9px;background:var(--line)}.dots i.on{background:var(--red)}
+.opt{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 16px;font-size:17px;font-weight:600;margin-bottom:10px;transition:background .15s,transform .12s}
+.opt.on{background:var(--red);border-color:var(--red);color:#fff}
+.sum{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 16px}.sum div{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);font-size:16px}.sum div:last-child{border:0}
+.big-n{font-size:40px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.ov{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column}
+.scrim{position:absolute;inset:0;background:rgba(17,24,39,.45);z-index:30;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.drawer{position:absolute;top:0;left:0;bottom:0;width:84%;background:var(--card);z-index:31;padding:28px 14px 16px;animation:slide .26s ease-out;display:flex;flex-direction:column;border-radius:0 24px 24px 0}
+@keyframes slide{from{transform:translateX(-100%)}}
+.dh{display:flex;align-items:center;gap:12px;padding:0 4px 8px}
+.crest-s{width:44px;height:44px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center}
+.dnav{flex:1;overflow:auto}
+.di{display:flex;align-items:center;gap:14px;width:100%;min-height:52px;padding:4px 8px;border-radius:12px;font-size:16px;font-weight:600;transition:background .15s}
+.di .ico{width:40px;height:40px}
+.di:active{background:#F3F5F7}
+.di.on{background:#F9ECED;color:var(--red)}.di.on .ico{background:#fff;color:var(--red)}
+.pmenu{position:absolute;top:72px;right:12px;width:min(280px,calc(100% - 24px));background:var(--card);z-index:31;border-radius:20px;padding:14px;box-shadow:0 12px 40px rgba(17,24,39,.22);border:1px solid var(--line);transform-origin:top right;animation:drop .2s ease-out}
+@keyframes drop{from{opacity:0;transform:scale(.92) translateY(-8px)}}
+.pmenu .pdiv{border-top:1px solid var(--line);margin:10px 0 6px}
+.arow{display:flex;align-items:center;gap:14px;width:100%;min-height:68px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin-bottom:8px;transition:background .15s}
+.arow:active{background:#F3F5F7}
+.dblk{width:48px;height:48px;border-radius:12px;background:#F3F5F7;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;line-height:1}.dblk small{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);font-weight:600}.dblk b{font-size:20px}
+.arow.m .dblk{background:var(--red);color:#fff}.arow.m .dblk small{color:#fff;opacity:.85}
+.amid{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:16px}.am{display:flex;align-items:center;gap:6px;color:var(--mute);font-size:13px;flex-wrap:wrap}
+.more{display:block;margin:8px auto 0;min-height:48px;padding:0 22px;color:var(--mute);font-size:15px;font-weight:600;text-decoration:underline;text-align:center}
+.hmeta{display:flex;flex-direction:column;gap:6px;font-size:15px;margin:10px 0 2px}.hmeta div{display:flex;align-items:center;gap:8px}
+.heroc.m{background:var(--ink)}button.heroc.m:active{background:#000}
+.banner{cursor:pointer}
+.sheet{position:absolute;left:12px;right:12px;bottom:12px;background:var(--card);z-index:31;border-radius:24px;padding:20px;animation:up .26s ease-out;max-height:80%;overflow:auto;box-shadow:0 10px 40px rgba(17,24,39,.2)}
+@keyframes up{from{transform:translateY(100%)}}
+.li{display:flex;align-items:center;gap:14px;width:100%;min-height:60px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-bottom:8px;font-size:16px;font-weight:600;transition:background .15s}
+.li .ti{width:40px;height:40px;border-radius:50%;background:#F3F5F7;color:#4B5563;display:grid;place-items:center;flex:none}
+#toast{position:absolute;left:50%;bottom:26px;transform:translate(-50%,30px);background:var(--ink);color:#fff;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:600;z-index:50;opacity:0;transition:.25s;pointer-events:none;max-width:88%;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.login{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px;text-align:center;background:var(--card);color:var(--ink)}
+.login h1{font-size:32px;margin:0;letter-spacing:-.02em}
+.crest{width:104px;height:104px;border-radius:50%;background:var(--red);display:grid;place-items:center}
+.login .b-w{background:var(--red);color:#fff}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.stat .lbl{color:var(--mute);font-size:14px;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.who{display:flex;align-items:center;gap:12px}
+.qrow{display:flex;align-items:flex-start;gap:8px}.qrow .q{flex:1}
+.edtxt{color:var(--red);font-weight:700;font-size:15px;min-height:44px;padding:0 4px;flex:none;margin-top:2px}
+.optrow{display:flex;gap:8px;align-items:stretch;margin-bottom:10px}.optrow .opt{margin-bottom:0;flex:1;min-width:0}
+.del{width:58px;border-radius:12px;background:var(--redl);color:var(--redd);display:grid;place-items:center;flex:none}
+.addrow{display:flex;gap:8px;margin:4px 0 12px}.addrow .inp{flex:1;min-width:0;font-size:16px;min-height:52px}.addrow .btn{flex:none;min-height:52px}
+.lbl{font-size:13px;font-weight:600;color:var(--mute);margin:14px 4px 8px}
+.cal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.calh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.calh b{font-size:17px}
+.calh button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center}.calh button:disabled{opacity:.3;cursor:not-allowed}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.cg .wd{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;padding:4px 0}
+.cd{width:40px;height:40px;margin:auto;border-radius:50%;font-weight:600;font-size:15px;display:grid;place-items:center;text-align:center;transition:background .15s}
+.cd.td{box-shadow:inset 0 0 0 2px var(--red)}.cd.sel{background:var(--red);color:#fff}.cd:disabled{color:#C4C8CE;cursor:not-allowed}
+.tt{display:flex;gap:10px;margin-bottom:10px}.tt button{flex:1;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 14px;min-height:48px}
+.tt small{display:block;font-size:12px;text-transform:uppercase;color:var(--mute);font-weight:600;letter-spacing:.06em}.tt b{font-size:20px}
+.tt button.on{border-color:var(--red);box-shadow:inset 0 0 0 1px var(--red)}.tt button.on b{color:var(--red)}
+.digi{text-align:center;font-size:52px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:2px 0 8px}
+.spin{position:relative;display:flex;justify-content:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);height:220px;overflow:hidden}
+.spin::before{content:'';position:absolute;left:12px;right:12px;top:88px;height:44px;border-radius:12px;background:#F9ECED;pointer-events:none}
+.col{width:90px;height:220px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;position:relative;touch-action:pan-y;cursor:grab;overscroll-behavior:contain;user-select:none}
+.col::-webkit-scrollbar{display:none}.col::before,.col::after{content:'';display:block;height:88px}
+.col i{display:block;height:44px;line-height:44px;text-align:center;font-style:normal;font-size:22px;font-weight:600;color:#9CA3AF;scroll-snap-align:center}
+.col i.sel{color:var(--red);font-size:26px;font-weight:700}
+.colon{align-self:center;font-size:26px;font-weight:700;position:relative;padding:0 2px}
+.warn{color:var(--redd);font-size:14px;font-weight:600;margin:8px 2px 0;min-height:20px}
+</style>
+</head>
+<body>
+<div class="ctrl" id="ctrl"></div>
+<div class="phone"><div class="app" id="app"></div><div id="layer"></div><div id="toast"></div></div>
+<script>
+/* ---------- Ikoner ---------- */
+const I={menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',chev:'<path d="M9 5l7 7-7 7"/>',home:'<path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/>',back:'<path d="M15 5l-7 7 7 7"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',check:'<path d="M5 12.5l4.5 4.5L19 7"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>',phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',plus:'<path d="M12 5v14M5 12h14"/>',users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0M16 4.8a3.5 3.5 0 010 6.4M18 14a6 6 0 013.5 6"/>',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',pin:'<path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',ball:'<circle cx="12" cy="12" r="9"/><path d="M12 8l4 3-1.5 4.5h-5L8 11z"/>',history:'<path d="M3 12a9 9 0 109-9 9 9 0 00-6.5 3M3 4v4h4M12 8v4l3 2"/>',logout:'<path d="M9 4H5a2 2 0 00-2 2v12a2 2 0 002 2h4M16 8l4 4-4 4M20 12H9"/>',key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',trophy:'<path d="M8 4h8v6a4 4 0 01-8 0zM8 6H4v2a3 3 0 003 3M16 6h4v2a3 3 0 01-3 3M12 14v4M8 20h8"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 7l9 6 9-6"/>',whistle:'<circle cx="9" cy="14" r="5"/><path d="M13 11l8-5M9 9V5"/>',ban:'<circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/>',repeat:'<path d="M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3"/>',clip:'<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4h6v3H9zM9 12l2 2 4-4"/>'};
+const ic=(n,s=24)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;
+const emptyArt=t=>`<div class="empty"><svg viewBox="0 0 150 110"><ellipse cx="75" cy="98" rx="55" ry="7" fill="#E5E7EB"/><circle cx="75" cy="52" r="38" fill="#F3F5F7" stroke="#E5E7EB" stroke-width="2"/><circle cx="75" cy="52" r="26" fill="#fff" stroke="#E5E7EB" stroke-width="2"/><path d="M75 38l13 9-5 15H67l-5-15z" fill="#6B7280"/><circle cx="118" cy="30" r="6" fill="#8F1822"/></svg><div>${t}</div></div>`;
+
+/* ---------- Data ---------- */
+const DN=['sön','mån','tis','ons','tors','fre','lör'],MN=['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+const today=new Date();today.setHours(0,0,0,0);
+const nextDow=d=>{const x=(d-today.getDay()+7)%7;return x||7};
+const dateOf=o=>{const d=new Date(today);d.setDate(d.getDate()+o);return d};
+const dLabel=o=>{const d=dateOf(o);return `${DN[d.getDay()]} ${d.getDate()} ${MN[d.getMonth()]}`};
+const ROLES={player:'Spelare',parent:'Förälder',coach:'Tränare',admin:'Admin'};
+const TEAMS=['P2015 Röd','P2014 Svart'];
+const mk=()=>({
+ players:[['p1','Elias Berg',7,0,'Anna Berg'],['p2','Noah Holm',10,0,'Peter Holm'],['p3','Liam Nyström',4,0,'Eva Nyström'],['p4','Alma Strand',9,0,'Karin Strand'],['p5','Hugo Falk',1,0,'Mats Falk'],['p6','Ella Dahl',11,1,'Sofia Dahl'],['p7','Oscar Lind',6,1,'Jonas Lind'],['p8','Vilma Sjö',8,1,'Lena Sjö']].map(a=>({id:a[0],name:a[1],nr:a[2],team:a[3],parent:a[4],phone:'070-'+(100+a[2]*37)+' '+(20+a[2]*3)+' 4'+a[2]})),
+ coaches:[{id:'c1',name:'Johan Lindqvist',phone:'070-555 12 34',team:0},{id:'c2',name:'Sara Ek',phone:'070-555 98 76',team:1}],
+ users:[{n:'Anna Berg',r:'Förälder'},{n:'Karin Strand',r:'Förälder'},{n:'Johan Lindqvist',r:'Tränare'},{n:'Sara Ek',r:'Tränare'},{n:'Maria Nilsson',r:'Admin'}],
+ locs:['Kronobergsvallen 1','Evedals IP (Plan 2)','Teleborgs IP','Sporthallen'],opps:['Alvesta IF','Lessebo FK','Tingsryd','Ljungby IF'],
+ acts:[
+  {id:'a1',type:'Träning',title:'Träning',off:nextDow(2),time:'17:30',place:'Kronobergshed plan 2',team:0,att:null},
+  {id:'a2',type:'Träning',title:'Träning',off:nextDow(4),time:'17:30',place:'Kronobergshed plan 2',team:0,cancelled:true,att:null},
+  {id:'a3',type:'Match',title:'Match vs Alvesta IF (hemma)',off:nextDow(6),time:'10:00',place:'Evedal IP',team:0,att:null},
+  {id:'a4',type:'Match',title:'Match vs Lessebo FK (borta)',off:nextDow(6)+7,time:'11:00',place:'Lessebo IP',team:0,att:null}],
+ reqs:[{id:'r1',pid:'p4',aid:'a3',reason:'Skola/prov',status:'pending',note:''}],
+ past:[{off:-3,t:'FC Växjö 3–1 Alvesta IF',r:'Vinst'},{off:-10,t:'FC Växjö 2–2 Tingsryd',r:'Oavgjort'},{off:-17,t:'Ljungby 1–0 FC Växjö',r:'Förlust'}],
+ nid:10});
+let D=mk();
+const S={role:'player',child:'p1',screen:{n:'hub'},wiz:null,weeks:1,drawer:false,prof:false,modal:null,out:false,last:'player',filter:'Alla',anim:true,confirm:null};
+const ME={player:{name:'Elias Berg'},parent:{name:'Anna Berg'},coach:{name:'Johan Lindqvist'},admin:{name:'Maria Nilsson'}};
+const ini=n=>n.split(' ').map(x=>x[0]).join('').slice(0,2);
+const P=id=>D.players.find(p=>p.id===id);
+const A=id=>D.acts.find(a=>a.id===id);
+const subj=()=>S.role==='player'?'p1':S.child;
+const sorted=()=>[...D.acts].sort((a,b)=>a.off-b.off||a.time.localeCompare(b.time));
+const upcoming=()=>sorted().filter(a=>!a.cancelled);
+const MON=['Januari','Februari','Mars','April','Maj','Juni','Juli','Augusti','September','Oktober','November','December'];
+const tr=a=>a.end?`${a.time}–${a.end}`:a.time;
+const tmin=t=>{const x=t.split(':');return +x[0]*60+ +x[1]};
+const timeOk=v=>tmin(v.end)>tmin(v.start);
+const dayOff=d=>Math.round((d-today)/864e5);
+const HOME='Kronobergsvallen 1';
+const isStaff=()=>S.role==='coach'||S.role==='admin';
+const COACH_TEAM=0;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const reqOf=(aid,pid)=>D.reqs.find(r=>r.aid===aid&&r.pid===pid);
+const isLeave=(a,pid)=>{const r=reqOf(a.id,pid);return !!r&&r.status==='approved'};
+const leaveN=a=>D.reqs.filter(r=>r.aid===a.id&&r.status==='approved').length;
+const coachReqs=()=>D.reqs.filter(r=>P(r.pid).team===COACH_TEAM);
+const pendN=()=>coachReqs().filter(r=>r.status==='pending').length;
+const myReqs=()=>D.reqs.filter(r=>r.pid===subj());
+const myPend=()=>myReqs().filter(r=>r.status==='pending').length;
+const CHIPS=['Sjuk','Skola/prov','Familj/resa','Skada','Annat'];
+const lvValid=()=>{const l=S.lv;return !!l&&!!l.chip&&(l.chip!=='Annat'||l.text.trim().length>=5)};
+
+/* ---------- Små byggstenor ---------- */
+function pill(st,staff){const m={with:['p-yes','check',staff?'Med':'Du är med'],pending:['p-amb','clock',staff?'Väntar på svar':'Väntar på svar från tränaren'],approved:['p-yes','check',staff?'Ledig':'Ledig godkänd'],denied:['p-no','x','Nekad'],cancel:['p-amb','ban','Inställd']}[st];return `<span class="pill ${m[0]}">${ic(m[1],16)}${m[2]}</span>`}
+const st=(a,pid)=>{if(a.cancelled)return 'cancel';const r=reqOf(a.id,pid);return r?r.status:'with'};
+const accent=a=>a.cancelled?'var(--amb)':'var(--line)';
+function actCard(a){
+ const right=isStaff()?`<span class="pill p-none">${ic('user',16)}${leaveN(a)} ledigt</span>`:pill(st(a,subj()));
+ return `<button class="card" data-a="go" data-v="detail:${a.id}" style="--ac:${accent(a)}"><div class="ct"><span>${a.title}</span></div><div class="meta">${ic('calendar',18)}${dLabel(a.off)} ${ic('clock',18)}${tr(a)} ${ic('pin',18)}${a.place}</div>${right}</button>`}
+const topbar=t=>`<div class="bar"><button class="round" data-a="hub" aria-label="Tillbaka till startsidan">${ic('back',24)}</button><h2>${t}</h2><button class="avatar av-s" data-a="profile" aria-label="Profil">${ini(ME[S.role].name)}</button></div>`;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2000)}
+function row(icon,label,sub,act,v,badge){return `<button class="ri" data-a="${act}" data-v="${v||''}"><span class="ico">${ic(icon,22)}</span><span class="rt"><b>${label}</b>${sub?`<span class="rs">${sub}</span>`:''}</span>${badge?`<span class="badge">${badge}</span>`:''}<span class="chev">${ic('chev',20)}</span></button>`}
+const group=(t,rows)=>`<div class="gt">${t}</div><div class="grp">${rows.join('')}</div>`;
+
+/* ---------- Hubb ---------- */
+const noteSt=a=>a.cancelled?'cancel':isStaff()?null:((reqOf(a.id,subj())||{}).status||null);
+const oppOf=a=>{const m=a.title.match(/vs (.+) \((hemma|borta)\)/);return m?`${m[2]==='hemma'?'Hemma':'Borta'} mot ${m[1]}`:''};
+function heroCard(a){
+ const s=noteSt(a),m=oppOf(a),kid=S.role==='parent'?' för '+P(S.child).name.split(' ')[0]:'';
+ return `<button class="heroc ${a.type==='Match'?'m':''}" data-a="go" data-v="detail:${a.id}"><div class="kick">Nästa aktivitet${kid}</div><div class="big">${a.type} ${DN[dateOf(a.off).getDay()]} ${tr(a)}</div><div class="hmeta"><div>${ic('calendar',20)}${dLabel(a.off)}</div><div>${ic('pin',20)}${a.place}</div>${m?`<div>${ic('ball',20)}${m}</div>`:''}</div>${s?`<div class="hrow">${pill(s,0,1)}</div>`:''}</button>`}
+function actRow(a){
+ const d=dateOf(a.off),s=noteSt(a),m=oppOf(a);
+ return `<button class="arow ${a.type==='Match'?'m':''}" data-a="go" data-v="detail:${a.id}"><span class="dblk"><small>${DN[d.getDay()]}</small><b>${d.getDate()}</b></span><span class="amid"><b>${m?'Match · '+m:a.type}</b><span class="am">${ic('clock',16)}${tr(a)}${ic('pin',16)}${a.place}</span>${s?`<span>${pill(s,0,1)}</span>`:''}</span></button>`}
+function hub(){
+ const first=ME[S.role].name.split(' ')[0],all=sorted(),nx=all[0],rest=all.slice(1),lim=7*S.weeks,shown=rest.filter(a=>a.off<=lim),more=rest.some(a=>a.off>lim);
+ let h=`<div class="bar"><button class="round" data-a="drawer" aria-label="Öppna navigeringsmeny">${ic('menu',24)}</button><div style="flex:1;min-width:0"><div class="mute sm">FC Växjö</div><h2 style="font-size:22px;margin:0">Hej ${first}!</h2></div><button class="avatar" data-a="profile" aria-label="Profilmeny">${ini(ME[S.role].name)}</button></div><div class="body">`;
+ if(S.role==='parent')h+=`<div class="chips">`+['p1','p4'].map(id=>`<button class="chip ${S.child===id?'on':''}" data-a="child" data-v="${id}"><span class="avatar">${ini(P(id).name)}</span>${P(id).name.split(' ')[0]}</button>`).join('')+`</div>`;
+ if(isStaff()&&pendN())h+=`<button class="banner" style="width:100%;min-height:48px" data-a="go" data-v="leave">${ic('mail',26)}${pendN()} ledighetsbegäran väntar</button>`;
+ if(!nx)return h+emptyArt('Inga kommande aktiviteter')+`</div>`;
+ h+=heroCard(nx)+`<div class="sect">${S.weeks===1?'Kommande vecka':'Kommande aktiviteter'}</div>`;
+ h+=shown.length?shown.map(actRow).join(''):`<div class="hint">Inget mer inplanerat just nu.</div>`;
+ if(more)h+=`<button class="more" data-a="more">Visa fler</button>`;
+ return h+`</div>`;
+}
+
+/* ---------- Sektioner ---------- */
+function section(n,a){
+ const sub=S.screen.a;let t='',b='';
+ if(n==='schedule'){t='Schema';const l=sorted();let day='';b=l.map(x=>{const h=x.off+'d';const hd=h!==day?`<div class="day">${dLabel(x.off)}</div>`:'';day=h;return hd+actCard(x)}).join('')}
+ else if(n==='activities'){t='Aktiviteter';b=sorted().map(actCard).join('')}
+ else if(n==='answers'){t='Mina ledighetsbegäran';const me=P(subj());const l=myReqs();b=`<div class="who" style="margin-bottom:12px"><span class="avatar">${ini(me.name)}</span><b style="font-size:18px">${me.name}</b></div>`+(l.length?l.map(r=>{const a=A(r.aid);return `<div class="card" style="--ac:${accent(a)}"><div class="ct"><span>${a.title}</span></div><div class="meta">${ic('calendar',18)}${dLabel(a.off)} ${ic('clock',18)}${tr(a)}</div><div style="margin-bottom:8px">Orsak: ${esc(r.reason)}</div>${pill(r.status)}${r.status==='denied'&&r.note?`<div class="hint">Tränaren: ${esc(r.note)}</div>`:''}<div class="row" style="margin-top:10px"><button class="btn b-sand" data-a="go" data-v="detail:${a.id}">Öppna</button>${r.status==='pending'?`<button class="btn b-sand" data-a="withdraw" data-v="${r.id}">Dra tillbaka</button>`:''}</div></div>`}).join(''):emptyArt('Inga begäran. Du är med på allt!'))}
+ else if(n==='leave'){t='Ledighetsbegäran';const l=[...coachReqs()].sort((x,y)=>(x.status==='pending'?0:1)-(y.status==='pending'?0:1));b=l.length?l.map(r=>{const p=P(r.pid),a=A(r.aid),pe=r.status==='pending';return `<div class="card" style="--ac:${pe?'var(--amb)':r.status==='approved'?'var(--grn)':'var(--redd)'}"><div class="who"><span class="avatar av-s">${ini(p.name)}</span><div style="flex:1"><b style="font-size:18px">${p.name}</b><div class="meta" style="margin:2px 0 0">${a.title} · ${dLabel(a.off)}</div></div></div><div style="margin:8px 0">Orsak: ${esc(r.reason)}</div>${pe?`<div class="row"><button class="btn b-ok" data-a="approve" data-v="${r.id}">${ic('check',22)}Godkänn</button><button class="btn b-sand" data-a="denyAsk" data-v="${r.id}">${ic('x',22)}Neka</button></div>`:pill(r.status,1)+(r.note?`<div class="hint">Din kommentar: ${esc(r.note)}</div>`:'')}</div>`}).join(''):emptyArt('Inga ledighetsbegäran just nu')}
+ else if(n==='coaches'){t='Tränare';b=D.coaches.map(c=>`<div class="card" style="--ac:var(--sage)"><div class="who"><span class="avatar">${ini(c.name)}</span><div style="flex:1"><b style="font-size:19px">${c.name}</b><div class="meta" style="margin:0">${TEAMS[c.team]}</div></div></div><div class="row" style="margin-top:10px"><button class="btn b-red" data-a="call" data-v="${c.name}">${ic('phone',22)}Ring ${c.name.split(' ')[0]}</button></div></div>`).join('')}
+ else if(n==='past'){t='Tidigare aktiviteter';b=D.past.map(p=>`<div class="card" style="--ac:${p.r==='Vinst'?'var(--grn)':p.r==='Förlust'?'var(--redd)':'var(--amb)'}"><div class="ct"><span>${p.t}</span></div><div class="meta">${ic('calendar',18)}${dLabel(p.off)}</div><span class="pill ${p.r==='Vinst'?'p-yes':p.r==='Förlust'?'p-no':'p-amb'}">${p.r}</span></div>`).join('')}
+ else if(n==='detail')return detail(A(sub));
+ else if(n==='att')return attend(A(sub));
+ else if(n==='squad'){t='Lag';b=`<div class="hint" style="margin-top:0">${TEAMS[COACH_TEAM]}</div>`+D.players.filter(p=>p.team===0).map(playerCard).join('')}
+ else if(n==='search'){t='Sök spelare';b=`<input class="inp" id="q" placeholder="Namn eller tröjnummer" autocomplete="off" value="${S.q||''}"><div id="res" style="margin-top:14px">${results(S.q||'')}</div>`}
+ else if(n==='teams'){t='Lag';b=TEAMS.map((x,i)=>`<button class="card" data-a="go" data-v="team:${i}" style="--ac:${i?'var(--navy)':'var(--red)'}"><div class="ct"><span>${x}</span></div><div class="meta">${ic('users',18)}${D.players.filter(p=>p.team===i).length} spelare · Tränare ${D.coaches[i].name}</div></button>`).join('')}
+ else if(n==='team'){const i=+sub;t=TEAMS[i];b=`<button class="btn b-red" style="width:100%;margin-bottom:14px" data-a="go" data-v="wiz:player">${ic('plus',22)}Lägg till spelare</button>`+(D.players.filter(p=>p.team===i).map(playerCard).join('')||emptyArt('Inga spelare ännu'))}
+ else if(n==='users'){t='Användare';const f=S.filter;b=`<div class="chips">`+['Alla','Spelare','Förälder','Tränare','Admin'].map(r=>`<button class="chip ${f===r?'on':''}" data-a="filter" data-v="${r}">${r}</button>`).join('')+`</div><button class="btn b-red" style="width:100%;margin-bottom:14px" data-a="go" data-v="wiz:user">${ic('plus',22)}Ny användare</button>`;
+  const all=[...D.players.map(p=>({n:p.name,r:'Spelare'})),...D.users];const l=all.filter(u=>f==='Alla'||u.r===f);
+  b+=l.length?l.map(u=>`<button class="card" data-a="toast" data-v="${u.n} – ${u.r}" style="--ac:${u.r==='Admin'?'var(--red)':u.r==='Tränare'?'var(--navy)':'var(--sage)'}"><div class="who"><span class="avatar av-s">${ini(u.n)}</span><b style="flex:1;font-size:18px">${u.n}</b><span class="pill p-none">${u.r}</span></div></button>`).join(''):emptyArt('Inga användare här')}
+ else if(n==='stats'){t='Statistik';const wk=D.acts.filter(x=>x.off<=7).length;b=`<div class="grid">`+[[D.players.length,'Aktiva spelare',''],[TEAMS.length,'Lag',''],[wk,'Aktiviteter i veckan',''],['86%','Snittnärvaro',''],[D.coaches.length,'Tränare',''],[D.past.length,'Matcher spelade','']].map(s=>`<div class="stat"><div class="big-n">${s[0]}</div><div class="lbl">${s[1]}</div></div>`).join('')+`</div>`}
+ else if(n==='wiz')return wizard();
+ return topbar(t)+`<div class="body">${b}</div>`;
+}
+function playerCard(p){return `<button class="card" data-a="player" data-v="${p.id}" style="--ac:${p.team?'var(--navy)':'var(--red)'}"><div class="who"><span class="avatar av-s">${ini(p.name)}</span><div style="flex:1"><b style="font-size:18px">${p.name}</b><div class="meta" style="margin:0">Nr ${p.nr} · ${TEAMS[p.team]}</div></div>${ic('phone',22)}</div></button>`}
+function results(q){q=q.trim().toLowerCase();if(!q)return emptyArt('Skriv ett namn eller tröjnummer');const l=D.players.filter(p=>p.name.toLowerCase().includes(q)||String(p.nr)===q);return l.length?l.map(playerCard).join(''):emptyArt('Ingen spelare hittades')}
+
+function detail(a){
+ const roster=D.players.filter(p=>p.team===a.team);
+ let b='';
+ if(a.cancelled)b+=`<div class="banner">${ic('ban',28)}Den här aktiviteten är inställd</div>`;
+ b+=`<div class="heroc" style="cursor:default"><div class="kick">${TEAMS[a.team]}</div><div class="big" style="font-size:22px">${a.title}</div><div class="sub" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${ic('calendar',18)}${dLabel(a.off)} ${ic('clock',18)}${tr(a)} ${ic('pin',18)}${a.place}</div></div>`;
+ if(!isStaff()&&!a.cancelled){const s=st(a,subj()),r=reqOf(a.id,subj());
+  b+=`<div class="sect">Status för ${P(subj()).name.split(' ')[0]}</div><div style="margin-bottom:10px">${pill(s)}</div>`;
+  if(r)b+=`<div style="margin-bottom:10px">Orsak: ${esc(r.reason)}</div>`;
+  if(s==='denied'&&r.note)b+=`<div class="hint">Tränaren: ${esc(r.note)}</div>`;
+  if(s==='with'||s==='denied')b+=`<button class="btn b-sand" style="width:100%" data-a="lvopen" data-v="${a.id}">${ic('mail',22)}Begär ledigt</button>`;
+  if(s==='pending')b+=`<button class="btn b-sand" style="width:100%" data-a="withdraw" data-v="${r.id}">Dra tillbaka begäran</button>`}
+ if(isStaff()&&!a.cancelled)b+=`<div class="row" style="margin-top:14px"><button class="btn b-red" data-a="go" data-v="att:${a.id}">${ic('clip',22)}Ta närvaro</button><button class="btn b-sand" data-a="cancelAsk" data-v="${a.id}">${ic('ban',22)}Ställ in</button></div>`;
+ if(isStaff()&&!a.cancelled)b+=`<div class="sect">Spelare (${roster.length})</div>`+roster.map(p=>`<div class="card" style="padding:10px 16px"><div class="who"><span class="avatar av-s">${ini(p.name)}</span><b style="flex:1">${p.name}</b><span class="mute sm">Nr ${p.nr}</span></div></div>`).join('');
+ if(a.cancelled)b+=emptyArt('Ingen behöver komma den här gången');
+ return topbar('Aktivitet')+`<div class="body">${b}</div>`;
+}
+function attend(a){
+ const r=D.players.filter(p=>p.team===a.team);
+ if(!S.attd||S.attd.id!==a.id){const m={};r.forEach(p=>m[p.id]=a.att?!!a.att[p.id]:!isLeave(a,p.id));S.attd={id:a.id,m}}
+ const at=S.attd.m,n=r.filter(p=>at[p.id]).length;
+ return topbar('Närvaro')+`<div class="body"><div class="who" style="margin-bottom:4px"><b style="font-size:18px">${a.title}</b></div><div class="meta" style="color:var(--mute)">${dLabel(a.off)} · ${tr(a)}</div>${pendN()?`<button class="banner" style="width:100%" data-a="go" data-v="leave">${ic('mail',28)}${pendN()} ledighetsbegäran väntar på svar</button>`:''}<div class="counter" id="cnt">${n}/${r.length} närvarande</div><div class="pgrid">`+r.map(p=>`<button class="pc ${at[p.id]?'on':''}" data-a="tog" data-v="${a.id}|${p.id}"><span class="tick">${ic('check',16)}</span><div class="avatar">${ini(p.name)}</div><div class="nm">${p.name.split(' ')[0]}</div><div class="nr">Nr ${p.nr}</div>${isLeave(a,p.id)?`<span class="pill p-amb" style="padding:2px 9px;font-size:12px;margin-top:4px">Ledig</span>`:''}</button>`).join('')+`</div><div class="foot"><button class="btn b-sand" data-a="all" data-v="${a.id}">Markera alla</button><button class="btn b-red" data-a="save" data-v="${a.id}">${ic('check',22)}Spara</button></div></div>`;
+}
+
+/* ---------- Wizards ---------- */
+const WZ={
+ training:{title:'Ny träning',steps:[
+  {q:'Vilket lag?',k:'team',t:'team',lbl:'Lag',fmt:i=>TEAMS[i]},
+  {q:'Vilken dag?',k:'off',t:'cal',lbl:'Dag',fmt:dLabel},
+  {q:'Vilken tid?',k:'start',t:'time',lbl:'Tid',val:v=>`${v.start}–${v.end}`},
+  {q:'Var ska ni vara?',k:'place',t:'loc',lbl:'Plats'},
+  {q:'Upprepa varje vecka?',k:'rep',lbl:'Upprepa',fmt:v=>v==='Ja'?'Ja, varje vecka':'Nej, bara en gång',opts:()=>[{v:'Ja',l:'Ja, varje vecka'},{v:'Nej',l:'Nej, bara en gång'}]}]},
+ match:{title:'Ny match',steps:[
+  {q:'Vilket lag är ert?',k:'team',t:'team',lbl:'Lag',fmt:i=>TEAMS[i]},
+  {q:'Vilket lag möter ni?',k:'opp',text:1,ph:'t.ex. Alvesta IF',lbl:'Motståndare'},
+  {q:'Hemma eller borta?',k:'ha',lbl:'Hemma/borta',fmt:v=>v==='hemma'?'Hemma':'Borta',opts:()=>[{v:'hemma',l:'Hemma'},{v:'borta',l:'Borta'}]},
+  {q:'Vilken dag spelas matchen?',k:'off',t:'cal',lbl:'Dag',fmt:dLabel},
+  {q:'Vilken tid?',k:'start',t:'time',lbl:'Tid',val:v=>`${v.start}–${v.end}`},
+  {q:'Var spelas matchen?',k:'place',t:'loc',addr:1,lbl:'Adress'}]},
+ player:{title:'Lägg till spelare',steps:[{q:'Vad heter spelaren?',k:'name',text:1,ph:'För- och efternamn'},{q:'Vilket tröjnummer?',k:'nr',text:1,ph:'t.ex. 12',num:1}]},
+ user:{title:'Ny användare',steps:[{q:'Vilken roll ska personen ha?',k:'role',opts:()=>[{v:'Spelare',l:'Spelare'},{v:'Förälder',l:'Förälder'},{v:'Tränare',l:'Tränare'},{v:'Admin',l:'Admin'}],cards:1},{q:'Vad heter personen?',k:'name',text:1,ph:'För- och efternamn'},{q:'Vilken e-postadress?',k:'mail',text:1,ph:'namn@exempel.se'}]}
+};
+const listOf=s=>s.t==='opp'?D.opps:D.locs;
+function calHTML(w){
+ const {y,m}=w.cm,first=(new Date(y,m,1).getDay()+6)%7,dim=new Date(y,m+1,0).getDate(),atMin=y*12+m<=today.getFullYear()*12+today.getMonth();
+ let c=['mån','tis','ons','tor','fre','lör','sön'].map(d=>`<div class="wd">${d}</div>`).join('')+'<div></div>'.repeat(first);
+ for(let d=1;d<=dim;d++){const o=dayOff(new Date(y,m,d)),past=o<0;c+=`<button class="cd ${o===0?'td':''} ${o===w.v.off?'sel':''}" data-a="day" data-v="${o}" ${past?'disabled':''} aria-label="${d} ${MON[m].toLowerCase()}">${d}</button>`}
+ return `<div class="cal"><div class="calh"><button data-a="cmon" data-v="-1" ${atMin?'disabled':''} aria-label="Föregående månad">${ic('back',22)}</button><b>${MON[m]} ${y}</b><button data-a="cmon" data-v="1" aria-label="Nästa månad">${ic('chev',22)}</button></div><div class="cg">${c}</div></div>`;
+}
+function timeHTML(w){
+ const cur=w.v[w.tab].split(':'),pd=n=>String(n).padStart(2,'0');
+ const col=(k,n,step,val)=>`<div class="col" data-k="${k}" data-n="${n}" data-i="${Math.round(val/step)}" role="listbox" aria-label="${k==='h'?'Timme':'Minut'}">`+Array.from({length:n},(_,i)=>`<i class="${i*step===val?'sel':''}" data-a="spin" data-v="${i}" role="option">${pd(i*step)}</i>`).join('')+`</div>`;
+ return `<div class="tt"><button class="${w.tab==='start'?'on':''}" data-a="ttab" data-v="start"><small>Start</small><b id="tb-start">${w.v.start}</b></button><button class="${w.tab==='end'?'on':''}" data-a="ttab" data-v="end"><small>Slut</small><b id="tb-end">${w.v.end}</b></button></div><div class="digi" id="digi">${w.v[w.tab]}</div><div class="spin">${col('h',24,1,+cur[0])}<span class="colon">:</span>${col('m',12,5,+cur[1])}</div><div class="warn" id="twarn">${timeOk(w.v)?'':'Sluttiden måste vara efter starttiden'}</div>`;
+}
+function listHTML(w,s){
+ const L=listOf(s),cur=w.v[s.k],loc=s.t==='loc',pin=loc?ic('pin',22):ic('ball',22);
+ let b=`<div class="qrow"><div class="q">${s.q}</div><button class="edtxt" data-a="edit">${w.edit?'Klar':'Redigera'}</button></div>`;
+ if(w.edit){
+  b+=L.map((x,i)=>`<div class="optrow"><div class="opt">${pin}${esc(x)}</div><button class="del" data-a="ldel" data-v="${i}" aria-label="Ta bort ${esc(x)}">${ic('x',22)}</button></div>`).join('');
+  return b+`<div class="addrow"><input class="inp" id="ni" maxlength="60" placeholder="${loc?'Ny plats':'Nytt lag'}" autocomplete="off"><button class="btn b-red" data-a="ladd">Lägg till</button></div>`;
+ }
+ const list=L.map((x,i)=>`<button class="opt ${cur===x?'on':''}" data-a="lpick" data-v="${i}">${pin}${esc(x)}</button>`).join('');
+ if(!s.addr)return b+list;
+ const inp=`<input class="inp" id="addr" maxlength="80" placeholder="Skriv adress" autocomplete="off" value="${esc(cur||'')}">`;
+ if(w.v.ha==='borta')return b+`<div class="lbl" style="margin-top:0">Adress till bortaplanen</div>${inp}<div class="lbl">Eller välj en sparad plats</div>${list}`;
+ return b+`<button class="chip ${cur===HOME?'on':''}" data-a="lsug" style="margin-bottom:12px">${ic('pin',20)}Förslag: hemmaplan ${HOME}</button><div class="lbl" style="margin-top:0">Sparade platser</div>${list}<div class="lbl">Eller skriv en annan adress</div>${inp}`;
+}
+function wizard(){
+ const w=S.wiz,def=WZ[w.kind],n=def.steps.length;let b=`<div class="dots">`+[...def.steps,0].map((_,i)=>`<i class="${i<=w.step?'on':''}"></i>`).join('')+`</div>`;
+ if(w.step<n){const s=def.steps[w.step];
+  if(s.t==='loc'||s.t==='opp')b+=listHTML(w,s);
+  else{b+=`<div class="q">${s.q}</div>`;
+   if(s.text)b+=`<input class="inp" id="wt" placeholder="${s.ph}" ${s.num?'inputmode="numeric"':''} value="${w.v[s.k]||''}" autocomplete="off">`;
+   else if(s.t==='cal')b+=calHTML(w);
+   else if(s.t==='time')b+=timeHTML(w);
+   else if(s.t==='team')b+=`<button class="opt ${w.v.team===0?'on':''}" data-a="tpick">${ic('users',26)}${TEAMS[COACH_TEAM]}</button>`;
+   else b+=s.opts().map((x,i)=>`<button class="opt ${w.v[s.k]===x.v?'on':''}" data-a="pick" data-v="${i}">${s.cards?ic(x.v==='Admin'?'shield':x.v==='Tränare'?'whistle':x.v==='Förälder'?'users':'ball',26):''}${x.l}</button>`).join('')}
+ }else{
+  const rows=def.steps.map(s=>[s.lbl||s.q.replace('?','').replace('Vilken ','').replace('Vad ',''),s.val?s.val(w.v):s.fmt?s.fmt(w.v[s.k]):esc(w.v[s.k])]);
+  b+=`<div class="q">Stämmer det här?</div><div class="sum">`+rows.map(r=>`<div><span style="color:var(--mute)">${r[0]}</span><b style="text-align:right">${r[1]}</b></div>`).join('')+`</div>`}
+ const bad=w.step<n&&def.steps[w.step].t==='time'&&!timeOk(w.v);
+ b+=`<div class="foot">`+(w.step>0?`<button class="btn b-sand" style="flex:.5" data-a="wback">${ic('back',22)}Bakåt</button>`:'')+`<button class="btn b-red ${bad?'b-dis':''}" id="wnext" data-a="wnext">${w.step<n?'Nästa':'Bekräfta'}</button></div>`;
+ return topbar(def.title)+`<div class="body">${b}</div>`;
+}
+function wizDone(){
+ const w=S.wiz,v=w.v;
+ if(w.kind==='training'||w.kind==='match'){
+  const m=w.kind==='match',base={type:m?'Match':'Träning',title:m?`Match vs ${v.opp} (${v.ha})`:'Träning',time:v.start,end:v.end,place:v.place.trim(),team:v.team||0,att:null};
+  D.acts.push({...base,id:'a'+(D.nid++),off:v.off});
+  if(!m&&v.rep==='Ja')D.acts.push({...base,id:'a'+(D.nid++),off:v.off+7});
+  toast(m?'Matchen är skapad':v.rep==='Ja'?'Träningar skapade varje vecka':'Träningen är skapad');nav('activities');
+ }else if(w.kind==='player'){D.players.push({id:'p'+(D.nid++),name:v.name,nr:+v.nr,team:S.wizTeam||0,parent:'Ej angiven',phone:'–'});toast(v.name+' är tillagd');nav('team',S.wizTeam||0)}
+ else{D.users.push({n:v.name,r:v.role});S.filter='Alla';toast(v.name+' är skapad som '+v.role);nav('users')}
+}
+/* Tidväljare (spinner) */
+const IH=44;
+function timeUi(){const w=S.wiz,g=id=>document.getElementById(id);if(!g('digi'))return;
+ g('digi').textContent=w.v[w.tab];g('tb-start').textContent=w.v.start;g('tb-end').textContent=w.v.end;
+ const ok=timeOk(w.v);g('twarn').textContent=ok?'':'Sluttiden måste vara efter starttiden';g('wnext').classList.toggle('b-dis',!ok)}
+function initPickers(){
+ document.querySelectorAll('.col').forEach(c=>{
+  const n=+c.dataset.n,step=c.dataset.k==='h'?1:5;
+  c.scrollTop=+c.dataset.i*IH;
+  c.addEventListener('scroll',()=>{
+   const i=Math.max(0,Math.min(n-1,Math.round(c.scrollTop/IH))),w=S.wiz;if(!w)return;
+   const t=w.v[w.tab].split(':'),val=String(i*step).padStart(2,'0');
+   if(c.dataset.k==='h'?t[0]===val:t[1]===val)return;
+   if(c.dataset.k==='h')t[0]=val;else t[1]=val;
+   w.v[w.tab]=t.join(':');
+   c.querySelectorAll('i').forEach((el,j)=>el.classList.toggle('sel',j===i));timeUi()});
+  c.addEventListener('pointerdown',e=>{
+   if(e.pointerType!=='mouse'||e.button!==0)return;
+   const y0=e.clientY,t0=c.scrollTop;let mv=false;c.style.scrollSnapType='none';
+   const mm=ev=>{if(Math.abs(ev.clientY-y0)>4)mv=true;c.scrollTop=t0-(ev.clientY-y0)};
+   const up=()=>{removeEventListener('pointermove',mm);removeEventListener('pointerup',up);c.style.scrollSnapType='';c.scrollTo({top:Math.max(0,Math.min(n-1,Math.round(c.scrollTop/IH)))*IH,behavior:'smooth'});if(mv){c.dataset.drag=1;setTimeout(()=>delete c.dataset.drag,0)}};
+   addEventListener('pointermove',mm);addEventListener('pointerup',up)});
+ });
+}
+
+/* ---------- Overlays ---------- */
+const NAV={
+ player:[['Schema','calendar','schedule'],['Mina ledighetsbegäran','clip','answers'],['Tränare','phone','coaches'],['Tidigare aktiviteter','history','past']],
+ coach:[['Aktiviteter','calendar','activities'],['Ledighetsbegäran','mail','leave'],['Närvaro','clip','att'],['Ny träning','plus','wiz:training'],['Ny match','trophy','wiz:match'],['Lag','users','squad'],['Sök spelare','search','search'],['Tidigare aktiviteter','history','past']],
+ admin:[['Aktiviteter','calendar','activities'],['Lag','shield','teams'],['Användare','users','users'],['Ny användare','plus','wiz:user'],['Statistik','chart','stats'],['Tidigare aktiviteter','history','past']]};
+NAV.parent=NAV.player;
+function navActive(t){const i=t.indexOf(':'),n=i<0?t:t.slice(0,i),a=i<0?'':t.slice(i+1),s=S.screen;if(n==='wiz')return s.n==='wiz'&&S.wiz&&S.wiz.kind===a;if(n==='teams')return s.n==='teams'||s.n==='team';return s.n===n}
+function overlays(){
+ let h='';
+ if(S.drawer)h+=`<div class="scrim" data-a="closeAll"></div><aside class="drawer" aria-label="Navigeringsmeny"><div class="dh"><span class="crest-s">${ic('ball',22)}</span><b style="flex:1;font-size:18px">FC Växjö</b><button class="round" data-a="closeAll" aria-label="Stäng meny">${ic('x',24)}</button></div><div class="dnav"><div class="gt" style="margin-top:4px">Meny</div>`+NAV[S.role].map(x=>{const on=navActive(x[2]);const bd=x[2]==='leave'?pendN():x[2]==='answers'?myPend():0;return `<button class="di ${on?'on':''}" data-a="go" data-v="${x[2]}"><span class="ico">${ic(x[1],22)}</span><span style="flex:1">${x[0]}</span>${bd?`<span class="badge">${bd}</span>`:''}</button>`}).join('')+`</div></aside>`;
+ if(S.prof){const nm=ME[S.role].name;h+=`<div class="scrim" data-a="closeAll"></div><div class="pmenu" role="dialog" aria-label="Profil"><div class="who" style="padding:0 2px 4px"><span class="avatar">${ini(nm)}</span><div style="min-width:0"><b style="font-size:17px">${nm}</b><div class="mute sm">${ROLES[S.role]}</div>${S.role==='parent'?`<div class="mute sm">Förälder till ${P(S.child).name}</div>`:''}</div></div><div class="pdiv"></div><button class="di" data-a="pw"><span class="ico">${ic('key',22)}</span>Byt lösenord</button><button class="di" data-a="logout"><span class="ico">${ic('logout',22)}</span>Logga ut</button></div>`}
+ if(S.modal)h+=`<div class="scrim" data-a="closeAll"></div><div class="sheet">${S.modal}</div>`;
+ if(S.lv){const l=S.lv,ok=lvValid();h+=`<div class="scrim" data-a="closeAll"></div><div class="sheet"><div class="q" style="font-size:24px;margin-top:0">Begär ledigt</div><div class="chips">`+CHIPS.map(c=>`<button class="chip ${l.chip===c?'on':''}" data-a="lvchip" data-v="${c}">${c}</button>`).join('')+`</div><textarea class="inp ta" id="lvt" placeholder="${l.chip==='Annat'?'Skriv orsak (minst 5 tecken)':'Egen text (frivilligt)'}">${esc(l.text)}</textarea><div class="hint">Tränaren måste godkänna. Skriv en giltig orsak.</div><div class="row"><button class="btn b-sand" data-a="closeAll">Avbryt</button><button class="btn b-red ${ok?'':'b-dis'}" id="lvsend" data-a="lvsend" ${ok?'':'disabled'}>Skicka begäran</button></div></div>`}
+ return h;
+}
+function profile(p){
+ return `<div class="who"><span class="avatar">${ini(p.name)}</span><div><b style="font-size:22px">${p.name}</b><div style="color:var(--mute)">Nr ${p.nr} · ${TEAMS[p.team]}</div></div></div><div class="sect">Målsman</div><div class="card" style="--ac:var(--sage)"><b style="font-size:18px">${p.parent}</b><div class="meta">${ic('phone',18)}${p.phone}</div><div class="row"><button class="btn b-red" data-a="call" data-v="${p.parent}">${ic('phone',22)}Ring</button><button class="btn b-sand" data-a="toast" data-v="Meddelande skickat till ${p.parent}">${ic('mail',22)}Mejla</button></div></div><button class="btn b-navy" style="width:100%" data-a="closeAll">Stäng</button>`}
+
+/* ---------- Render ---------- */
+function nav(n,a){
+ S.drawer=S.prof=false;S.modal=null;S.lv=null;S.anim=true;S.attd=null;
+ if(n==='next'){const x=upcoming()[0];n='detail';a=x.id}
+ if(n==='att'&&!a)a=upcoming()[0].id;
+ if(n==='wiz'){const m=a==='match';S.wiz={kind:a,step:0,v:a==='training'||m?{team:0,start:m?'10:00':'18:00',end:m?'11:30':'19:30'}:{},tab:'start',edit:false,cm:{y:today.getFullYear(),m:today.getMonth()}};if(a==='player')S.wizTeam=S.wizTeam||0}
+ S.screen={n,a};render();
+}
+function render(){
+ const app=document.getElementById('app');
+ if(S.out){app.innerHTML=`<div class="login pop"><div class="crest"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${I.ball}</svg></div><h1>FC Växjö</h1><div style="font-size:18px;opacity:.85">Du är utloggad. Välkommen tillbaka!</div><button class="btn b-w" style="flex:none;width:100%;max-width:280px;min-height:60px" data-a="login">Logga in som ${ROLES[S.last].toLowerCase()}</button></div>`;document.getElementById('layer').innerHTML='';return}
+ const sc=S.screen;
+ app.innerHTML=`<div class="app ${S.anim?'pop':''}" style="position:relative;height:100%">${sc.n==='hub'?hub():section(sc.n,sc.a)}</div>`;
+ S.anim=false;document.getElementById('layer').innerHTML=overlays();initPickers();
+ }
+function ctrl(){document.getElementById('ctrl').innerHTML='<b>Roll:</b>'+Object.keys(ROLES).map(r=>`<button class="${S.role===r&&!S.out?'on':''}" data-r="${r}">${ROLES[r]}</button>`).join('')}
+function setRole(r){Object.assign(S,{role:r,last:r,child:'p1',out:false,screen:{n:'hub'},wiz:null,weeks:1,drawer:false,prof:false,modal:null,lv:null,filter:'Alla',q:'',anim:true,wizTeam:0});ctrl();render()}
+
+/* ---------- Åtgärder ---------- */
+const ACT={
+ hub:()=>nav('hub'),
+ go:v=>{const i=v.indexOf(':');i<0?nav(v):nav(v.slice(0,i),v.slice(i+1))},
+ drawer:()=>{S.drawer=true;S.prof=false;render()},profile:()=>{S.prof=true;S.drawer=false;render()},closeAll:()=>{S.drawer=S.prof=false;S.modal=null;S.lv=null;S.confirm=null;render()},
+ more:()=>{const b=document.querySelector('.body'),y=b?b.scrollTop:0;S.weeks++;render();const n=document.querySelector('.body');if(n)n.scrollTop=y},
+ child:v=>{S.child=v;render()},
+ lvopen:v=>{S.lv={aid:v,chip:'',text:''};render()},
+ lvchip:v=>{S.lv.chip=v;render()},
+ lvsend:()=>{if(!lvValid())return;const l=S.lv,t=l.text.trim(),reason=l.chip==='Annat'?'Annat: '+t:l.chip+(t?': '+t:'');
+  D.reqs=D.reqs.filter(r=>!(r.aid===l.aid&&r.pid===subj()));D.reqs.push({id:'r'+(D.nid++),pid:subj(),aid:l.aid,reason,status:'pending',note:''});
+  S.lv=null;toast('Begäran skickad till tränaren');render()},
+ withdraw:v=>{D.reqs=D.reqs.filter(r=>r.id!==v);toast('Begäran är tillbakadragen');render()},
+ approve:v=>{const r=D.reqs.find(x=>x.id===v),a=A(r.aid);r.status='approved';r.note='';if(a.att)a.att[r.pid]=false;toast('Ledighet godkänd för '+P(r.pid).name.split(' ')[0]);render()},
+ denyAsk:v=>{const r=D.reqs.find(x=>x.id===v);S.modal=`<div class="q" style="font-size:24px;margin-top:0">Neka ledighet för ${P(r.pid).name.split(' ')[0]}?</div><input class="inp" id="dn" placeholder="Kort kommentar (frivilligt)" autocomplete="off" style="margin-bottom:14px"><div class="row"><button class="btn b-sand" data-a="closeAll">Avbryt</button><button class="btn b-red" data-a="denyYes" data-v="${v}">Neka</button></div>`;render()},
+ denyYes:v=>{const r=D.reqs.find(x=>x.id===v),n=document.getElementById('dn');r.status='denied';r.note=n?n.value.trim():'';S.modal=null;toast('Begäran nekad');render()},
+ call:v=>{toast('Ringer '+v+' … (demo)')},toast:v=>{S.modal=null;S.drawer=S.prof=false;toast(v);render()},
+ filter:v=>{S.filter=v;render()},
+ player:v=>{S.drawer=S.prof=false;S.modal=profile(P(v));render()},
+ tog:v=>{const[a,p]=v.split('|'),x=A(a),m=S.attd.m;m[p]=!m[p];const r=D.players.filter(q=>q.team===x.team);document.querySelectorAll('.pc').forEach((el,i)=>el.classList.toggle('on',!!m[r[i].id]));document.getElementById('cnt').textContent=`${r.filter(q=>m[q.id]).length}/${r.length} närvarande`},
+ all:v=>{const x=A(v);D.players.filter(p=>p.team===x.team).forEach(p=>S.attd.m[p.id]=true);render();toast('Alla är markerade')},
+ save:v=>{const x=A(v),r=D.players.filter(p=>p.team===x.team);x.att={...S.attd.m};toast(`Närvaro sparad: ${r.filter(p=>x.att[p.id]).length} av ${r.length} närvarande`);nav('detail',v)},
+ cancelAsk:v=>{S.modal=`<div class="q" style="font-size:24px">Vill du ställa in den här aktiviteten?</div><div style="margin-bottom:14px;color:var(--mute)">Spelarna får se att den är inställd.</div><div class="row"><button class="btn b-sand" data-a="closeAll">Nej, behåll</button><button class="btn b-red" data-a="cancelYes" data-v="${v}">Ja, ställ in</button></div>`;render()},
+ cancelYes:v=>{A(v).cancelled=true;S.modal=null;toast('Aktiviteten är inställd');render()},
+ pw:()=>{S.drawer=S.prof=false;S.modal=`<div class="q" style="font-size:24px">Byt lösenord</div><input class="inp" type="password" placeholder="Nytt lösenord" style="margin-bottom:10px"><input class="inp" type="password" placeholder="Upprepa lösenord" style="margin-bottom:14px"><div class="row"><button class="btn b-sand" data-a="closeAll">Avbryt</button><button class="btn b-red" data-a="toast" data-v="Lösenordet är bytt (demo)">Spara</button></div>`;render()},
+ logout:()=>{S.out=true;S.drawer=S.prof=false;ctrl();render()},
+ login:()=>setRole(S.last),
+ pick:v=>{const w=S.wiz,s=WZ[w.kind].steps[w.step];w.v[s.k]=s.opts()[+v].v;render()},
+ wback:()=>{S.wiz.step--;S.wiz.edit=false;S.anim=true;render()},
+ tpick:()=>{S.wiz.v.team=0;render()},
+ day:v=>{S.wiz.v.off=+v;render()},
+ cmon:v=>{const c=S.wiz.cm,d=new Date(c.y,c.m+ +v,1);S.wiz.cm={y:d.getFullYear(),m:d.getMonth()};render()},
+ ttab:v=>{S.wiz.tab=v;render()},
+ spin:(v,el)=>{const c=el.closest('.col');if(c&&!c.dataset.drag)c.scrollTo({top:+v*IH,behavior:'smooth'})},
+ edit:()=>{S.wiz.edit=!S.wiz.edit;render()},
+ lpick:v=>{const w=S.wiz,s=WZ[w.kind].steps[w.step];w.v[s.k]=listOf(s)[+v];render()},
+ lsug:()=>{S.wiz.v.place=HOME;render()},
+ ldel:v=>{const w=S.wiz,s=WZ[w.kind].steps[w.step],L=listOf(s),x=L.splice(+v,1)[0];if(w.v[s.k]===x)delete w.v[s.k];render();toast((s.t==='loc'?'Platsen':'Laget')+' är borttagen')},
+ ladd:()=>{const w=S.wiz,s=WZ[w.kind].steps[w.step],L=listOf(s),el=document.getElementById('ni'),t=el?el.value.trim().replace(/\s+/g,' '):'';
+  if(!t)return toast('Skriv ett namn först');
+  if(L.some(x=>x.toLowerCase()===t.toLowerCase()))return toast('Finns redan i listan');
+  L.push(t);w.v[s.k]=t;render();toast((s.t==='loc'?'Platsen':'Laget')+' är tillagd');const n=document.getElementById('ni');if(n)n.focus()},
+ wnext:()=>{const w=S.wiz,def=WZ[w.kind],n=def.steps.length;
+  if(w.step===n)return wizDone();
+  const s=def.steps[w.step];
+  if(s.t==='cal'){if(w.v.off===undefined)return toast('Välj en dag först')}
+  else if(s.t==='time'){if(!timeOk(w.v))return toast('Sluttiden måste vara efter starttiden')}
+  else if(s.t==='loc'||s.t==='opp'){if(!(w.v[s.k]||'').trim())return toast(s.t==='opp'?'Välj ett lag först':w.v.ha==='borta'?'Skriv en adress först':'Välj eller skriv en plats först')}
+  else if(s.t==='team'){}
+  else if(s.text){const val=document.getElementById('wt').value.trim();if(!val)return toast('Fyll i ett svar först');if(s.num&&!/^\d{1,2}$/.test(val))return toast('Skriv ett nummer, t.ex. 12');w.v[s.k]=val}
+  else if(w.v[s.k]===undefined)return toast('Välj ett alternativ först');
+  w.step++;w.edit=false;S.anim=true;render()}
+};
+document.addEventListener('click',e=>{
+ const r=e.target.closest('[data-r]');if(r)return setRole(r.dataset.r);
+ const t=e.target.closest('[data-a]');if(!t)return;
+ if(t.dataset.a==='go'&&t.dataset.v==='wiz:player'&&S.screen.n==='team')S.wizTeam=+S.screen.a;
+ ACT[t.dataset.a](t.dataset.v,t);
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ni')return ACT.ladd();if(e.key==='Escape'&&(S.drawer||S.prof||S.modal||S.lv))ACT.closeAll()});
+document.addEventListener('input',e=>{
+ if(e.target.id==='q'){S.q=e.target.value;document.getElementById('res').innerHTML=results(S.q)}
+ if(e.target.id==='addr'&&S.wiz)S.wiz.v.place=e.target.value;
+ if(e.target.id==='lvt'){S.lv.text=e.target.value;const ok=lvValid(),b=document.getElementById('lvsend');b.disabled=!ok;b.classList.toggle('b-dis',!ok)}
+});
+ctrl();render();
+</script>
+</body>
+</html>
