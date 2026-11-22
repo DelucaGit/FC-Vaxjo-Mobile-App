@@ -7,6 +7,7 @@ import {
   getTraining,
   listTrainingAttendance,
   setTrainingCancelled,
+  type AttendanceRow,
   type Training,
 } from '../api/trainings';
 import { trainingTypeName } from '../api/trainingTypes';
@@ -18,6 +19,7 @@ import {
   InfoRow,
   List,
   Row,
+  RowMeta,
   RowTitle,
   Screen,
   SectionLabel,
@@ -54,8 +56,13 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
   const { session } = useAuth();
   const [data, setData] = useState<Loaded | null>(null);
   const [count, setCount] = useState<AttendanceCount | null>(null);
+  /** "Spelare (N)": the players on the attendance list. null when not shown. */
+  const [players, setPlayers] = useState<AttendanceRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Matches check the role, like "Ändra". Only staff reach trainings here.
+  const canManage = kind === 'training' || canManageActivities(session?.roleName);
 
   const load = useCallback(async () => {
     try {
@@ -67,16 +74,21 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
       setError(null);
 
       const item = loaded.kind === 'training' ? fromTraining(loaded.training) : fromMatch(loaded.match);
-      if (needsAttendanceCount(item, new Date())) {
+      // The attendance list is also the list of players. The API refuses it while cancelled
+      // and for PLAYER/PARENT, so it is only loaded for staff on an active activity.
+      if (canManage && !item.cancelled) {
         const rows = await (kind === 'training' ? listTrainingAttendance(id) : listMatchAttendance(id));
-        setCount(countAttendance(rows));
+        // A locked list only holds saved rows; unmarked players were left out when it locked.
+        setPlayers(item.attendanceLockedAt ? rows.filter((r) => r.status !== null) : rows);
+        setCount(needsAttendanceCount(item, new Date()) ? countAttendance(rows) : null);
       } else {
+        setPlayers(null);
         setCount(null);
       }
     } catch (e) {
       setError((e as Error).message);
     }
-  }, [kind, id]);
+  }, [kind, id, canManage]);
 
   // Reload on focus, so the screen is up to date after "Redigera" or "Ställ in".
   useFocusEffect(
@@ -102,8 +114,6 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
   const match = data?.kind === 'match' ? data.match : null;
   const cancelled = (training ?? match)?.status === 'CANCELLED';
   const cancelReason = training?.cancelReason ?? match?.cancelReason ?? null;
-  // Matches check the role, like "Ändra". Only staff reach trainings here.
-  const canManage = kind === 'training' || canManageActivities(session?.roleName);
   const lockedAt = training?.attendanceLockedAt ?? match?.attendanceLockedAt ?? null;
 
   let attendance: string | null = null;
@@ -112,6 +122,23 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
   } else if (count && count.marked < count.total) {
     attendance = unmarkedLabel(count);
   }
+
+  // Name and number only: the marks are on the attendance screen.
+  const playerList = players ? (
+    <>
+      <SectionLabel title={`Spelare (${players.length})`} />
+      <List>
+        {players.map((p) => (
+          <Row
+            key={p.playerUserId}
+            right={p.playerNumber != null ? <RowMeta>#{p.playerNumber}</RowMeta> : undefined}
+          >
+            <RowTitle>{p.playerName}</RowTitle>
+          </Row>
+        ))}
+      </List>
+    </>
+  ) : null;
 
   const statusRow = (
     <InfoRow
@@ -155,6 +182,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
             <InfoRow label="Plats" value={training.venue || '–'} />
             {cancelled ? statusRow : attendance ? <InfoRow label="Närvaro" value={attendance} /> : null}
           </List>
+          {playerList}
           <SectionLabel title="Åtgärder" />
           <List>
             <Row onPress={() => navigation.navigate('EditTraining', { trainingId: id })}>
@@ -189,6 +217,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
               </>
             )}
           </List>
+          {playerList}
           <SectionLabel title="Åtgärder" />
           <List>
             {canManage ? (

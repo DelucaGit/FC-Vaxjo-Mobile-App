@@ -41,3 +41,9 @@ Tidigare kopierades lagets spelare till närvarolistan när träningen skapades 
 4. Markering på en öppen lista kräver att spelaren finns på den levande listan, annars 400. Raden skapas första gången spelaren markeras. På en fryst lista ger markering 400 "The attendance list for this match is frozen and can no longer be changed".
 5. Ny tabell `match_attendance` med unik nyckel (`match_id`, `player_user_id`). `attendanceLockedAt` finns i `MatchResponse` och `MyMatchResponse`. `MatchAttendanceFreezeTest` låser reglerna.
 6. **Två separata klasser.** `MatchAttendanceRoster` är en nära kopia av `TrainingAttendanceRoster`, inte en gemensam generisk klass. Skälet är att varje klass blir lätt att läsa. Kostnaden är att en regeländring måste göras på två ställen.
+
+## En knapp "Spara" i appen (issue #209)
+1. Appen har inte längre en "Klar"-knapp och sparar inte varje markering direkt. Närvarolistan öppnar med alla omarkerade spelare som Närvarande, och tränaren trycker på dem som inte kom (Närvarande och Frånvarande växlar). Inget skickas förrän tränaren trycker "Spara".
+2. "Spara" frågar först: "Spara och låsa närvaron? Den går inte att ändra efteråt." Avbryter tränaren skickas ingenting. Bekräftar tränaren skriver appen PRESENT eller ABSENT för varje spelare med de befintliga anropen och låser sedan listan med `.../attendance/lock`. Ledig (EXCUSED) skrivs inte och kan inte ändras med ett tryck.
+3. Listan låses bara om alla skrivningar lyckades. Misslyckas någon visas ett fel, listan är fortfarande öppen och tränarens markeringar finns kvar så att hen kan försöka igen.
+4. API:t är oförändrat. Den automatiska frysningen (6 timmar efter träningens slut, 8 timmar efter avspark) gäller som förut.

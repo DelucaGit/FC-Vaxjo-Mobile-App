@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Lock } from 'lucide-react-native';
-import type { AttendanceRow, AttendanceStatus } from '../api/trainings';
+import type { AttendanceRow } from '../api/trainings';
 import {
   attendanceApi,
   countStatuses,
+  marksToSave,
+  toggled,
+  withDefaultPresent,
   type ActivityHeader,
 } from '../components/attendance/attendance';
 import { PlayerAttendanceRow } from '../components/attendance/PlayerAttendanceRow';
@@ -34,7 +37,10 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : 'Något gick fel';
 }
 
-/** Närvaro (spec section 7): mark each player, then lock the list with "Klar". */
+/**
+ * Närvaro (spec section 7). Every player starts as Närvarande; the coach taps those who
+ * did not come. Nothing is sent until "Spara", which writes every mark and then locks the list.
+ */
 export default function AttendanceScreen({ navigation, route }: Props) {
   const toast = useToast();
   const { kind, id } = route.params;
@@ -44,10 +50,8 @@ export default function AttendanceScreen({ navigation, route }: Props) {
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** How many mark calls are still on their way. "Klar" waits for them. */
-  const [saving, setSaving] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [locking, setLocking] = useState(false);
+  const [saving, setSaving] = useState(false);
   /**
    * Issue #124: marking opens 30 min before start. The API has the same rule and decides.
    * Checked once when the screen loads; reopening the screen checks again.
@@ -62,7 +66,8 @@ export default function AttendanceScreen({ navigation, route }: Props) {
         .then(([loadedHeader, loadedRows]) => {
           if (isActive()) {
             setHeader(loadedHeader);
-            setRows(loadedRows);
+            // Open list: unmarked players are shown (and later saved) as Närvarande.
+            setRows(loadedHeader.lockedAt == null ? withDefaultPresent(loadedRows) : loadedRows);
             setWindowOpen(isAttendanceOpen(loadedHeader.start));
             setLoadError(null);
           }
@@ -88,52 +93,40 @@ export default function AttendanceScreen({ navigation, route }: Props) {
   const visibleRows = locked ? rows.filter((row) => row.status !== null) : rows;
   const counts = countStatuses(visibleRows);
 
-  function setStatus(playerId: number, from: AttendanceStatus | null, to: AttendanceStatus | null) {
+  /** Local only. Nothing is sent until "Spara". */
+  function toggle(playerId: number) {
+    setError(null);
     setRows((current) =>
       current.map((row) =>
-        row.playerUserId === playerId && row.status === from ? { ...row, status: to } : row,
+        row.playerUserId === playerId ? { ...row, status: toggled(row.status) } : row,
       ),
     );
   }
 
   /**
-   * Optimistic: the row changes at once, then the call is sent.
-   * If the call fails, the row goes back and the server's (Swedish) message is shown.
+   * Writes every mark, then locks. The lock is only sent when every write worked,
+   * so a failed write leaves the list open and the local marks as they are.
    */
-  async function mark(playerId: number, previous: AttendanceStatus | null, next: AttendanceStatus) {
-    setError(null);
-    setStatus(playerId, previous, next);
-    setSaving((n) => n + 1);
-    try {
-      await api.mark(playerId, next);
-    } catch (e) {
-      setStatus(playerId, next, previous);
-      setError(messageOf(e));
-    } finally {
-      setSaving((n) => n - 1);
-    }
-  }
-
-  function markAllPresent() {
-    for (const row of rows) {
-      if (row.status === null) {
-        void mark(row.playerUserId, null, 'PRESENT');
-      }
-    }
-  }
-
-  async function lock() {
+  async function saveAndLock() {
     setConfirmOpen(false);
     setError(null);
-    setLocking(true);
+    setSaving(true);
     try {
-      const lockedAt = await api.lock();
-      setHeader((current) => (current ? { ...current, lockedAt } : current));
-      toast.show('Närvaron är klar');
-    } catch (e) {
-      setError(messageOf(e));
+      try {
+        await Promise.all(marksToSave(rows).map((m) => api.mark(m.playerId, m.status)));
+      } catch {
+        setError('Närvaron kunde inte sparas. Försök igen.');
+        return;
+      }
+      try {
+        const lockedAt = await api.lock();
+        setHeader((current) => (current ? { ...current, lockedAt } : current));
+        toast.show('Närvaron är sparad och låst');
+      } catch {
+        setError('Närvaron kunde inte låsas. Försök igen.');
+      }
     } finally {
-      setLocking(false);
+      setSaving(false);
     }
   }
 
@@ -155,13 +148,12 @@ export default function AttendanceScreen({ navigation, route }: Props) {
   }
 
   const notOpenYet = !locked && !windowOpen;
-  // No mark buttons when the list is locked or not open yet.
+  // Nothing to tap when the list is locked or not open yet.
   const readOnly = locked || notOpenYet;
-  const left = counts.unmarked;
   const bottom = readOnly ? undefined : (
     <Button
-      title={left > 0 ? `${left} spelare kvar att markera` : 'Klar'}
-      disabled={left > 0 || saving > 0 || locking}
+      title="Spara"
+      disabled={saving}
       onPress={() => setConfirmOpen(true)}
       block
       style={styles.grow}
@@ -174,24 +166,17 @@ export default function AttendanceScreen({ navigation, route }: Props) {
         <DateText start={header.start} end={header.end} />
         <Text style={type.heading}>{header.title}</Text>
         <Text style={type.meta}>
-          {counts.present} närvarande · {counts.absent} frånvarande · {counts.excused} ursäktad ·{' '}
-          <Text style={left > 0 ? styles.warning : undefined}>{left} ej markerade</Text>
+          {counts.present} närvarande · {counts.absent} frånvarande · {counts.excused} ledig
         </Text>
         {locked ? (
           <View style={styles.locked}>
             <Lock size={16} color={colors.textMuted} strokeWidth={2} />
+            <Text style={type.body}>Närvaro låst</Text>
             <Text style={type.meta}>{lockedLabel(header.lockedAt as string)}</Text>
           </View>
         ) : notOpenYet ? (
           <Text style={type.meta}>{ATTENDANCE_NOT_OPEN_MESSAGE}</Text>
-        ) : (
-          <Button
-            title="Markera alla närvarande"
-            variant="secondary"
-            disabled={left === 0}
-            onPress={markAllPresent}
-          />
-        )}
+        ) : null}
         {error ? <Text style={[type.body, styles.warning]}>{error}</Text> : null}
       </View>
 
@@ -204,7 +189,7 @@ export default function AttendanceScreen({ navigation, route }: Props) {
               key={row.playerUserId}
               row={row}
               locked={readOnly}
-              onChange={(next) => void mark(row.playerUserId, row.status, next)}
+              onToggle={() => toggle(row.playerUserId)}
             />
           ))}
         </List>
@@ -212,10 +197,10 @@ export default function AttendanceScreen({ navigation, route }: Props) {
 
       <Confirm
         visible={confirmOpen}
-        title="Låsa närvaron?"
+        title="Spara och låsa närvaron?"
         message="Den går inte att ändra efteråt."
-        confirmLabel="Lås närvaron"
-        onConfirm={() => void lock()}
+        confirmLabel="Spara"
+        onConfirm={() => void saveAndLock()}
         onCancel={() => setConfirmOpen(false)}
       />
     </Screen>
