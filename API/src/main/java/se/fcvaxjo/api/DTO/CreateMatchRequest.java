@@ -14,6 +14,8 @@ public class CreateMatchRequest {
     private Long teamId;
     private String opponent;
     private LocalDateTime kickoffAt;
+    /** Optional (issue #219). Must be after kickoffAt when set. */
+    private LocalDateTime endsAt;
     private String venue;
     /** HOME or AWAY. */
     private String homeAway;

@@ -20,6 +20,8 @@ public class MyMatchResponse {
     private String teamName;
     private String opponent;
     private LocalDateTime kickoffAt;
+    /** Null when the match has no end time (issue #219). */
+    private LocalDateTime endsAt;
     private String venue;
     private String homeAway;
     private MatchResultResponse result;

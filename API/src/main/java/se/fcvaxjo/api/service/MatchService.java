@@ -78,11 +78,26 @@ public class MatchService {
         this.leaveRequestRepository = leaveRequestRepository;
     }
 
+    public Match createMatch(
+            Long teamId,
+            String opponent,
+            LocalDateTime kickoffAt,
+            String venue,
+            String homeAwayName,
+            Integer goalsFor,
+            Integer goalsAgainst) {
+        return createMatch(teamId, opponent, kickoffAt, null, venue, homeAwayName, goalsFor, goalsAgainst);
+    }
+
+    /**
+     * @param endsAt optional (issue #219). When set it must be after kickoffAt.
+     */
     @Transactional
     public Match createMatch(
             Long teamId,
             String opponent,
             LocalDateTime kickoffAt,
+            LocalDateTime endsAt,
             String venue,
             String homeAwayName,
             Integer goalsFor,
@@ -99,6 +114,7 @@ public class MatchService {
             throw new BadRequestException("kickoffAt is required");
         }
         startRule.assertNotInPast(currentClubRole(), kickoffAt);
+        assertEndsAfterKickoff(kickoffAt, endsAt);
         if (venue == null || venue.isBlank()) {
             throw new BadRequestException("venue is required");
         }
@@ -112,6 +128,7 @@ public class MatchService {
         match.setTeamId(teamId);
         match.setOpponent(opponent.trim());
         match.setKickoffAt(kickoffAt);
+        match.setEndsAt(endsAt);
         match.setVenue(venue.trim());
         match.setHomeAway(homeAway);
         match.setGoalsFor(goalsFor);
@@ -174,10 +191,16 @@ public class MatchService {
      * The team stays, so the attendance rows and the result stay too.
      * Same rules as create. A new kickoff may not be in the past, except for ADMIN (#115).
      * Only a new kickoff is checked, so fixing the place on an old match still works.
+     * PUT replaces the details, so a null endsAt clears the end time (issue #219).
      */
     @Transactional
     public Match updateMatch(
-            Long id, String opponent, LocalDateTime kickoffAt, String venue, String homeAwayName) {
+            Long id,
+            String opponent,
+            LocalDateTime kickoffAt,
+            LocalDateTime endsAt,
+            String venue,
+            String homeAwayName) {
         Match match = getById(id);
         if (opponent == null || opponent.isBlank()) {
             throw new BadRequestException("opponent is required");
@@ -188,6 +211,7 @@ public class MatchService {
         if (!kickoffAt.equals(match.getKickoffAt())) {
             startRule.assertNotInPast(currentClubRole(), kickoffAt);
         }
+        assertEndsAfterKickoff(kickoffAt, endsAt);
         if (venue == null || venue.isBlank()) {
             throw new BadRequestException("venue is required");
         }
@@ -195,6 +219,7 @@ public class MatchService {
 
         match.setOpponent(opponent.trim());
         match.setKickoffAt(kickoffAt);
+        match.setEndsAt(endsAt);
         match.setVenue(venue.trim());
         match.setHomeAway(homeAway);
         return matchRepository.save(match);
@@ -330,6 +355,13 @@ public class MatchService {
      * Both numbers empty means "no result" (on create, and to clear a result).
      * One number without the other is always rejected.
      */
+    /** The end time is optional. When it is set it must be after kickoff (issue #219). */
+    private static void assertEndsAfterKickoff(LocalDateTime kickoffAt, LocalDateTime endsAt) {
+        if (endsAt != null && !endsAt.isAfter(kickoffAt)) {
+            throw new BadRequestException("Sluttiden måste vara efter avsparken.");
+        }
+    }
+
     private void assertScorePair(Integer goalsFor, Integer goalsAgainst) {
         if (goalsFor == null && goalsAgainst == null) {
             return;

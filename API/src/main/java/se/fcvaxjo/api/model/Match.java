@@ -37,6 +37,14 @@ public class Match {
     @Column(name = "kickoff_at", nullable = false)
     private LocalDateTime kickoffAt;
 
+    /**
+     * Optional end time (issue #219). When set, it must be after kickoffAt and the
+     * attendance list freezes 6 hours after it, the same as a training.
+     * Nullable so Hibernate can add the column to existing rows (no Flyway).
+     */
+    @Column(name = "ends_at")
+    private LocalDateTime endsAt;
+
     @Column(nullable = false)
     private String venue;
 
@@ -67,7 +75,8 @@ public class Match {
     private Long createdByUserId;
 
     /**
-     * When the attendance list was frozen ("Klar" or 8 hours after kickoffAt).
+     * When the attendance list was frozen ("Klar", or 6 hours after endsAt, or 8 hours after kickoffAt
+     * when there is no end time).
      * Null means the list is still open and follows the team's current players.
      * Nullable so Hibernate can add the column to existing rows (no Flyway).
      */

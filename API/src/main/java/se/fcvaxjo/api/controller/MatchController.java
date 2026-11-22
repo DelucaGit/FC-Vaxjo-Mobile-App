@@ -53,6 +53,7 @@ public class MatchController {
                 request.getTeamId(),
                 request.getOpponent(),
                 request.getKickoffAt(),
+                request.getEndsAt(),
                 request.getVenue(),
                 request.getHomeAway(),
                 request.getGoalsFor(),
@@ -86,6 +87,7 @@ public class MatchController {
                 id,
                 request.getOpponent(),
                 request.getKickoffAt(),
+                request.getEndsAt(),
                 request.getVenue(),
                 request.getHomeAway());
         return toResponse(updated);
@@ -157,6 +159,7 @@ public class MatchController {
                 matchService.getTeamName(match.getTeamId()),
                 match.getOpponent(),
                 match.getKickoffAt(),
+                match.getEndsAt(),
                 match.getVenue(),
                 match.getHomeAway().name(),
                 resultOf(match),
