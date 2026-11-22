@@ -16,11 +16,11 @@ export const colors = {
   warning: '#B45309',
   /** Soft warning background. Prototype `--ambl`. */
   warningSoft: '#FEF3C7',
-  /** Good news: "Kommer", saved. Prototype `--grn`. */
+  /** Good news, e.g. approved or saved. Prototype `--grn`. */
   success: '#15803D',
   /** Soft success background. Prototype `--grnl`. */
   successSoft: '#DCFCE7',
-  /** Destructive text: "Kommer inte", delete. Prototype `--redd`. */
+  /** Destructive text, e.g. delete or denied. Prototype `--redd`. */
   danger: '#B91C1C',
   /** Soft destructive background. Prototype `--redl`. */
   dangerSoft: '#FEE2E2',
@@ -32,7 +32,7 @@ export const colors = {
   surface: '#FFFFFF',
   /** Body text and dark surfaces (toast). Prototype `--ink`. */
   text: '#111827',
-  /** Secondary text, inactive tabs. Prototype `--mute`. */
+  /** Secondary text, captions. Prototype `--mute`. */
   textMuted: '#6B7280',
   /** Icons in round icon circles. */
   icon: '#4B5563',
