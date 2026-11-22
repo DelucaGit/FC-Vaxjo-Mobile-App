@@ -1,4 +1,6 @@
 import type { MyMatch, MyTraining } from '../../api/my';
+import { trainingTypeName } from '../../api/trainingTypes';
+import type { HomeActivity } from '../home/homeActivity';
 import { isoWeek, toDate } from '../../lib/dates';
 
 /** One row in the schedule: a training or a match, with the time it starts. */
@@ -61,4 +63,32 @@ const STATUS_LABELS = {
 /** The player's own mark in Swedish, "–" when the coach has not marked it. */
 export function statusLabel(status: MyTraining['status']): string {
   return status ? STATUS_LABELS[status] : '–';
+}
+
+/** A player's training as a card on the start page. */
+export function homeFromTraining(t: MyTraining): HomeActivity {
+  return {
+    key: `t${t.id}`,
+    kind: 'training',
+    startsAt: t.startsAt,
+    endsAt: t.endsAt,
+    title: trainingTypeName(t.type),
+    venue: t.venue,
+    cancelled: t.trainingStatus === 'CANCELLED',
+    cancelReason: t.cancelReason,
+  };
+}
+
+/** A player's match as a card on the start page. */
+export function homeFromMatch(m: MyMatch): HomeActivity {
+  return {
+    key: `m${m.id}`,
+    kind: 'match',
+    startsAt: m.kickoffAt,
+    title: `Match mot ${m.opponent}`,
+    venue: m.venue,
+    homeAway: m.homeAway,
+    cancelled: m.status === 'CANCELLED',
+    cancelReason: m.cancelReason,
+  };
 }
