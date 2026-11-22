@@ -11,6 +11,7 @@ import CoachesScreen from '../screens/CoachesScreen';
 import EditMatchScreen from '../screens/EditMatchScreen';
 import EditTrainingScreen from '../screens/EditTrainingScreen';
 import MoreChangePasswordScreen from '../screens/MoreChangePasswordScreen';
+import MyLeaveRequestsScreen from '../screens/MyLeaveRequestsScreen';
 import NewMatchScreen from '../screens/NewMatchScreen';
 import NewPlayerScreen from '../screens/NewPlayerScreen';
 import NewTeamScreen from '../screens/NewTeamScreen';
@@ -41,6 +42,7 @@ const SCREENS: Record<RouteName, ComponentType<any>> = {
   Schedule: ScheduleScreen,
   Coaches: CoachesScreen,
   RequestLeave: RequestLeaveScreen,
+  MyLeaveRequests: MyLeaveRequestsScreen,
   Activities: ActivitiesScreen,
   ActivityDetail: ActivityDetailScreen,
   NewTraining: NewTrainingScreen,
@@ -102,7 +104,7 @@ export function routesForRole(roleName: string | null | undefined): readonly Rou
   switch (roleName) {
     case 'PLAYER':
     case 'PARENT':
-      groups = [['Schedule', 'Coaches', 'RequestLeave'], EVERY_ROLE];
+      groups = [['Schedule', 'Coaches', 'RequestLeave', 'MyLeaveRequests'], EVERY_ROLE];
       break;
     case 'COACH':
       groups = [ACTIVITIES, SQUAD, SEARCH, EVERY_ROLE];

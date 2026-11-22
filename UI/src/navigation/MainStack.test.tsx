@@ -69,7 +69,7 @@ function menuLabels(): string[] {
 
 describe('the menu', () => {
   test.each([
-    ['PLAYER', 'Schedule', ['Schema', 'Tränare', 'Tidigare aktiviteter'], 'Tränare', 'Coaches'],
+    ['PLAYER', 'Schedule', ['Schema', 'Tränare', 'Mina ledighetsbegäran', 'Tidigare aktiviteter'], 'Tränare', 'Coaches'],
     [
       'COACH',
       'Activities',
