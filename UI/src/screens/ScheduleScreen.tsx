@@ -297,7 +297,7 @@ function MatchRow({ match }: { match: MyMatch }) {
       right={result ? <Text style={type.rowTitle}>{result}</Text> : undefined}
     >
       <RowTitle style={cancelled ? styles.cancelledTitle : undefined}>{`Match mot ${match.opponent}`}</RowTitle>
-      <DateText start={match.kickoffAt} />
+      <DateText start={match.kickoffAt} end={match.endsAt} />
       <RowMeta>{`${match.venue} · ${match.homeAway === 'HOME' ? 'Hemma' : 'Borta'}`}</RowMeta>
       {cancelled ? (
         <RowMeta style={styles.warning}>{cancelledLabel(match.cancelReason ?? null)}</RowMeta>

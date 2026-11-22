@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   Shield,
+  Trophy,
   UserPlus,
   UserRound,
   Users,
@@ -42,6 +43,8 @@ const COACH_MENU: readonly MenuItem[] = [
   LEAVE,
   // Issue #216: the guide. Coach only, as in the prototype (admin uses the start page's plus button).
   { label: 'Ny träning', route: 'NewTraining', icon: Plus },
+  // Issue #220: the match guide, next to Ny träning (prototype).
+  { label: 'Ny match', route: 'NewMatch', icon: Trophy },
   { label: 'Lag', route: 'Squad', icon: Users },
   { label: 'Sök spelare', route: 'Search', icon: Search },
   PAST,

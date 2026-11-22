@@ -74,7 +74,7 @@ describe('the menu', () => {
     [
       'COACH',
       'Activities',
-      ['Aktiviteter', 'Ledighetsbegäran', 'Ny träning', 'Lag', 'Sök spelare', 'Tidigare aktiviteter'],
+      ['Aktiviteter', 'Ledighetsbegäran', 'Ny träning', 'Ny match', 'Lag', 'Sök spelare', 'Tidigare aktiviteter'],
       'Sök spelare',
       'Search',
     ],

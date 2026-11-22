@@ -15,7 +15,7 @@ export type ActivityItem = {
   /** "Fotbollsträning" / "Fysträning" (the training type) or "Match mot Östers IF". */
   title: string;
   startsAt: string;
-  /** Only trainings have an end time. */
+  /** A training's end time, or a match's when it has one (issue #219). */
   endsAt: string | null;
   /** "Plats" or "Plats · Hemma". null when a training has no venue. */
   place: string | null;
@@ -60,7 +60,7 @@ export function fromMatch(m: Match): ActivityItem {
     id: m.id,
     title: matchTitle(m),
     startsAt: m.kickoffAt,
-    endsAt: null,
+    endsAt: m.endsAt ?? null,
     place: `${m.venue} · ${homeAwayLabel(m.homeAway)}`,
     // A cancelled match shows "Inställd" instead of a score.
     result: cancelled ? null : resultLabel(m.result),
@@ -96,6 +96,7 @@ export function homeFromTeamMatch(m: Match): HomeActivity {
     key: homeKey({ kind: 'match', id: m.id }),
     kind: 'match',
     startsAt: m.kickoffAt,
+    endsAt: m.endsAt ?? null,
     title: matchTitle(m),
     venue: m.venue,
     homeAway: m.homeAway,

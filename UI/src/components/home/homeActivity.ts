@@ -9,7 +9,7 @@ export type HomeActivity = {
   key: string;
   kind: 'training' | 'match';
   startsAt: string;
-  /** End time of a training. A match has none. */
+  /** End time. A match may have none (issue #219). */
   endsAt?: string | null;
   /** "Fotbollsträning" or "Match mot Östers IF". */
   title: string;

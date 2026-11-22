@@ -26,6 +26,8 @@ export default function EditMatchScreen({ navigation, route }: Props) {
   const [values, setValues] = useState<MatchFormValues | null>(null);
   // The kick-off as saved, so an old match can still get a new place.
   const [savedKickoff, setSavedKickoff] = useState<string | null>(null);
+  // The end time is not on this form yet, but PUT clears it when left out (issue #219).
+  const [savedEndsAt, setSavedEndsAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +38,7 @@ export default function EditMatchScreen({ navigation, route }: Props) {
         if (!active) return;
         setValues(matchValuesFrom(match));
         setSavedKickoff(match.kickoffAt);
+        setSavedEndsAt(match.endsAt ?? null);
       })
       .catch((e: Error) => active && setError(e.message));
     return () => {
@@ -57,7 +60,7 @@ export default function EditMatchScreen({ navigation, route }: Props) {
     setSaving(true);
     setError(null);
     try {
-      await updateMatch(matchId, payload);
+      await updateMatch(matchId, { ...payload, endsAt: savedEndsAt });
       toast.show('Matchen är sparad');
       navigation.goBack();
     } catch (e) {

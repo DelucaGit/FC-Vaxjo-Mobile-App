@@ -36,6 +36,8 @@ export type MyMatch = {
   teamName: string;
   opponent: string;
   kickoffAt: string;
+  /** End time (issue #219). null or missing when the match has none. */
+  endsAt?: string | null;
   venue: string;
   homeAway: HomeAway;
   result: MatchResult | null;

@@ -14,6 +14,17 @@ import { ErrorText } from './TrainingForm';
 
 export const NO_VENUES_MESSAGE = 'Det finns inga sparade platser än.';
 
+/**
+ * Where the typed address goes (the match guide, issue #220). 'first' for an away match,
+ * where the address usually is new; 'last' under the saved venues for a home match.
+ */
+export type AddressField = 'first' | 'last';
+
+const ADDRESS_LABEL: Record<AddressField, string> = {
+  first: 'Adress till bortaplanen',
+  last: 'Eller skriv en annan adress',
+};
+
 function byName(a: SavedVenue, b: SavedVenue) {
   return a.name.localeCompare(b.name, 'sv');
 }
@@ -31,14 +42,17 @@ type Props = {
   onChange: (name: string) => void;
   editing: boolean;
   onEditingChange: (editing: boolean) => void;
+  /** Also lets the coach type an address that is not saved. Left out: saved venues only. */
+  addressField?: AddressField;
 };
 
 /**
  * Issue #218: pick one of the club's saved venues (Sparad plats). In edit mode the
  * coach adds a venue (name, optional address) or removes one. Adding picks it;
  * removing the chosen one un-picks it. Leaving the step ends edit mode.
+ * With `addressField` the coach may instead type an address (issue #220).
  */
-export function VenueStep({ value, onChange, editing, onEditingChange }: Props) {
+export function VenueStep({ value, onChange, editing, onEditingChange, addressField }: Props) {
   const toast = useToast();
   const [venues, setVenues] = useState<SavedVenue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +60,19 @@ export function VenueStep({ value, onChange, editing, onEditingChange }: Props) 
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<SavedVenue | null>(null);
+  // The typed address. Kept apart from `value`, so picking a saved venue empties the field.
+  const [typed, setTyped] = useState('');
 
+  // Read once: coming back to the step shows a typed answer in the field again.
+  const firstValue = useRef(value);
   useEffect(() => {
     let active = true;
     listSavedVenues()
       .then((list) => {
-        if (active) setVenues(list);
+        if (!active) return;
+        setVenues(list);
+        const start = firstValue.current;
+        if (start && !list.some((v) => v.name === start)) setTyped(start);
       })
       .catch((e: Error) => {
         if (active) setError(e.message);
@@ -86,6 +107,7 @@ export function VenueStep({ value, onChange, editing, onEditingChange }: Props) 
       const created = await createSavedVenue({ name: trimmed, address: address.trim() || null });
       setVenues((list) => [...(list ?? []), created].sort(byName));
       onChange(created.name);
+      setTyped('');
       setName('');
       setAddress('');
       toast.show('Platsen är tillagd');
@@ -115,25 +137,52 @@ export function VenueStep({ value, onChange, editing, onEditingChange }: Props) 
   const pin = (on: boolean) => <MapPin size={22} color={on ? colors.onPrimary : colors.icon} />;
 
   if (!editing) {
-    if (venues.length === 0) {
-      return (
+    const saved =
+      venues.length === 0 ? (
         <View style={styles.empty}>
           <Text style={type.body}>{NO_VENUES_MESSAGE}</Text>
           <Button title="Lägg till den första platsen" onPress={() => onEditingChange(true)} />
         </View>
-      );
-    }
-    return (
-      <>
-        {venues.map((v) => (
+      ) : (
+        venues.map((v) => (
           <GuideOption
             key={v.id}
             label={v.name}
             selected={value === v.name}
-            onPress={() => onChange(v.name)}
+            onPress={() => {
+              setTyped('');
+              onChange(v.name);
+            }}
             icon={pin(value === v.name)}
           />
-        ))}
+        ))
+      );
+    if (!addressField) return <>{saved}</>;
+
+    const field = (
+      <View style={addressField === 'first' ? styles.addressFirst : styles.addressLast}>
+        <Field
+          label={ADDRESS_LABEL[addressField]}
+          value={typed}
+          onChangeText={(text) => {
+            setTyped(text);
+            onChange(text);
+          }}
+          placeholder="Skriv adress"
+          maxLength={120}
+        />
+      </View>
+    );
+    return addressField === 'first' ? (
+      <>
+        {field}
+        {venues.length > 0 ? <Text style={styles.listLabel}>Eller välj en sparad plats</Text> : null}
+        {saved}
+      </>
+    ) : (
+      <>
+        {saved}
+        {field}
       </>
     );
   }
@@ -185,21 +234,24 @@ type StepOptions<A> = {
   setEditing: (editing: boolean) => void;
   venueOf: (answers: A) => string;
   patch: (name: string) => Partial<A>;
+  /** The match guide also takes a typed address (issue #220). Left out: saved venues only. */
+  address?: (answers: A) => AddressField;
 };
 
-/** The Plats step for a Guide (training now, the match guide in #220). A venue is required. */
+/** The Plats step for a Guide (training, and the match guide in #220). A venue is required. */
 export function venueGuideStep<A>({
   question,
   editing,
   setEditing,
   venueOf,
   patch,
+  address,
 }: StepOptions<A>): GuideStep<A> {
   return {
     key: 'venue',
     question,
     label: 'Plats',
-    summary: venueOf,
+    summary: (a) => venueOf(a).trim(),
     canProceed: (a) => venueOf(a).trim() !== '',
     headerAction: () => <VenueEditButton editing={editing} onToggle={() => setEditing(!editing)} />,
     render: (a, update) => (
@@ -208,6 +260,7 @@ export function venueGuideStep<A>({
         onChange={(name) => update(patch(name))}
         editing={editing}
         onEditingChange={setEditing}
+        addressField={address?.(a)}
       />
     ),
   };
@@ -233,4 +286,7 @@ const styles = StyleSheet.create({
   rowName: { fontFamily: fonts.semibold, fontSize: 17, color: colors.text },
   remove: { minWidth: sizes.touch, minHeight: sizes.touch, alignItems: 'center', justifyContent: 'center' },
   add: { gap: spacing.sm, marginTop: spacing.sm },
+  addressFirst: { marginBottom: spacing.md },
+  addressLast: { marginTop: spacing.sm },
+  listLabel: { fontFamily: fonts.semibold, fontSize: 14, color: colors.textMuted, marginBottom: spacing.sm, marginHorizontal: 2 },
 });

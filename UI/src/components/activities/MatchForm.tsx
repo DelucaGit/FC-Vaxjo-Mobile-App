@@ -5,7 +5,7 @@ import { toKickoffAt } from '../../lib/matches/kickoff';
 import { Field, Segmented, type Option } from '../ui';
 import { colors, spacing, type } from '../../theme';
 
-/** The fields on "Ny match" and "Ändra match". */
+/** The fields on "Ändra match" ("Ny match" is a Guide since #220). */
 export type MatchFormValues = {
   opponent: string;
   /** "2026-11-21" */
@@ -15,14 +15,6 @@ export type MatchFormValues = {
   venue: string;
   /** null until the coach picks one. */
   homeAway: HomeAway | null;
-};
-
-export const NEW_MATCH_DEFAULTS: MatchFormValues = {
-  opponent: '',
-  date: '',
-  time: '10:00',
-  venue: '',
-  homeAway: null,
 };
 
 /** Fills the form from a saved match ("2026-11-21T10:00:00"). */
@@ -71,7 +63,7 @@ type Props = {
   children?: ReactNode;
 };
 
-/** The fields shared by "Ny match" and "Ändra match". "Spara" lives in the screen. */
+/** The "Ändra match" fields. "Spara" lives in the screen. */
 export function MatchForm({ values, onChange, children }: Props) {
   const set = (key: 'opponent' | 'date' | 'time' | 'venue') => (text: string) =>
     onChange({ ...values, [key]: text });

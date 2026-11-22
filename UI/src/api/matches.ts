@@ -20,6 +20,8 @@ export type Match = {
   teamName: string;
   opponent: string;
   kickoffAt: string;
+  /** End time (issue #219). null or missing when the match has none. */
+  endsAt?: string | null;
   venue: string;
   homeAway: HomeAway;
   result: MatchResult | null;
@@ -36,6 +38,8 @@ export type CreateMatchInput = {
   teamId: number;
   opponent: string;
   kickoffAt: string;
+  /** Optional end time (issue #219). Must be after kickoffAt. */
+  endsAt?: string | null;
   venue: string;
   homeAway: HomeAway;
   /** Optional: only for a match that is already played. */
@@ -86,6 +90,8 @@ export function lockMatchAttendance(matchId: number): Promise<Match> {
 export type UpdateMatchInput = {
   opponent: string;
   kickoffAt: string;
+  /** The API replaces the end time too: leaving it out clears it (issue #219). */
+  endsAt: string | null;
   venue: string;
   homeAway: HomeAway;
 };
