@@ -17,12 +17,14 @@ import se.fcvaxjo.api.exception.NotFoundException;
 import se.fcvaxjo.api.model.AppUser;
 import se.fcvaxjo.api.model.AttendanceStatus;
 import se.fcvaxjo.api.model.ClubRole;
+import se.fcvaxjo.api.model.LeaveRequestStatus;
 import se.fcvaxjo.api.model.HomeAway;
 import se.fcvaxjo.api.model.Match;
 import se.fcvaxjo.api.model.MatchAttendance;
 import se.fcvaxjo.api.model.MatchStatus;
 import se.fcvaxjo.api.repository.MatchAttendanceRepository;
 import se.fcvaxjo.api.repository.MatchRepository;
+import se.fcvaxjo.api.repository.LeaveRequestRepository;
 import se.fcvaxjo.api.repository.TeamCoachRepository;
 import se.fcvaxjo.api.repository.UserRepository;
 
@@ -33,6 +35,10 @@ import se.fcvaxjo.api.repository.UserRepository;
  */
 @Service
 public class MatchService {
+
+    /** Issue #213: an approved leave request keeps the player EXCUSED. */
+    static final String APPROVED_LEAVE_KEEPS_EXCUSED =
+            "Spelaren har godkänd ledighet och står som ledig. Det går inte att ändra.";
 
     /**
      * One sentence for "not your team" and for "no such match" when the caller
@@ -49,6 +55,7 @@ public class MatchService {
     private final MatchAttendanceRoster roster;
     private final Clock clock;
     private final ActivityStartRule startRule;
+    private final LeaveRequestRepository leaveRequestRepository;
 
     public MatchService(
             MatchRepository matchRepository,
@@ -58,7 +65,8 @@ public class MatchService {
             UserRepository userRepository,
             MatchAttendanceRoster roster,
             Clock clock,
-            ActivityStartRule startRule) {
+            ActivityStartRule startRule,
+            LeaveRequestRepository leaveRequestRepository) {
         this.matchRepository = matchRepository;
         this.teamService = teamService;
         this.teamCoachRepository = teamCoachRepository;
@@ -67,6 +75,7 @@ public class MatchService {
         this.roster = roster;
         this.clock = clock;
         this.startRule = startRule;
+        this.leaveRequestRepository = leaveRequestRepository;
     }
 
     @Transactional
@@ -290,6 +299,11 @@ public class MatchService {
         if (!roster.isLivePlayer(match.getTeamId(), playerUserId)) {
             throw new BadRequestException(
                     "This player is not on the attendance list for this match");
+        }
+        if (status != AttendanceStatus.EXCUSED
+                && leaveRequestRepository.existsByPlayerUserIdAndMatchIdAndStatus(
+                        playerUserId, match.getId(), LeaveRequestStatus.APPROVED)) {
+            throw new BadRequestException(APPROVED_LEAVE_KEEPS_EXCUSED);
         }
         MatchAttendance row = attendanceRepository
                 .findByMatchIdAndPlayerUserId(match.getId(), playerUserId)

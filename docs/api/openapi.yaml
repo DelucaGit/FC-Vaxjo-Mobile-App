@@ -65,6 +65,8 @@ tags:
     description: Matcher och resultat (personal-vy). Spelare och föräldrar läser via `/api/my/matches`.
   - name: MySchedule
     description: Den inloggades egna vy (`/api/my`).
+  - name: LeaveRequests
+    description: Personalen svarar på ledighetsbegäranden (issue #213).
   - name: Public
     description: |
       Publika GET-anrop för hemsidan (ADR 0003 och ADR 0007). Ingen inloggning.
@@ -1005,6 +1007,8 @@ paths:
       description: |
         Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
         i träningens lag just nu; raden skapas om den saknas. Fryst träning (även automatiskt fryst, se listan) nekas.
+        Godkänd ledighet (issue #213): en annan status än EXCUSED för spelaren ger 400
+        "Spelaren har godkänd ledighet och står som ledig. Det går inte att ändra.".
         Närvarofönster (issue #124): går först från 30 minuter före `startsAt` (svensk tid), för alla roller.
         Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
         Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
@@ -1322,6 +1326,7 @@ paths:
       description: |
         Status är skiftlägesokänslig (trimmas och görs om till versaler). Spelaren måste vara en aktiv PLAYER
         i matchens lag just nu; raden skapas om den saknas. Fryst match (även automatiskt fryst) nekas.
+        Godkänd ledighet (issue #213): en annan status än EXCUSED för spelaren ger 400.
         Närvarofönster (issue #124): går först från 30 minuter före `kickoffAt` (svensk tid), för alla roller.
         Tidigare ges 400 "Närvaron öppnar 30 minuter före start.". Fönstret stängs av den automatiska frysningen.
         Fel: "status is required (PRESENT, ABSENT, or EXCUSED)", "status must be PRESENT, ABSENT, or EXCUSED",
@@ -1429,6 +1434,104 @@ paths:
       responses:
         '204':
           description: Borttagen.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/leave-requests:
+    get:
+      tags: [LeaveRequests]
+      operationId: listLeaveRequests
+      summary: Ledighetsbegäranden för lagen man ansvarar för
+      description: |
+        Senast skapade först (issue #213). ADMIN och CHAIRMAN ser alla lag, COACH bara lag i `team_coaches`.
+        - `teamId` smalnar av till ett lag. En COACH som anger ett annat lag får 403.
+        - `status` filtrerar på PENDING, APPROVED eller DENIED (skiftlägesokänsligt). Annat värde ger 400.
+        Orsaken (x-pii) visas för lagets personal, aldrig för en tränare i ett annat lag.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag; COACH endast lag i team_coaches.
+      x-source: StaffLeaveRequestController.list → LeaveRequestService.listForStaff
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [PENDING, APPROVED, DENIED] }
+        - name: teamId
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Begäranden.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LeaveRequestResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/leave-requests/{id}/approve:
+    post:
+      tags: [LeaveRequests]
+      operationId: approveLeaveRequest
+      summary: Godkänn en ledighetsbegäran
+      description: |
+        Sätter `APPROVED`, sparar vem som svarade och när (Europe/Stockholm), och sätter spelarens närvaro
+        för träningen eller matchen till `EXCUSED` (raden skapas om den saknas). Närvarofönstret gäller inte här.
+        - Bara `PENDING` kan besvaras: "Begäran är redan besvarad." (400).
+        - Låst närvarolista (även automatiskt låst): "Närvarolistan är redan låst. Ledigheten kan inte godkännas." (400).
+        - Team scope som aktivitetens egna anrop: COACH för annat lag 403. Okänt id 404.
+        Efteråt nekar närvaroanropen en annan status än `EXCUSED` för spelaren (400).
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag; COACH endast lag i team_coaches.
+      x-source: StaffLeaveRequestController.approve → LeaveRequestService.approve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Godkänd begäran.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveRequestResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/leave-requests/{id}/deny:
+    post:
+      tags: [LeaveRequests]
+      operationId: denyLeaveRequest
+      summary: Neka en ledighetsbegäran
+      description: |
+        Sätter `DENIED`, sparar vem som svarade och när, och en valfri kommentar (`note`, trimmad; tom blir `null`)
+        i `coachNote`. Närvaron ändras inte. Kroppen får utelämnas.
+        - Bara `PENDING` kan besvaras (400). COACH för annat lag 403. Okänt id 404.
+      x-roles: [ADMIN, CHAIRMAN, COACH]
+      x-scope: ADMIN och CHAIRMAN alla lag; COACH endast lag i team_coaches.
+      x-source: StaffLeaveRequestController.deny → LeaveRequestService.deny
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DenyLeaveRequestRequest' }
+      responses:
+        '200':
+          description: Nekad begäran.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveRequestResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -2226,6 +2329,11 @@ components:
         status: { type: string, enum: [PENDING, APPROVED, DENIED] }
         coachNote: { type: [string, 'null'] }
         createdAt: { $ref: '#/components/schemas/LocalDateTime' }
+    DenyLeaveRequestRequest:
+      type: object
+      description: Valfri kommentar när personalen nekar en ledighetsbegäran.
+      properties:
+        note: { type: [string, 'null'] }
     MyChildResponse:
       type: object
       required: [id, name]

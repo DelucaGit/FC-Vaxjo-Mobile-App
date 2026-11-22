@@ -210,6 +210,20 @@ Kod idag: stämmer. Anonymt anrop är 401.
 | `GET /api/my/leave-requests` | PLAYER bara sina egna (childId 403). PARENT alla egna barns, eller ett eget barn med `childId` (annat barn 403). Orsaken (x-pii) syns aldrig för en annan förälder. ADMIN, CHAIRMAN och COACH 403, ANON 401 | Stämmer (`LeaveRequestAccessTest`) |
 | `DELETE /api/my/leave-requests/{id}` | PLAYER egen, PARENT eget barns begäran, bara PENDING (besvarad 400). Någon annans eller okänt id 404. ADMIN, CHAIRMAN och COACH 403, ANON 401 | Stämmer (`LeaveRequestAccessTest`) |
 
+#### Personalen svarar på ledighet (issue #213)
+
+| Anrop | ADMIN | CHAIRMAN | COACH eget lag | COACH annat lag | PLAYER | PARENT | Anonym | Kod idag |
+|---|---|---|---|---|---|---|---|---|
+| `GET /api/leave-requests` | 200 alla lag | 200 alla lag | 200 bara egna lag | 403 med annat `teamId` | 403 | 403 | 401 | Stämmer (`LeaveRequestDecisionAccessTest`) |
+| `POST /api/leave-requests/{id}/approve` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer (`LeaveRequestDecisionAccessTest`) |
+| `POST /api/leave-requests/{id}/deny` | 200 | 200 | 200 | 403 | 403 | 403 | 401 | Stämmer (`LeaveRequestDecisionAccessTest`) |
+
+- Listan: senast först, filter `status` (okänt värde 400) och `teamId`. Orsaken (x-pii) syns inte för en tränare i ett annat lag.
+- Bara `PENDING` kan besvaras, annars 400. Okänt id 404. Svaret sparar `decidedByUserId` och `decidedAt`.
+- Godkänn sätter spelarens närvaro till `EXCUSED` på träningen eller matchen (raden skapas om den saknas), även före närvarofönstret. Låst lista ger 400 och begäran förblir `PENDING`.
+- Neka sparar den valfria kommentaren i `coachNote` och rör inte närvaron.
+- Efter godkänd ledighet ger `PUT .../attendance/{playerId}` med annan status än `EXCUSED` 400, så `EXCUSED` ligger kvar. `EXCUSED` igen ger 200.
+
 ### Planerade publika anrop
 
 `GET /api/public/teams`, `GET /api/public/matches/upcoming`, `GET /api/public/matches/history` är öppna utan token. Ingen spelardata, ingen e-post och ingen telefon (ADR 0007). Den gamla truppen `GET /api/public/teams/{id}/players` är borttagen och ger 404. `PublicLeakTest` seedar en spelare med unika värden och anropar alla publika GET-endpoints som Spring känner till.

@@ -7,7 +7,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -293,6 +292,7 @@ class LeaveRequestDecisionAccessTest extends ClubApiTest {
     @Test
     void coach_deniesWithNote_andAttendanceIsUntouched() throws Exception {
         long id = createAlfaTrainingRequest();
+        String before = attendanceStatus(trainingAttendance(), world.playerAlfaId());
         post(Actor.COACH_ALFA, deny(id), Map.of("note", " Viktig match, kom gärna "))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("DENIED"))
@@ -300,7 +300,7 @@ class LeaveRequestDecisionAccessTest extends ClubApiTest {
         LeaveRequest row = leaveRequests.findById(id).orElseThrow();
         assertEquals(world.coachAlfaId(), row.getDecidedByUserId());
         assertEquals(DECIDED_AT, row.getDecidedAt());
-        assertNull(attendanceStatus(trainingAttendance(), world.playerAlfaId()));
+        assertEquals(before, attendanceStatus(trainingAttendance(), world.playerAlfaId()));
     }
 
     @Test
@@ -315,10 +315,11 @@ class LeaveRequestDecisionAccessTest extends ClubApiTest {
     @Test
     void deniedRequest_cannotBeAnsweredAgain() throws Exception {
         long id = createAlfaTrainingRequest();
+        String before = attendanceStatus(trainingAttendance(), world.playerAlfaId());
         post(Actor.COACH_ALFA, deny(id), null).andExpect(status().isOk());
         post(Actor.COACH_ALFA, deny(id), null).andExpect(status().isBadRequest());
         post(Actor.COACH_ALFA, approve(id), null).andExpect(status().isBadRequest());
-        assertNull(attendanceStatus(trainingAttendance(), world.playerAlfaId()));
+        assertEquals(before, attendanceStatus(trainingAttendance(), world.playerAlfaId()));
     }
 
     @Test
