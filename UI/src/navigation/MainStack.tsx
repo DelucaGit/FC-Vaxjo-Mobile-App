@@ -10,6 +10,7 @@ import CancelTrainingScreen from '../screens/CancelTrainingScreen';
 import CoachesScreen from '../screens/CoachesScreen';
 import EditMatchScreen from '../screens/EditMatchScreen';
 import EditTrainingScreen from '../screens/EditTrainingScreen';
+import LeaveRequestsScreen from '../screens/LeaveRequestsScreen';
 import MoreChangePasswordScreen from '../screens/MoreChangePasswordScreen';
 import MyLeaveRequestsScreen from '../screens/MyLeaveRequestsScreen';
 import NewMatchScreen from '../screens/NewMatchScreen';
@@ -53,6 +54,7 @@ const SCREENS: Record<RouteName, ComponentType<any>> = {
   CancelMatch: CancelMatchScreen,
   SetResult: SetResultScreen,
   Attendance: AttendanceScreen,
+  LeaveRequests: LeaveRequestsScreen,
   Squad: SquadScreen,
   Teams: TeamsScreen,
   TeamDetail: TeamDetailScreen,
@@ -81,7 +83,13 @@ const ACTIVITY_ACTIONS: readonly RouteName[] = [
 ];
 /** "Byt lösenord" (from the profile menu) and "Tidigare aktiviteter": every role. */
 const EVERY_ROLE: readonly RouteName[] = ['ChangePassword', 'PastActivities', ...ACTIVITY_ACTIONS];
-const ACTIVITIES: readonly RouteName[] = ['Activities', 'NewTraining', 'NewMatch', ...ACTIVITY_ACTIONS];
+const ACTIVITIES: readonly RouteName[] = [
+  'Activities',
+  'LeaveRequests',
+  'NewTraining',
+  'NewMatch',
+  ...ACTIVITY_ACTIONS,
+];
 const SQUAD: readonly RouteName[] = ['Squad', 'PlayerView', 'PlayerProfile', 'NewPlayer'];
 const SEARCH: readonly RouteName[] = ['Search', 'PlayerView', 'PlayerProfile'];
 const TEAMS: readonly RouteName[] = [

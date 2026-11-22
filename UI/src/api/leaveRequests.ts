@@ -53,3 +53,33 @@ export function listMyLeaveRequests(childId?: number): Promise<LeaveRequest[]> {
 export function withdrawLeaveRequest(id: number): Promise<void> {
   return requestVoid(`/my/leave-requests/${encodeURIComponent(String(id))}`, { method: 'DELETE' });
 }
+
+/** Filter for the staff list. Both are optional; a COACH who asks for another team gets 403. */
+export type LeaveRequestFilter = {
+  status?: LeaveRequestStatus;
+  teamId?: number;
+};
+
+/**
+ * GET /leave-requests, newest first: the requests for the teams the user is responsible for
+ * (COACH: own teams, CHAIRMAN and ADMIN: every team).
+ */
+export function listLeaveRequests(filter: LeaveRequestFilter = {}): Promise<LeaveRequest[]> {
+  return requestJson(`/leave-requests${queryString(filter)}`);
+}
+
+/**
+ * POST /leave-requests/{id}/approve. The server also sets the player's attendance to EXCUSED.
+ * 400 when the request is already answered or the attendance list is locked.
+ */
+export function approveLeaveRequest(id: number): Promise<LeaveRequest> {
+  return requestJson(`/leave-requests/${encodeURIComponent(String(id))}/approve`, withJson('POST'));
+}
+
+/** POST /leave-requests/{id}/deny with an optional comment (empty becomes null on the server). */
+export function denyLeaveRequest(id: number, note?: string | null): Promise<LeaveRequest> {
+  return requestJson(
+    `/leave-requests/${encodeURIComponent(String(id))}/deny`,
+    withJson('POST', { note: note ?? null }),
+  );
+}

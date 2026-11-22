@@ -1,10 +1,12 @@
-import { fireEvent, render, screen, within } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { listLeaveRequests, type LeaveRequest } from '../api/leaveRequests';
 import { listMatchAttendance, listMatches } from '../api/matches';
 import { listMyTeams, listTeams } from '../api/teams';
 import { listTrainingAttendance, listTrainings } from '../api/trainings';
 import { pullToRefresh } from '../test/pullToRefresh';
 import ActivitiesScreen from './ActivitiesScreen';
 
+jest.mock('../api/leaveRequests', () => ({ listLeaveRequests: jest.fn() }));
 jest.mock('../api/teams', () => ({ listTeams: jest.fn(), listMyTeams: jest.fn() }));
 jest.mock('../api/trainings', () => ({
   listTrainings: jest.fn(),
@@ -92,6 +94,7 @@ beforeEach(() => {
   jest.mocked(listMatches).mockResolvedValue([]);
   jest.mocked(listTrainingAttendance).mockResolvedValue([]);
   jest.mocked(listMatchAttendance).mockResolvedValue([]);
+  jest.mocked(listLeaveRequests).mockResolvedValue([]);
 });
 
 describe('the start page', () => {
@@ -301,4 +304,46 @@ test('shows the error message from the API', async () => {
   expect(
     await screen.findByText('Den här funktionen är inte tillgänglig för din roll än.'),
   ).toBeTruthy();
+});
+
+describe('the leave banner', () => {
+  const pending = (id: number) => ({ id, status: 'PENDING' }) as LeaveRequest;
+
+  test('shows how many leave requests wait for an answer and opens the page', async () => {
+    jest.mocked(listLeaveRequests).mockResolvedValue([pending(1), pending(2)]);
+    await render(<ActivitiesScreen {...props} />);
+
+    expect(await screen.findByText('2 ledighetsbegäran väntar på svar')).toBeTruthy();
+    expect(listLeaveRequests).toHaveBeenCalledWith({ status: 'PENDING' });
+
+    await fireEvent.press(screen.getByTestId('leave-banner'));
+    expect(navigation.navigate).toHaveBeenCalledWith('LeaveRequests');
+  });
+
+  test('is gone when nothing waits for an answer', async () => {
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByText('Inga kommande aktiviteter');
+
+    expect(screen.queryByTestId('leave-banner')).toBeNull();
+  });
+
+  test('disappears after a refresh once every request is answered', async () => {
+    jest.mocked(listLeaveRequests).mockResolvedValue([pending(1)]);
+    await render(<ActivitiesScreen {...props} />);
+    expect(await screen.findByText('1 ledighetsbegäran väntar på svar')).toBeTruthy();
+
+    jest.mocked(listLeaveRequests).mockResolvedValue([]);
+    await pullToRefresh();
+
+    await waitFor(() => expect(screen.queryByTestId('leave-banner')).toBeNull());
+  });
+
+  test('a failed call hides the banner and leaves the page working', async () => {
+    jest.mocked(listLeaveRequests).mockRejectedValue(new Error('Network request failed'));
+    await render(<ActivitiesScreen {...props} />);
+    await screen.findByText('Inga kommande aktiviteter');
+
+    expect(screen.queryByTestId('leave-banner')).toBeNull();
+    expect(screen.queryByText('Network request failed')).toBeNull();
+  });
 });

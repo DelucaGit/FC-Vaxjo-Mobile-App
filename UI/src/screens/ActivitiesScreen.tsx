@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type {
   NativeStackNavigationProp,
   NativeStackScreenProps,
 } from '@react-navigation/native-stack';
+import { ChevronRight, Mail } from 'lucide-react-native';
+import { listLeaveRequests } from '../api/leaveRequests';
 import { listMatchAttendance, listMatches } from '../api/matches';
 import type { ActivityWhen } from '../api/request';
 import { listMyTeams, listTeams, type Team } from '../api/teams';
@@ -44,7 +46,7 @@ import { ErrorText } from '../components/activities/TrainingForm';
 import { HomeTimelineView, type HomeActivity } from '../components/home';
 import { homeTimeline } from '../lib/activities/homeTimeline';
 import type { ActivityKind, AppStackParamList } from '../navigation/types';
-import { colors, spacing, type } from '../theme';
+import { colors, fonts, radii, sizes, spacing, type } from '../theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Activities'>;
 
@@ -74,6 +76,8 @@ export default function ActivitiesScreen({ navigation }: Props) {
   const [choice, setChoice] = useState<TeamChoice>('all');
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** How many leave requests wait for an answer. null until known (or when the call fails). */
+  const [pendingLeave, setPendingLeave] = useState<number | null>(null);
   // "Visa fler" counts per team choice, so a new choice starts at one week again.
   const [more, setMore] = useState<{ choice: TeamChoice; weeks: number }>({
     choice: 'all',
@@ -84,7 +88,7 @@ export default function ActivitiesScreen({ navigation }: Props) {
   // Teams: a coach only sees their own. /my/teams answers 403 for CHAIRMAN, so club-wide roles
   // use /teams. Then the upcoming trainings and matches of every team, all at once.
   // Written with .then (not async/await) so the lint rule can see that setState runs later.
-  const load = useCallback(
+  const loadActivities = useCallback(
     (isActive: () => boolean = () => true) =>
       (isClubWide(role) ? listTeams() : listMyTeams())
         .then((list) =>
@@ -118,6 +122,25 @@ export default function ActivitiesScreen({ navigation }: Props) {
           if (isActive()) setError(e instanceof Error ? e.message : 'Något gick fel');
         }),
     [role],
+  );
+
+  // The banner is extra information: if the call fails the page works without it.
+  const loadPendingLeave = useCallback(
+    (isActive: () => boolean = () => true) =>
+      listLeaveRequests({ status: 'PENDING' })
+        .then((list) => {
+          if (isActive()) setPendingLeave(list.length);
+        })
+        .catch(() => {
+          if (isActive()) setPendingLeave(null);
+        }),
+    [],
+  );
+
+  const load = useCallback(
+    (isActive: () => boolean = () => true) =>
+      Promise.all([loadActivities(isActive), loadPendingLeave(isActive)]),
+    [loadActivities, loadPendingLeave],
   );
 
   // Runs every time the screen gets focus, so a new or changed activity shows up on the way back.
@@ -180,6 +203,18 @@ export default function ActivitiesScreen({ navigation }: Props) {
       }
     >
       <ErrorText message={error} />
+      {pendingLeave ? (
+        <Pressable
+          accessibilityRole="button"
+          testID="leave-banner"
+          onPress={() => navigation.navigate('LeaveRequests')}
+          style={({ pressed }) => [styles.banner, pressed && styles.pressed]}
+        >
+          <Mail size={24} color={colors.warning} strokeWidth={2} />
+          <Text style={styles.bannerText}>{`${pendingLeave} ledighetsbegäran väntar på svar`}</Text>
+          <ChevronRight size={20} color={colors.warning} strokeWidth={2} />
+        </Pressable>
+      ) : null}
       {teams && teams.length > 1 ? (
         <View style={styles.picker}>
           <Segmented<TeamChoice>
@@ -418,6 +453,20 @@ function ActivityRow({ item, count, onPress }: RowProps) {
 }
 
 const styles = StyleSheet.create({
+  // Prototype `.banner`: soft amber with amber text, the whole card is the button.
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.touch,
+    marginHorizontal: spacing.page,
+    marginTop: spacing.page,
+    padding: 14,
+    borderRadius: radii.control,
+    backgroundColor: colors.warningSoft,
+  },
+  bannerText: { flex: 1, fontFamily: fonts.semibold, fontSize: 15, color: colors.warning },
+  pressed: { opacity: 0.8 },
   fabSpace: { height: FAB_SPACE },
   picker: { paddingHorizontal: spacing.page, paddingTop: spacing.page },
   teamName: { paddingHorizontal: spacing.page, paddingTop: spacing.page },
