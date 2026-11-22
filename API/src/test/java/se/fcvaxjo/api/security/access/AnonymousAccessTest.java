@@ -100,6 +100,9 @@ class AnonymousAccessTest extends ClubApiTest {
         } else if (path.contains("/matches/")) {
             path = path.replace("{id}", String.valueOf(world.matchAlfaId()));
             path = path.replace("{playerId}", String.valueOf(world.playerAlfaId()));
+        } else if (path.contains("/leave-requests/")) {
+            // Anonymous is turned away before the id is looked up, so any number works.
+            path = path.replace("{id}", "1");
         }
         if ("/api/trainings".equals(template)) {
             path = path + "?teamId=" + world.teamAlfaId();
