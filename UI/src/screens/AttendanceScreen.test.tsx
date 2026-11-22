@@ -216,6 +216,8 @@ test('confirming writes one mark per player (not Ledig), then locks', async () =
   expect(screen.queryByRole('button', { name: 'Spara' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Bo Ek' })).toBeNull();
   expect(player(12).getByText('Frånvarande')).toBeTruthy();
+  // Approved leave stays Ledig after Spara.
+  expect(player(14).getByText('Ledig')).toBeTruthy();
 });
 
 test('a failed write: no lock, a Swedish error, and the marks are kept', async () => {
