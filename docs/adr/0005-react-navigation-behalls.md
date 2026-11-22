@@ -2,6 +2,8 @@
 
 **Status:** Accepterad (Marcel, 2026-11-10) · **Datum:** 2026-11-05
 
+Delen om bottenflikar ersätts av [ADR 0012](0012-meny-i-stallet-for-flikar.md). React Navigation behålls.
+
 ## Kontext
 `UI/AGENTS.md` (rad 28–29) säger: "Use **Expo Router** for all navigation. Routes live in `src/app/`" och "Import `Link`, `router` … from `expo-router`". Koden gör något annat:
 - `UI/package.json` har `@react-navigation/native` ^7.5.1 och `@react-navigation/bottom-tabs` ^7.21.0, men inte `expo-router`.
