@@ -1,13 +1,12 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { TrainingType } from '../api/trainingTypes';
 
 export type ActivityKind = 'training' | 'match';
 
 /**
- * Every screen inside the tabs (spec section 7), with its params.
+ * Every screen after login (spec section 7), with its params.
  *
- * All tab stacks share this one list. Each stack registers only the routes it needs,
- * so e.g. PlayerView can be opened from Laget, Lag and Sök.
+ * The one stack (MainStack) registers only the routes the role may use (routesForRole),
+ * so e.g. PlayerView can be opened from Lag and Sök spelare.
  * Ids are the API's numeric ids.
  */
 export type AppStackParamList = {
@@ -55,17 +54,3 @@ export type AppStackParamList = {
   /** "Tidigare aktiviteter": every role, newest first. */
   PastActivities: undefined;
 };
-
-/** All tabs that exist. Which ones a user sees depends on the role (tabsForRole). */
-export type TabParamList = {
-  ScheduleTab: NavigatorScreenParams<AppStackParamList>;
-  CoachesTab: NavigatorScreenParams<AppStackParamList>;
-  ActivitiesTab: NavigatorScreenParams<AppStackParamList>;
-  SquadTab: NavigatorScreenParams<AppStackParamList>;
-  SearchTab: NavigatorScreenParams<AppStackParamList>;
-  TeamsTab: NavigatorScreenParams<AppStackParamList>;
-  UsersTab: NavigatorScreenParams<AppStackParamList>;
-  MoreTab: NavigatorScreenParams<AppStackParamList>;
-};
-
-export type TabName = keyof TabParamList;

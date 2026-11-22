@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Menu } from 'lucide-react-native';
+import { useMenu } from '../../navigation/menuContext';
 import { colors, radii, sizes, spacing, type } from '../../theme';
 import type { RefreshState } from './useRefresh';
 
@@ -26,7 +27,10 @@ type Props = {
 
 /**
  * Frame for every screen (spec section 4): header, scrolling content, fixed bottom bar.
- * The bottom menu is drawn by the tab navigator, not here.
+ *
+ * The first page of the stack (a menu page) gets the menu button instead of a back
+ * arrow, also when the screen passes `onBack`: a page like "Ny användare" is a menu
+ * page when opened from the menu, and a pushed page when opened from "Användare".
  */
 export function Screen({
   title,
@@ -38,17 +42,32 @@ export function Screen({
   refresh,
   children,
 }: Props) {
+  // Set only on the first page of the stack, so a pushed page keeps its back arrow.
+  const menu = useMenu();
+  const showMenu = menu !== null;
+
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       <View style={styles.header}>
-        {/* Left: the back arrow, or else the club's logo and name. */}
-        {onBack ? (
+        {/* Left: the menu button on a menu page, the back arrow on a pushed page. */}
+        {showMenu ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Öppna meny"
+            onPress={menu?.openMenu}
+            hitSlop={8}
+            style={[styles.round, styles.menuButton]}
+          >
+            <Menu size={sizes.icon - 2} color={colors.text} strokeWidth={2} />
+          </Pressable>
+        ) : null}
+        {onBack && !showMenu ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Tillbaka"
             onPress={onBack}
             hitSlop={8}
-            style={styles.back}
+            style={styles.round}
           >
             <ChevronLeft size={sizes.icon - 2} color={colors.text} strokeWidth={2} />
           </Pressable>
@@ -133,7 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   // Prototype `.round`: a white circle with a thin border.
-  back: {
+  round: {
     width: 40,
     height: 40,
     borderRadius: radii.pill,
@@ -144,6 +163,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // flexShrink 0: the logo and name never get squeezed; the title gives way instead.
+  menuButton: { marginRight: spacing.md },
   brand: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   logo: { width: 32, height: 32 },
   brandName: { ...type.heading, marginLeft: spacing.sm },

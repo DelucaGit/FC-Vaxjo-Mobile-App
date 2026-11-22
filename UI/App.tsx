@@ -11,7 +11,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { ToastProvider } from './src/components/ui';
-import MainTabs from './src/navigation/MainTabs';
+import MainStack from './src/navigation/MainStack';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import { colors } from './src/theme';
@@ -24,7 +24,7 @@ function Loading() {
   );
 }
 
-/** Login, then "Byt lösenord" when the account has a temporary password, then the tabs. */
+/** Login, then "Byt lösenord" when the account has a temporary password, then the pages with the menu. */
 function RootNavigator() {
   const { session, loading } = useAuth();
 
@@ -37,7 +37,7 @@ function RootNavigator() {
   if (session.mustChangePassword) {
     return <ChangePasswordScreen />;
   }
-  return <MainTabs />;
+  return <MainStack />;
 }
 
 export default function App() {
