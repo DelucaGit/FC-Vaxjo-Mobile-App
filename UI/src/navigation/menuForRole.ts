@@ -4,6 +4,7 @@ import {
   Contact,
   History,
   Mail,
+  Plus,
   Search,
   Shield,
   UserPlus,
@@ -39,6 +40,8 @@ const PLAYER_MENU: readonly MenuItem[] = [
 const COACH_MENU: readonly MenuItem[] = [
   ACTIVITIES,
   LEAVE,
+  // Issue #216: the guide. Coach only, as in the prototype (admin uses the start page's plus button).
+  { label: 'Ny träning', route: 'NewTraining', icon: Plus },
   { label: 'Lag', route: 'Squad', icon: Users },
   { label: 'Sök spelare', route: 'Search', icon: Search },
   PAST,
