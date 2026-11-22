@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ClipboardList,
   Contact,
   History,
   Search,
@@ -28,6 +29,7 @@ const ACTIVITIES: MenuItem = { label: 'Aktiviteter', route: 'Activities', icon: 
 const PLAYER_MENU: readonly MenuItem[] = [
   { label: 'Schema', route: 'Schedule', icon: CalendarDays },
   { label: 'Tränare', route: 'Coaches', icon: Contact },
+  { label: 'Mina ledighetsbegäran', route: 'MyLeaveRequests', icon: ClipboardList },
   PAST,
 ];
 
