@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts, spacing, type } from '../../theme';
 import { Empty } from '../ui';
@@ -17,6 +18,11 @@ type Props = {
   forName?: string;
   /** When given, every card is a button that calls this with its activity. */
   onPressActivity?: (activity: HomeActivity) => void;
+  /**
+   * Extra content at the bottom of each card, e.g. "Begär ledigt" on the player's page.
+   * `onColor` is true for the red or dark Nästa aktivitet card.
+   */
+  renderAction?: (activity: HomeActivity, onColor: boolean) => ReactNode;
 };
 
 /**
@@ -32,6 +38,7 @@ export function HomeTimelineView({
   teamName,
   forName,
   onPressActivity,
+  renderAction,
 }: Props) {
   if (!next) {
     return <Empty text="Inga kommande aktiviteter" />;
@@ -43,6 +50,7 @@ export function HomeTimelineView({
         teamName={teamName}
         forName={forName}
         onPress={onPressActivity ? () => onPressActivity(next) : undefined}
+        action={renderAction?.(next, true)}
       />
       <Text style={styles.heading}>
         {extraWeeks === 0 ? 'Kommande vecka' : 'Kommande aktiviteter'}
@@ -54,6 +62,7 @@ export function HomeTimelineView({
           activity={activity}
           teamName={teamName}
           onPress={onPressActivity ? () => onPressActivity(activity) : undefined}
+          action={renderAction?.(activity, false)}
         />
       ))}
       {hasMore ? (

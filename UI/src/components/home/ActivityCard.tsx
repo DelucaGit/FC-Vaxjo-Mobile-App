@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cancelledLabel } from '../activities/activityItems';
 import { timeLabel, toDate } from '../../lib/dates';
@@ -12,13 +13,15 @@ type Props = {
   teamName?: string;
   /** Makes the card a button, e.g. to open the activity's detail page. */
   onPress?: () => void;
+  /** Shown under the text, e.g. "Begär ledigt" or the request's status. */
+  action?: ReactNode;
 };
 
 /**
  * One activity in Kommande vecka (prototype `.arow`): a day block on the left,
  * then the title, the time and the venue. A match has a red day block.
  */
-export function ActivityCard({ activity, teamName, onPress }: Props) {
+export function ActivityCard({ activity, teamName, onPress, action }: Props) {
   const start = toDate(activity.startsAt);
   const isMatch = activity.kind === 'match';
   const time = activity.endsAt
@@ -39,6 +42,7 @@ export function ActivityCard({ activity, teamName, onPress }: Props) {
             {cancelledLabel(activity.cancelReason ?? null)}
           </Text>
         ) : null}
+        {action}
       </View>
     </>
   );
