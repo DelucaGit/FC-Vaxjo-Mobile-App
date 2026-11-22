@@ -25,8 +25,8 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- This app uses **React Navigation** (`@react-navigation/native` + `@react-navigation/bottom-tabs`), **not** Expo Router. See `docs/adr/0005-react-navigation-behalls.md`.
-- Navigators are set up in `App.tsx` (`NavigationContainer` + `createBottomTabNavigator`, role-based tabs). Screens live in `src/screens/`. There is no `src/app/` route folder.
+- This app uses **React Navigation** (`@react-navigation/native` + `@react-navigation/native-stack`), **not** Expo Router. See `docs/adr/0005-react-navigation-behalls.md` and `docs/adr/0012-meny-i-stallet-for-flikar.md`.
+- `App.tsx` holds the `NavigationContainer`; after login `src/navigation/MainStack.tsx` is one native stack, and the role-based menu comes from `src/navigation/menuForRole.ts`. There is no tab bar. Screens live in `src/screens/`. There is no `src/app/` route folder.
 - Use `useNavigation`, `useFocusEffect` and typed props from `@react-navigation/*`. Do not add `expo-router` or migrate to file-based routing without a new ADR.
 - Docs: https://reactnavigation.org/docs/getting-started
 
