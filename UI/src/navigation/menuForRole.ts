@@ -48,7 +48,7 @@ const ADMIN_MENU: readonly MenuItem[] = [
 
 /**
  * The menu for a role, in the order it is shown.
- * An unknown role gets an empty menu (the menu still shows "Mer", so the person can log out).
+ * An unknown role gets an empty menu (the profile menu still has Logga ut).
  */
 export function menuForRole(roleName: string | null | undefined): readonly MenuItem[] {
   switch (roleName) {
